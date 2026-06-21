@@ -18,6 +18,7 @@ const subscriptionDailyResetDeduction = 24 * time.Hour
 var (
 	ErrSubscriptionResetStorageUnavailable = infraerrors.ServiceUnavailable("SUBSCRIPTION_RESET_STORAGE_UNAVAILABLE", "subscription reset storage is not available")
 	ErrSubscriptionResetInsufficientTime   = infraerrors.BadRequest("SUBSCRIPTION_RESET_INSUFFICIENT_TIME", "subscription must have at least 24 hours remaining")
+	ErrSubscriptionDailyResetDisabled      = infraerrors.Forbidden("SUBSCRIPTION_DAILY_RESET_DISABLED", "subscription daily reset is disabled")
 )
 
 type SubscriptionResetAudit struct {
@@ -58,6 +59,9 @@ type lockedSubscriptionForDailyReset struct {
 func (s *SubscriptionService) ResetDailyUsageWithTimeDeduction(ctx context.Context, userID, subscriptionID int64) (*UserSubscription, error) {
 	if s.entClient == nil {
 		return nil, ErrSubscriptionResetStorageUnavailable
+	}
+	if !s.isSubscriptionDailyResetEnabled(ctx) {
+		return nil, ErrSubscriptionDailyResetDisabled
 	}
 
 	now := time.Now()
@@ -144,6 +148,17 @@ func (s *SubscriptionService) ResetDailyUsageWithTimeDeduction(ctx context.Conte
 	}
 
 	return s.userSubRepo.GetByID(ctx, subscriptionID)
+}
+
+func (s *SubscriptionService) isSubscriptionDailyResetEnabled(ctx context.Context) bool {
+	if s == nil || s.settingRepo == nil {
+		return true
+	}
+	value, err := s.settingRepo.GetValue(ctx, SettingKeySubscriptionDailyResetEnabled)
+	if err != nil {
+		return true
+	}
+	return !isFalseSettingValue(value)
 }
 
 func (s *SubscriptionService) ListSubscriptionResetAudits(ctx context.Context, filter SubscriptionResetAuditFilter) ([]SubscriptionResetAudit, *pagination.PaginationResult, error) {

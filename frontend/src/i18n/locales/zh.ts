@@ -5693,6 +5693,12 @@ export default {
           enabled: '启用可用渠道',
           enabledHint: '关闭后用户端侧边栏入口隐藏，接口返回空数组。',
         },
+        subscriptionDailyReset: {
+          title: '订阅日额重置',
+          description: '允许用户在订阅卡片中扣除 24 小时有效期，将该订阅的日额度用量清零。',
+          enabled: '启用订阅日额重置',
+          enabledHint: '关闭后用户端不显示重置按钮，接口也会拒绝重置请求。',
+        },
         riskControl: {
           title: '风控中心',
           description: '启用内容审计菜单和全端点请求审核入口。默认关闭。',

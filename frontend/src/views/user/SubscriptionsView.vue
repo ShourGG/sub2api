@@ -119,7 +119,7 @@
                   </p>
                 </div>
                 <button
-                  v-if="subscription.status === 'active'"
+                  v-if="subscriptionDailyResetEnabled && subscription.status === 'active'"
                   type="button"
                   :disabled="!canResetDaily(subscription) || resettingDaily"
                   :title="getResetDailyDisabledReason(subscription)"
@@ -294,7 +294,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
@@ -328,6 +328,9 @@ const resettingDaily = ref(false)
 const resettingDailySubscription = ref<UserSubscription | null>(null)
 
 const RESET_DAILY_DEDUCTION_MS = 24 * 60 * 60 * 1000
+const subscriptionDailyResetEnabled = computed(
+  () => appStore.cachedPublicSettings?.subscription_daily_reset_enabled !== false
+)
 
 async function loadSubscriptions() {
   try {
@@ -351,6 +354,7 @@ function getRemainingMs(subscription: UserSubscription): number | null {
 function canResetDaily(subscription: UserSubscription): boolean {
   const remainingMs = getRemainingMs(subscription)
   return (
+    subscriptionDailyResetEnabled.value &&
     subscription.status === 'active' &&
     Boolean(subscription.group?.daily_limit_usd) &&
     remainingMs !== null &&

@@ -5533,6 +5533,12 @@ export default {
           enabled: 'Enable Available Channels',
           enabledHint: 'When off, the sidebar entry is hidden and the endpoint returns an empty list.',
         },
+        subscriptionDailyReset: {
+          title: 'Subscription Daily Reset',
+          description: 'Allow users to deduct 24 hours from a subscription and reset its daily usage from the subscription card.',
+          enabled: 'Enable Subscription Daily Reset',
+          enabledHint: 'When off, the reset button is hidden and direct reset API calls are rejected.',
+        },
         riskControl: {
           title: 'Risk Control',
           description: 'Enable the content moderation menu and gateway audit entry point. Disabled by default.',
