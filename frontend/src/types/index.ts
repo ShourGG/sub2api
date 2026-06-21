@@ -1604,6 +1604,23 @@ export interface UserSubscription {
   group?: Group
 }
 
+export interface SubscriptionResetAudit {
+  id: number
+  subscription_id: number
+  user_id: number
+  group_id: number
+  operator_id: number
+  operator_type: string
+  deducted_seconds: number
+  before_expires_at: string
+  after_expires_at: string
+  before_daily_usage_usd: number
+  after_daily_usage_usd: number
+  before_daily_window_start?: string | null
+  after_daily_window_start?: string | null
+  created_at: string
+}
+
 export interface SubscriptionProgress {
   subscription_id: number
   daily: {

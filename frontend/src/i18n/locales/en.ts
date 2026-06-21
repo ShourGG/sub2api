@@ -2979,6 +2979,26 @@ export default {
       resetQuotaConfirm: "Reset the daily, weekly, and monthly usage quota for '{user}'? Usage will be zeroed and windows restarted from today.",
       quotaResetSuccess: 'Quota reset successfully',
       failedToResetQuota: 'Failed to reset quota',
+      resetAudit: {
+        open: 'Reset Logs',
+        title: 'Subscription Daily Reset Logs',
+        description: 'Review user-triggered daily quota resets, including deducted time, usage before and after reset, and expiration changes.',
+        refresh: 'Refresh',
+        empty: 'No reset records yet',
+        failedToLoad: 'Failed to load reset logs',
+        groupId: 'Group #{id}',
+        hours: '{hours}h',
+        seconds: '{seconds}s',
+        columns: {
+          createdAt: 'Time',
+          user: 'User',
+          subscription: 'Subscription',
+          operator: 'Operator',
+          deducted: 'Deducted',
+          dailyUsage: 'Daily Usage',
+          expiration: 'Expiration'
+        }
+      },
       noSubscriptionsYet: 'No subscriptions yet',
       assignFirstSubscription: 'Assign a subscription to get started.',
       subscriptionAssigned: 'Subscription assigned successfully',
@@ -6828,7 +6848,19 @@ export default {
     resetIn: 'Resets in {time}',
     quotaEndsIn: 'Quota ends in {time}',
     windowNotActive: 'Awaiting first use',
-    usageOf: '{used} of {limit}'
+    usageOf: '{used} of {limit}',
+    resetDaily: 'Reset Daily',
+    resettingDaily: 'Resetting...',
+    resetDailyTitle: 'Reset Daily Quota',
+    resetDailyConfirm: "Reset the daily quota for '{group}'?",
+    resetDailyWarning: 'This immediately deducts 24 hours from the subscription validity and clears daily usage for this subscription. This action cannot be undone.',
+    resetDailyDeduction: 'Time deducted',
+    resetDailyCurrentExpiration: 'Current expiration',
+    resetDailyAfterExpiration: 'Expiration after reset',
+    resetDailySuccess: 'Daily quota reset successfully',
+    resetDailyFailed: 'Failed to reset daily quota',
+    resetDailyInsufficientTime: 'At least 24 hours of remaining validity is required',
+    resetDailyUnavailable: 'This subscription cannot reset daily quota'
   },
 
   // Onboarding Tour
