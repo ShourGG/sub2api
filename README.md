@@ -223,7 +223,7 @@ Nginx drops headers containing underscores by default (e.g. `session_id`), which
 
 ## Deployment
 
-### Method 1: Script Installation (Recommended)
+### Method 1: Script Installation
 
 One-click installation script that downloads pre-built binaries from GitHub Releases.
 
@@ -237,7 +237,7 @@ One-click installation script that downloads pre-built binaries from GitHub Rele
 #### Installation Steps
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/ziyue67/sub2api/main/deploy/install.sh | sudo bash
 ```
 
 The script will:
@@ -287,7 +287,7 @@ sudo journalctl -u sub2api -f
 sudo systemctl restart sub2api
 
 # Uninstall
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install.sh | sudo bash -s -- uninstall -y
+curl -sSL https://raw.githubusercontent.com/ziyue67/sub2api/main/deploy/install.sh | sudo bash -s -- uninstall -y
 ```
 
 ---
@@ -310,7 +310,7 @@ Use the automated deployment script for easy setup:
 mkdir -p sub2api-deploy && cd sub2api-deploy
 
 # Download and run deployment preparation script
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/docker-deploy.sh | bash
+curl -sSL https://raw.githubusercontent.com/ziyue67/sub2api/main/deploy/docker-deploy.sh | bash
 
 # Start services
 docker compose up -d
@@ -332,7 +332,7 @@ If you prefer manual setup:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone https://github.com/ziyue67/sub2api.git
 cd sub2api/deploy
 
 # 2. Copy environment configuration
@@ -392,6 +392,22 @@ docker compose -f docker-compose.local.yml ps
 # 7. View logs
 docker compose -f docker-compose.local.yml logs -f sub2api
 ```
+
+#### Fork Image Deployment
+
+This fork publishes the application image to GitHub Container Registry as
+`ghcr.io/ziyue67/sub2api`. Before the first start, set the image in the
+deployment directory:
+
+```bash
+sed -i 's|weishaw/sub2api:latest|ghcr.io/ziyue67/sub2api:main|g' docker-compose.local.yml
+docker compose -f docker-compose.local.yml pull
+docker compose -f docker-compose.local.yml up -d
+```
+
+For a reproducible rollout, replace `main` with a published image tag or digest.
+The `data`, `postgres_data`, and `redis_data` directories contain persistent
+state and must be backed up before upgrades.
 
 #### Deployment Versions
 
@@ -462,7 +478,7 @@ rm -rf data/ postgres_data/ redis_data/
 Apple-silicon Macs running macOS 26 can run the full Sub2API, PostgreSQL, and Redis stack with Apple `container` 1.1.0 or newer:
 
 ```bash
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone https://github.com/ziyue67/sub2api.git
 cd sub2api/deploy
 ./apple-container.sh init
 ./apple-container.sh up
