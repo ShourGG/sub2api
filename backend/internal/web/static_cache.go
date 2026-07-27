@@ -10,7 +10,7 @@ import (
 
 // Vite emits content-hashed filenames under assets/, so the backend can apply
 // immutable caching without relying on a reverse proxy to classify paths.
-const staticAssetsCacheControl = "public, max-age=31536000, immutable"
+const staticAssetsCacheControl = "no-store"
 
 // isFingerprintedEmbeddedAssetPath reports whether a cleaned URL path refers to
 // a Vite asset whose filename contains the default eight-character build hash.
