@@ -391,16 +391,16 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 #### Fork Image Deployment
 
 This fork publishes the application image to GitHub Container Registry as
-`ghcr.io/ziyue67/sub2api`. Before the first start, set the image in the
+`ghcr.io/ziyue67/sub2api:latest`. Before the first start, set the image in the
 deployment directory:
 
 ```bash
-sed -i 's|weishaw/sub2api:latest|ghcr.io/ziyue67/sub2api:main|g' docker-compose.local.yml
+sed -i 's|weishaw/sub2api:latest|ghcr.io/ziyue67/sub2api:latest|g' docker-compose.local.yml
 docker compose -f docker-compose.local.yml pull
 docker compose -f docker-compose.local.yml up -d
 ```
 
-For a reproducible rollout, replace `main` with a published image tag or digest.
+For a reproducible rollout, replace `latest` with a published image tag or digest.
 The `data`, `postgres_data`, and `redis_data` directories contain persistent
 state and must be backed up before upgrades.
 
