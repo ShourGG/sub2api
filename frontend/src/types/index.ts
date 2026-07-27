@@ -654,6 +654,7 @@ export interface ApiKey {
   key: string
   name: string
   group_id: number | null
+  group_routes: ApiKeyGroupRoute[]
   status: 'active' | 'inactive' | 'quota_exhausted' | 'expired'
   ip_whitelist: string[]
   ip_blacklist: string[]
@@ -680,9 +681,18 @@ export interface ApiKey {
   reset_7d_at: string | null
 }
 
+export interface ApiKeyGroupRoute {
+  group_id: number
+  priority: number
+  weight: number
+  enabled: boolean
+  cooldown_seconds: number
+}
+
 export interface CreateApiKeyRequest {
   name: string
   group_id?: number | null
+  group_routes?: ApiKeyGroupRoute[]
   custom_key?: string // Optional custom API Key
   ip_whitelist?: string[]
   ip_blacklist?: string[]
@@ -696,6 +706,7 @@ export interface CreateApiKeyRequest {
 export interface UpdateApiKeyRequest {
   name?: string
   group_id?: number | null
+  group_routes?: ApiKeyGroupRoute[]
   status?: 'active' | 'inactive'
   ip_whitelist?: string[]
   ip_blacklist?: string[]

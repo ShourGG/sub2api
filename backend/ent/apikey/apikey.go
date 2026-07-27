@@ -29,6 +29,8 @@ const (
 	FieldName = "name"
 	// FieldGroupID holds the string denoting the group_id field in the database.
 	FieldGroupID = "group_id"
+	// FieldGroupRoutes holds the string denoting the group_routes field in the database.
+	FieldGroupRoutes = "group_routes"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldLastUsedAt holds the string denoting the last_used_at field in the database.
@@ -102,6 +104,7 @@ var Columns = []string{
 	FieldKey,
 	FieldName,
 	FieldGroupID,
+	FieldGroupRoutes,
 	FieldStatus,
 	FieldLastUsedAt,
 	FieldIPWhitelist,

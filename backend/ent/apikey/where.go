@@ -470,6 +470,16 @@ func GroupIDNotNil() predicate.APIKey {
 	return predicate.APIKey(sql.FieldNotNull(FieldGroupID))
 }
 
+// GroupRoutesIsNil applies the IsNil predicate on the "group_routes" field.
+func GroupRoutesIsNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldIsNull(FieldGroupRoutes))
+}
+
+// GroupRoutesNotNil applies the NotNil predicate on the "group_routes" field.
+func GroupRoutesNotNil() predicate.APIKey {
+	return predicate.APIKey(sql.FieldNotNull(FieldGroupRoutes))
+}
+
 // StatusEQ applies the EQ predicate on the "status" field.
 func StatusEQ(v string) predicate.APIKey {
 	return predicate.APIKey(sql.FieldEQ(FieldStatus, v))

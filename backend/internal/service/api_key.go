@@ -3,6 +3,7 @@ package service
 import (
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 )
 
@@ -33,6 +34,7 @@ type APIKey struct {
 	Key         string
 	Name        string
 	GroupID     *int64
+	GroupRoutes []domain.APIKeyGroupRoute
 	Status      string
 	IPWhitelist []string
 	IPBlacklist []string

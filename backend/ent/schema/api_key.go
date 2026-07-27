@@ -44,6 +44,9 @@ func (APIKey) Fields() []ent.Field {
 		field.Int64("group_id").
 			Optional().
 			Nillable(),
+		field.JSON("group_routes", []domain.APIKeyGroupRoute{}).
+			Optional().
+			Comment("Ordered multi-group routes for this API key"),
 		field.String("status").
 			MaxLen(20).
 			Default(domain.StatusActive),

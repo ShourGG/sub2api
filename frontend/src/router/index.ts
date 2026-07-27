@@ -206,6 +206,16 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/model-square',
+    name: 'ModelSquare',
+    component: () => import('@/views/user/ModelSquareView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Model Square'
+    }
+  },
+  {
     path: '/batch-image',
     name: 'BatchImageGuide',
     alias: '/docs/batch-image',

@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 17 // v17: include the OpenAI group Live gate
+const apiKeyAuthSnapshotVersion = 18 // v18: include API key multi-group routes
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -340,6 +340,7 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 		APIKeyID:    apiKey.ID,
 		UserID:      apiKey.UserID,
 		GroupID:     apiKey.GroupID,
+		GroupRoutes: apiKey.GroupRoutes,
 		Name:        apiKey.Name,
 		Status:      apiKey.Status,
 		IPWhitelist: apiKey.IPWhitelist,
@@ -433,6 +434,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 		ID:          snapshot.APIKeyID,
 		UserID:      snapshot.UserID,
 		GroupID:     snapshot.GroupID,
+		GroupRoutes: snapshot.GroupRoutes,
 		Key:         key,
 		Name:        snapshot.Name,
 		Status:      snapshot.Status,
