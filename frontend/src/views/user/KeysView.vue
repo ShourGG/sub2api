@@ -77,6 +77,9 @@
             <Icon name="plus" size="md" class="mr-2" />
             {{ t('keys.createKey') }}
           </button>
+          <span class="hidden rounded-full bg-primary-50 px-3 py-1 text-xs font-medium text-primary-700 ring-1 ring-primary-200 sm:inline dark:bg-primary-900/20 dark:text-primary-300 dark:ring-primary-800">
+            支持多分组路由
+          </span>
         </div>
       </template>
 
