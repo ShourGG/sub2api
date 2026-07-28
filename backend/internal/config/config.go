@@ -98,6 +98,7 @@ type Config struct {
 	Idempotency             IdempotencyConfig             `mapstructure:"idempotency"`
 	BatchImage              BatchImageConfig              `mapstructure:"batch_image"`
 	ImageStorage            ImageStorageConfig            `mapstructure:"image_storage"`
+	ImageCreator            ImageCreatorConfig            `mapstructure:"image_creator"`
 }
 
 type LogConfig struct {
@@ -3595,4 +3596,30 @@ func warnIfInsecureURL(field, raw string) {
 	if strings.EqualFold(u.Scheme, "http") {
 		slog.Warn("url uses http scheme; use https in production to avoid token leakage", "field", field)
 	}
+}
+
+// ImageCreatorConfig 控制用户生图任务的存储与运行时行为。
+type ImageCreatorConfig struct {
+	StorageDir             string                          `mapstructure:"storage_dir"`
+	StorageBackend         string                          `mapstructure:"storage_backend"`
+	ObjectStorage          ImageCreatorObjectStorageConfig `mapstructure:"object_storage"`
+	MaxSavedImagesPerUser  int                             `mapstructure:"max_saved_images_per_user"`
+	RetentionDays          int                             `mapstructure:"retention_days"`
+	WorkerIntervalSeconds  int                             `mapstructure:"worker_interval_seconds"`
+	TaskTimeoutSeconds     int                             `mapstructure:"task_timeout_seconds"`
+	RequestTimeoutSeconds  int                             `mapstructure:"request_timeout_seconds"`
+	CleanupBatchSize       int                             `mapstructure:"cleanup_batch_size"`
+	DownloadBytesPerSecond int64                           `mapstructure:"download_bytes_per_second"`
+	LocalGatewayBaseURL    string                          `mapstructure:"local_gateway_base_url"`
+}
+
+// ImageCreatorObjectStorageConfig 配置生图任务结果的 S3 兼容对象存储。
+type ImageCreatorObjectStorageConfig struct {
+	Endpoint        string `mapstructure:"endpoint"`
+	Region          string `mapstructure:"region"`
+	Bucket          string `mapstructure:"bucket"`
+	AccessKeyID     string `mapstructure:"access_key_id"`
+	SecretAccessKey string `mapstructure:"secret_access_key"`
+	Prefix          string `mapstructure:"prefix"`
+	ForcePathStyle  bool   `mapstructure:"force_path_style"`
 }

@@ -22,6 +22,11 @@ export * as batchImageAPI from './batchImage'
 export { totpAPI } from './totp'
 export { default as announcementsAPI } from './announcements'
 export { channelMonitorUserAPI } from './channelMonitor'
+export {
+  studioBridgeAPI,
+  type StudioBridgeLaunchResponse,
+  type StudioBridgeSessionProbeResponse
+} from './studioBridge'
 
 // Admin APIs
 export { adminAPI } from './admin'

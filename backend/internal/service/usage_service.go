@@ -344,6 +344,17 @@ func (s *UsageService) GetUserModelStats(ctx context.Context, userID int64, star
 	return stats, nil
 }
 
+// GetTokenLeaderboard returns the raw Token consumption leaderboard rows within
+// [startTime, endTime). Masking, ranking numbers and "is me" resolution are applied
+// by the caller (handler); this method stays presentation-agnostic.
+func (s *UsageService) GetTokenLeaderboard(ctx context.Context, startTime, endTime time.Time, limit int) ([]usagestats.TokenLeaderboardRow, error) {
+	rows, err := s.usageRepo.GetTokenLeaderboard(ctx, startTime, endTime, limit)
+	if err != nil {
+		return nil, fmt.Errorf("get token leaderboard: %w", err)
+	}
+	return rows, nil
+}
+
 // GetModelStatsWithFiltersBySource returns model stats using the shared usage filter shape.
 func (s *UsageService) GetModelStatsWithFiltersBySource(ctx context.Context, startTime, endTime time.Time, filters usagestats.UsageLogFilters, modelSource string) ([]usagestats.ModelStat, error) {
 	normalizedSource := usagestats.NormalizeModelSource(modelSource)

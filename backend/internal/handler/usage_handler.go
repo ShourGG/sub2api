@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -451,6 +452,98 @@ func (h *UsageHandler) DashboardStats(c *gin.Context) {
 	}
 
 	response.Success(c, stats)
+}
+
+// leaderboardPeriodLabel maps a days window to a human label matching the reference page.
+func leaderboardPeriodLabel(days int) string {
+	switch days {
+	case 1:
+		return "今日"
+	case 7:
+		return "近 7 天"
+	case 30:
+		return "近 30 天"
+	default:
+		return fmt.Sprintf("近 %d 天", days)
+	}
+}
+
+// parseLeaderboardDays clamps the days query to the allowed windows {1,7,30}, default 1.
+func parseLeaderboardDays(raw string) int {
+	switch strings.TrimSpace(raw) {
+	case "7":
+		return 7
+	case "30":
+		return 30
+	default:
+		return 1
+	}
+}
+
+// DashboardLeaderboard returns the Token consumption leaderboard.
+// GET /api/v1/usage/dashboard/leaderboard?days=1|7|30&limit=20&timezone=Asia/Shanghai
+//
+// Ranking key is total_tokens = input + output + cache + image_output.
+// Regular users only ever see Top 1-20 with emails masked; the current user's
+// own row is labeled "我" and flagged is_me so the frontend can highlight it.
+func (h *UsageHandler) DashboardLeaderboard(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	userTZ := c.Query("timezone")
+	days := parseLeaderboardDays(c.DefaultQuery("days", "1"))
+	// Top 1-20 only; ignore any larger client-supplied limit for regular users.
+	limit := 20
+
+	now := timezone.NowInUserLocation(userTZ)
+	endTime := timezone.StartOfDayInUserLocation(now.AddDate(0, 0, 1), userTZ)
+	startTime := timezone.StartOfDayInUserLocation(now.AddDate(0, 0, -(days-1)), userTZ)
+
+	rows, err := h.usageService.GetTokenLeaderboard(c.Request.Context(), startTime, endTime, limit)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	loc := now.Location()
+	items := make([]usagestats.TokenLeaderboardItem, 0, len(rows))
+	for i, row := range rows {
+		isMe := row.UserID == subject.UserID
+		displayUser := service.MaskEmail(row.Email)
+		if isMe {
+			displayUser = "我"
+		}
+		lastActive := ""
+		if !row.LastActiveAt.IsZero() {
+			lastActive = row.LastActiveAt.In(loc).Format("01-02 15:04")
+		}
+		items = append(items, usagestats.TokenLeaderboardItem{
+			Rank:              i + 1,
+			UserID:            0, // never expose raw user id to regular users
+			User:              displayUser,
+			Requests:          row.Requests,
+			TotalTokens:       row.TotalTokens,
+			InputTokens:       row.InputTokens,
+			OutputTokens:      row.OutputTokens,
+			CacheTokens:       row.CacheTokens,
+			ImageOutputTokens: row.ImageOutputTokens,
+			LastActiveAt:      lastActive,
+			IsMe:              isMe,
+		})
+	}
+
+	response.Success(c, usagestats.TokenLeaderboardResponse{
+		Days:     days,
+		Label:    leaderboardPeriodLabel(days),
+		Timezone: loc.String(),
+		Start:    startTime.Format(time.RFC3339),
+		End:      now.Format(time.RFC3339),
+		Limit:    limit,
+		Items:    items,
+	})
 }
 
 // DashboardTrend handles getting user usage trend data

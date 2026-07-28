@@ -76,6 +76,9 @@ type SettingService struct {
 	// instance owns its own cache, no shared package-level state.
 	openAIQuotaAutoPauseSettingsCache atomic.Value // *cachedOpenAIQuotaAutoPauseSettings
 	openAIQuotaAutoPauseSettingsSF    singleflight.Group
+
+	// studioBridgeDefaultGroupReader 用于验证 studio bridge 兜底分组是否存在且活跃。
+	studioBridgeDefaultGroupReader StudioBridgeGroupReader
 }
 
 // DefaultPlatformQuotaSetting 单 platform 三档限额（nil = 沿用上层；0 = 显式禁用；>0 = 上限）

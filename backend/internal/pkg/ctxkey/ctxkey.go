@@ -75,4 +75,7 @@ const (
 
 	// ClaudeCodeVersion stores the extracted Claude Code version from User-Agent (e.g. "2.1.22")
 	ClaudeCodeVersion Key = "ctx_claude_code_version"
+
+	// StudioBridgeGateway 标识当前请求来自 Studio Bridge 外部网关（用于跳过重复计费）。
+	StudioBridgeGateway Key = "ctx_studio_bridge_gateway"
 )
