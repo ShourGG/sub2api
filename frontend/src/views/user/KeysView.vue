@@ -513,29 +513,58 @@
         <div class="space-y-3 border-t border-gray-200 pt-4 dark:border-dark-700">
           <div class="flex items-center justify-between gap-3">
             <div>
-              <label class="input-label mb-0">多分组路由</label>
-              <p class="input-hint mt-1">按优先级选择，同优先级按权重分配</p>
+              <label class="input-label mb-0">{{ t('keys.multiGroupRouting') }}</label>
+              <p class="input-hint mt-1">{{ t('keys.multiGroupRoutingHint') }}</p>
             </div>
             <button
               type="button"
               @click="toggleGroupRoutes"
               :class="['relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors', formData.enable_group_routes ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600']"
-              aria-label="切换多分组路由"
+              :aria-label="t('keys.toggleMultiGroupRouting')"
             >
               <span :class="['pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition', formData.enable_group_routes ? 'translate-x-4' : 'translate-x-0']" />
             </button>
           </div>
           <div v-if="formData.enable_group_routes" class="space-y-2">
             <div v-for="(route, index) in formData.group_routes" :key="index" class="grid grid-cols-[minmax(0,1fr)_70px_70px_80px_32px] items-end gap-2">
-              <label class="block text-xs text-gray-500 dark:text-dark-400">分组
-                <select v-model.number="route.group_id" class="input mt-1 w-full"><option v-for="group in groups" :key="group.id" :value="group.id">{{ group.name }}</option></select>
+              <label class="block min-w-0 text-xs text-gray-500 dark:text-dark-400">{{ t('keys.group') }}
+                <Select
+                  :model-value="route.group_id"
+                  :options="groupOptions"
+                  :searchable="true"
+                  :placeholder="t('keys.selectGroup')"
+                  class="mt-1"
+                  @update:model-value="route.group_id = Number($event)"
+                >
+                  <template #selected="{ option }">
+                    <GroupBadge
+                      v-if="option"
+                      :name="(option as unknown as GroupOption).label"
+                      :platform="(option as unknown as GroupOption).platform"
+                      :subscription-type="(option as unknown as GroupOption).subscriptionType"
+                      :show-rate="false"
+                    />
+                    <span v-else class="text-gray-400">{{ t('keys.selectGroup') }}</span>
+                  </template>
+                  <template #option="{ option, selected }">
+                    <GroupOptionItem
+                      :name="(option as unknown as GroupOption).label"
+                      :platform="(option as unknown as GroupOption).platform"
+                      :subscription-type="(option as unknown as GroupOption).subscriptionType"
+                      :rate-multiplier="(option as unknown as GroupOption).rate"
+                      :user-rate-multiplier="(option as unknown as GroupOption).userRate"
+                      :description="(option as unknown as GroupOption).description"
+                      :selected="selected"
+                    />
+                  </template>
+                </Select>
               </label>
-              <label class="block text-xs text-gray-500 dark:text-dark-400">优先级<input v-model.number="route.priority" min="1" type="number" class="input mt-1 w-full" /></label>
-              <label class="block text-xs text-gray-500 dark:text-dark-400">权重<input v-model.number="route.weight" min="1" type="number" class="input mt-1 w-full" /></label>
-              <label class="block text-xs text-gray-500 dark:text-dark-400">冷却秒数<input v-model.number="route.cooldown_seconds" min="0" type="number" class="input mt-1 w-full" /></label>
-              <button type="button" class="btn btn-secondary !px-2" aria-label="移除分组" @click="removeGroupRoute(index)">×</button>
+              <label class="block text-xs text-gray-500 dark:text-dark-400">{{ t('keys.routePriority') }}<input v-model.number="route.priority" min="1" type="number" class="input mt-1 w-full" /></label>
+              <label class="block text-xs text-gray-500 dark:text-dark-400">{{ t('keys.routeWeight') }}<input v-model.number="route.weight" min="1" type="number" class="input mt-1 w-full" /></label>
+              <label class="block text-xs text-gray-500 dark:text-dark-400">{{ t('keys.routeCooldown') }}<input v-model.number="route.cooldown_seconds" min="0" type="number" class="input mt-1 w-full" /></label>
+              <button type="button" class="btn btn-secondary !px-2" :aria-label="t('keys.removeRouteGroup')" @click="removeGroupRoute(index)">×</button>
             </div>
-            <button type="button" class="btn btn-secondary text-sm" @click="addGroupRoute">添加分组</button>
+            <button type="button" class="btn btn-secondary text-sm" @click="addGroupRoute">{{ t('keys.addRouteGroup') }}</button>
           </div>
         </div>
 
@@ -1412,6 +1441,31 @@ const toggleGroupRoutes = () => {
   if (formData.value.enable_group_routes && formData.value.group_routes.length === 0) addGroupRoute()
 }
 
+const validateGroupRoutes = () => {
+  if (!formData.value.enable_group_routes) return true
+  if (formData.value.group_routes.length === 0) {
+    appStore.showError(t('keys.groupRouteRequired'))
+    return false
+  }
+
+  const groupIDs = new Set<number>()
+  for (const route of formData.value.group_routes) {
+    if (!Number.isInteger(route.group_id) || route.group_id <= 0 ||
+      !Number.isInteger(route.priority) || route.priority <= 0 ||
+      !Number.isInteger(route.weight) || route.weight <= 0 ||
+      !Number.isInteger(route.cooldown_seconds) || route.cooldown_seconds < 0) {
+      appStore.showError(t('keys.groupRouteInvalid'))
+      return false
+    }
+    if (groupIDs.has(route.group_id)) {
+      appStore.showError(t('keys.groupRouteDuplicate'))
+      return false
+    }
+    groupIDs.add(route.group_id)
+  }
+  return true
+}
+
 const statusOptions = computed(() => [
   { value: 'active', label: t('common.active') },
   { value: 'inactive', label: t('common.inactive') }
@@ -1714,6 +1768,10 @@ const handleSubmit = async () => {
   // Validate group_id is required
   if (formData.value.group_id === null) {
     appStore.showError(t('keys.groupRequired'))
+    return
+  }
+
+  if (!validateGroupRoutes()) {
     return
   }
 

@@ -86,6 +86,9 @@ func RegisterUserRoutes(
 			channels.GET("/available", h.AvailableChannel.List)
 		}
 
+		// 模型广场：展示所有活跃分组中可调度账号已同步的模型。
+		authenticated.GET("/model-square", h.ModelSquare.List)
+
 		// 使用记录（聚合统计属重查询，叠加更严格的按用户限流）
 		usage := authenticated.Group("/usage")
 		usage.Use(panelRateLimiter.Heavy())

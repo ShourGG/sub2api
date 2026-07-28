@@ -217,20 +217,24 @@ func filterUserVisibleGroups(
 		if _, ok := allowed[g.ID]; !ok {
 			continue
 		}
-		visible = append(visible, userAvailableGroup{
-			ID:                 g.ID,
-			Name:               g.Name,
-			Platform:           g.Platform,
-			SubscriptionType:   g.SubscriptionType,
-			RateMultiplier:     g.RateMultiplier,
-			PeakRateEnabled:    g.PeakRateEnabled,
-			PeakStart:          g.PeakStart,
-			PeakEnd:            g.PeakEnd,
-			PeakRateMultiplier: g.PeakRateMultiplier,
-			IsExclusive:        g.IsExclusive,
-		})
+		visible = append(visible, toUserAvailableGroup(g))
 	}
 	return visible
+}
+
+func toUserAvailableGroup(g service.AvailableGroupRef) userAvailableGroup {
+	return userAvailableGroup{
+		ID:                 g.ID,
+		Name:               g.Name,
+		Platform:           g.Platform,
+		SubscriptionType:   g.SubscriptionType,
+		RateMultiplier:     g.RateMultiplier,
+		PeakRateEnabled:    g.PeakRateEnabled,
+		PeakStart:          g.PeakStart,
+		PeakEnd:            g.PeakEnd,
+		PeakRateMultiplier: g.PeakRateMultiplier,
+		IsExclusive:        g.IsExclusive,
+	}
 }
 
 // toUserSupportedModels 将 service 层支持模型转换为用户 DTO（字段白名单）。

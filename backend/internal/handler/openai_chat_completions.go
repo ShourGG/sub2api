@@ -108,9 +108,6 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		return
 	}
 
-	// 解析渠道级模型映射
-	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
-
 	if h.errorPassthroughService != nil {
 		service.BindErrorPassthroughService(c, h.errorPassthroughService)
 	}
@@ -144,6 +141,10 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 
 	maxAccountSwitches := h.maxAccountSwitches
 	switchCount := 0
+	routeAttempts := make(map[int64]struct{}, len(apiKey.GroupRoutes))
+	if apiKey.GroupID != nil {
+		routeAttempts[*apiKey.GroupID] = struct{}{}
+	}
 	failedAccountIDs := make(map[int64]struct{})
 	sameAccountRetryCount := make(map[int64]int)
 	var lastFailoverErr *service.UpstreamFailoverError
@@ -154,6 +155,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 			return
 		}
 		reqLog.Debug("openai_chat_completions.account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
+		attemptChannelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
 		selection, scheduleDecision, err := h.gatewayService.SelectAccountWithSchedulerForCapability(
 			c.Request.Context(),
 			apiKey.GroupID,
@@ -178,6 +180,23 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 				zap.Int("excluded_account_count", len(failedAccountIDs)),
 			)
 			if len(failedAccountIDs) == 0 {
+				if switched, switchErr := switchToNextAPIKeyRoute(c, h.apiKeyService, apiKey, routeAttempts, false); switchErr != nil {
+					reqLog.Warn("openai_chat_completions.group_route_switch_failed", zap.Error(switchErr))
+				} else if switched {
+					subscription, switchErr = selectedGroupRouteSubscription(c, h.apiKeyService, apiKey)
+					if switchErr == nil {
+						switchErr = checkSelectedGroupRouteEligibility(c, h.billingCacheService, apiKey, subscription)
+					}
+					if switchErr != nil {
+						reqLog.Warn("openai_chat_completions.group_route_subscription_load_failed", zap.Error(switchErr))
+						h.handleStreamingAwareError(c, http.StatusBadGateway, "api_error", "No available accounts", streamStarted)
+						return
+					}
+					failedAccountIDs = make(map[int64]struct{})
+					sameAccountRetryCount = make(map[int64]int)
+					switchCount = 0
+					continue
+				}
 				cls := classifyOpenAICompatibleNoAccountErrorFromGin(c, h.gatewayService, apiKey, reqModel, reqModel)
 				if !cls.ModelNotFound {
 					markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
@@ -216,8 +235,8 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		forwardStart := time.Now()
 
 		forwardBody := body
-		if channelMapping.Mapped {
-			forwardBody = h.gatewayService.ReplaceModelInBody(body, channelMapping.MappedModel)
+		if attemptChannelMapping.Mapped {
+			forwardBody = h.gatewayService.ReplaceModelInBody(body, attemptChannelMapping.MappedModel)
 		}
 		writerSizeBeforeForward := c.Writer.Size()
 		result, err := func() (*service.OpenAIForwardResult, error) {
@@ -232,7 +251,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		if service.GetOpsCyberPolicy(c) != nil {
 			cyberBlockKeyChat = service.CyberSessionBlockKey(apiKey.ID, c, body)
 		}
-		h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, reqModel, err != nil, cyberBlockKeyChat, clientRequestedUsageFields(c, channelMapping, reqModel, ""), service.HashUsageRequestPayload(body))
+		h.recordCyberPolicyIfMarked(c, apiKey, account, subscription, reqModel, err != nil, cyberBlockKeyChat, clientRequestedUsageFields(c, attemptChannelMapping, reqModel, ""), service.HashUsageRequestPayload(body))
 
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()
 		upstreamLatencyMs, _ := getContextInt64(c, service.OpsUpstreamLatencyMsKey)
@@ -295,6 +314,23 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 					failedAccountIDs[account.ID] = struct{}{}
 					lastFailoverErr = failoverErr
 					if switchCount >= maxAccountSwitches {
+						if switched, switchErr := switchToNextAPIKeyRoute(c, h.apiKeyService, apiKey, routeAttempts, true); switchErr != nil {
+							reqLog.Warn("openai_chat_completions.group_route_switch_failed", zap.Error(switchErr))
+						} else if switched {
+							subscription, switchErr = selectedGroupRouteSubscription(c, h.apiKeyService, apiKey)
+							if switchErr == nil {
+								switchErr = checkSelectedGroupRouteEligibility(c, h.billingCacheService, apiKey, subscription)
+							}
+							if switchErr != nil {
+								reqLog.Warn("openai_chat_completions.group_route_subscription_load_failed", zap.Error(switchErr))
+								h.handleFailoverExhausted(c, failoverErr, streamStarted)
+								return
+							}
+							failedAccountIDs = make(map[int64]struct{})
+							sameAccountRetryCount = make(map[int64]int)
+							switchCount = 0
+							continue
+						}
 						h.handleFailoverExhausted(c, failoverErr, streamStarted)
 						return
 					}
@@ -357,7 +393,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 				APIKeyService:      h.apiKeyService,
 				QuotaPlatform:      quotaPlatform,
 				SessionID:          sessionID,
-				ChannelUsageFields: clientRequestedUsageFields(c, channelMapping, reqModel, result.UpstreamModel),
+				ChannelUsageFields: clientRequestedUsageFields(c, attemptChannelMapping, reqModel, result.UpstreamModel),
 				CyberBlocked:       cyberBlocked,
 			}); err != nil {
 				logger.L().With(

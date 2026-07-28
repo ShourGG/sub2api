@@ -33,6 +33,7 @@ var (
 	ErrAPIKeyAuthOverloaded    = infraerrors.ServiceUnavailable("API_KEY_AUTH_OVERLOADED", "api key authentication is temporarily overloaded")
 	ErrInvalidIPPattern        = infraerrors.BadRequest("INVALID_IP_PATTERN", "invalid IP or CIDR pattern")
 	ErrAPIKeyGroupRouteInvalid = infraerrors.BadRequest("API_KEY_GROUP_ROUTE_INVALID", "invalid api key group route")
+	ErrAPIKeyGroupRouteCooling = infraerrors.ServiceUnavailable("API_KEY_GROUP_ROUTE_COOLING", "all api key group routes are cooling down")
 	// ErrAPIKeyExpired        = infraerrors.Forbidden("API_KEY_EXPIRED", "api key has expired")
 	ErrAPIKeyExpired = infraerrors.Forbidden("API_KEY_EXPIRED", "api key 已过期")
 	// ErrAPIKeyQuotaExhausted = infraerrors.TooManyRequests("API_KEY_QUOTA_EXHAUSTED", "api key quota exhausted")
@@ -254,6 +255,8 @@ type APIKeyService struct {
 	lastUsedTouchL1           sync.Map // keyID -> nextAllowedAt(time.Time)
 	lastUsedTouchSF           singleflight.Group
 	routeSequence             atomic.Uint64
+	routeCooldowns            sync.Map // apiKeyID:groupID -> time.Time
+	routeNow                  func() time.Time
 }
 
 type APIKeyAuthLookupMetrics struct {
@@ -293,6 +296,7 @@ func NewAPIKeyService(
 		userGroupRateRepo: userGroupRateRepo,
 		cache:             cache,
 		cfg:               cfg,
+		routeNow:          time.Now,
 	}
 	svc.initAuthCache(cfg)
 	lookupConcurrency := defaultAuthLookupConcurrency
@@ -438,13 +442,20 @@ func (s *APIKeyService) validateAPIKeyGroupRoutes(ctx context.Context, user *Use
 }
 
 func (s *APIKeyService) selectedAPIKeyGroupRoute(key *APIKey) *domain.APIKeyGroupRoute {
+	return s.selectedAPIKeyGroupRouteExcluding(key, nil)
+}
+
+// selectedAPIKeyGroupRouteExcluding chooses the first non-cooled priority
+// bucket, then spreads equal-priority candidates by weight. Excluded groups are
+// those already attempted by the in-flight request.
+func (s *APIKeyService) selectedAPIKeyGroupRouteExcluding(key *APIKey, excluded map[int64]struct{}) *domain.APIKeyGroupRoute {
 	if key == nil || len(key.GroupRoutes) == 0 {
 		return nil
 	}
 	var candidates []domain.APIKeyGroupRoute
 	priority := 0
 	for _, route := range key.GroupRoutes {
-		if !route.Enabled {
+		if !route.Enabled || s.groupRouteExcludedOrCooling(key.ID, route.GroupID, excluded) {
 			continue
 		}
 		if priority == 0 || route.Priority < priority {
@@ -477,11 +488,63 @@ func (s *APIKeyService) selectedAPIKeyGroupRoute(key *APIKey) *domain.APIKeyGrou
 	return &candidates[len(candidates)-1]
 }
 
+func (s *APIKeyService) groupRouteExcludedOrCooling(keyID, groupID int64, excluded map[int64]struct{}) bool {
+	if _, exists := excluded[groupID]; exists {
+		return true
+	}
+	if keyID == 0 {
+		return false
+	}
+	value, exists := s.routeCooldowns.Load(apiKeyGroupRouteCooldownKey(keyID, groupID))
+	if !exists {
+		return false
+	}
+	until, ok := value.(time.Time)
+	if !ok || !s.routeTimeNow().Before(until) {
+		s.routeCooldowns.Delete(apiKeyGroupRouteCooldownKey(keyID, groupID))
+		return false
+	}
+	return true
+}
+
+func apiKeyGroupRouteCooldownKey(keyID, groupID int64) string {
+	return strconv.FormatInt(keyID, 10) + ":" + strconv.FormatInt(groupID, 10)
+}
+
+func (s *APIKeyService) routeTimeNow() time.Time {
+	if s != nil && s.routeNow != nil {
+		return s.routeNow()
+	}
+	return time.Now()
+}
+
+// MarkGroupRouteFailed starts the configured cooldown for a retryable upstream
+// failure. A zero cooldown intentionally means "try on the next request".
+func (s *APIKeyService) MarkGroupRouteFailed(key *APIKey, groupID int64) {
+	if s == nil || key == nil || key.ID == 0 || groupID <= 0 {
+		return
+	}
+	for _, route := range key.GroupRoutes {
+		if route.GroupID != groupID {
+			continue
+		}
+		if route.CooldownSeconds <= 0 {
+			s.routeCooldowns.Delete(apiKeyGroupRouteCooldownKey(key.ID, groupID))
+			return
+		}
+		s.routeCooldowns.Store(apiKeyGroupRouteCooldownKey(key.ID, groupID), s.routeTimeNow().Add(time.Duration(route.CooldownSeconds)*time.Second))
+		return
+	}
+}
+
 // ApplySelectedGroupRoute chooses the highest-priority enabled route and loads
 // its group before the gateway applies normal group availability checks.
 func (s *APIKeyService) ApplySelectedGroupRoute(ctx context.Context, key *APIKey) error {
 	route := s.selectedAPIKeyGroupRoute(key)
 	if route == nil {
+		if s.allEnabledGroupRoutesCooling(key) {
+			return ErrAPIKeyGroupRouteCooling
+		}
 		return nil
 	}
 	group, err := s.groupRepo.GetByID(ctx, route.GroupID)
@@ -491,6 +554,54 @@ func (s *APIKeyService) ApplySelectedGroupRoute(ctx context.Context, key *APIKey
 	key.GroupID = &route.GroupID
 	key.Group = group
 	return nil
+}
+
+// ApplyNextGroupRoute applies an untried, non-cooled route to the same API key.
+// It is used by gateway retry loops before any response bytes have been sent.
+func (s *APIKeyService) ApplyNextGroupRoute(ctx context.Context, key *APIKey, attempted map[int64]struct{}) (bool, error) {
+	route := s.selectedAPIKeyGroupRouteExcluding(key, attempted)
+	if route == nil {
+		return false, nil
+	}
+	group, err := s.groupRepo.GetByID(ctx, route.GroupID)
+	if err != nil {
+		return false, fmt.Errorf("get selected route group: %w", err)
+	}
+	if !group.IsActive() {
+		return false, nil
+	}
+	key.GroupID = &route.GroupID
+	key.Group = group
+	return true, nil
+}
+
+// GetActiveRouteSubscription loads the subscription that belongs to the API
+// key's currently selected route. Standard groups intentionally return nil.
+func (s *APIKeyService) GetActiveRouteSubscription(ctx context.Context, key *APIKey) (*UserSubscription, error) {
+	if key == nil || key.Group == nil || !key.Group.IsSubscriptionType() {
+		return nil, nil
+	}
+	if s == nil || s.userSubRepo == nil {
+		return nil, fmt.Errorf("subscription repository is not configured")
+	}
+	return s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, key.UserID, key.Group.ID)
+}
+
+func (s *APIKeyService) allEnabledGroupRoutesCooling(key *APIKey) bool {
+	if key == nil || key.ID == 0 {
+		return false
+	}
+	hasEnabled := false
+	for _, route := range key.GroupRoutes {
+		if !route.Enabled {
+			continue
+		}
+		hasEnabled = true
+		if !s.groupRouteExcludedOrCooling(key.ID, route.GroupID, nil) {
+			return false
+		}
+	}
+	return hasEnabled
 }
 
 // Create 创建API Key

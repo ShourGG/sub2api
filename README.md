@@ -175,6 +175,8 @@ Sub2API is an AI API gateway platform designed to distribute and manage API quot
 
 - **Multi-Account Management** - Support multiple upstream account types (OAuth, API Key)
 - **API Key Distribution** - Generate and manage API Keys for users
+- **Model Square** - A live catalogue that synchronizes active groups, schedulable accounts, and channel pricing
+- **Multi-Group API Key Routing** - Route one API key across multiple groups with priority, weighted selection, cooldowns, and retryable-upstream failover
 - **Precise Billing** - Token-level usage tracking and cost calculation
 - **Smart Scheduling** - Intelligent account selection with sticky sessions
 - **Concurrency Control** - Per-user and per-account concurrency limits
@@ -390,14 +392,19 @@ docker compose -f docker-compose.local.yml logs -f sub2api
 
 #### Fork Image Deployment
 
-This fork publishes the application image to GitHub Container Registry as
-`ghcr.io/ziyue67/sub2api:latest`. Before the first start, set the image in the
-deployment directory:
+This fork's Compose files already use the GitHub Container Registry image
+`ghcr.io/ziyue67/sub2api:latest`:
 
 ```bash
-sed -i 's|weishaw/sub2api:latest|ghcr.io/ziyue67/sub2api:latest|g' docker-compose.local.yml
 docker compose -f docker-compose.local.yml pull
 docker compose -f docker-compose.local.yml up -d
+```
+
+To update an existing deployment after a new image is published:
+
+```bash
+docker compose -f docker-compose.local.yml pull sub2api
+docker compose -f docker-compose.local.yml up -d --no-deps sub2api
 ```
 
 For a reproducible rollout, replace `latest` with a published image tag or digest.

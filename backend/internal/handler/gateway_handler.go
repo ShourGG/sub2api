@@ -570,6 +570,10 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 
 	currentAPIKey := apiKey
 	currentSubscription := subscription
+	routeAttempts := make(map[int64]struct{}, len(apiKey.GroupRoutes))
+	if currentAPIKey.GroupID != nil {
+		routeAttempts[*currentAPIKey.GroupID] = struct{}{}
+	}
 	var fallbackGroupID *int64
 	if apiKey.Group != nil {
 		fallbackGroupID = apiKey.Group.FallbackGroupIDOnInvalidRequest
@@ -586,13 +590,16 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 	for {
 		fs := NewFailoverState(h.maxAccountSwitches, hasBoundSession)
 		retryWithFallback := false
+		retryWithGroupRoute := false
 
+	attemptLoop:
 		for {
 			attemptParsedReq, err := parsedReq.CloneForBody(body)
 			if err != nil {
 				h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to parse request body")
 				return
 			}
+			attemptChannelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), currentAPIKey.GroupID, reqModel)
 
 			// 选择支持该模型的账号
 			reqLog.Info("sticky.selecting_account",
@@ -604,6 +611,23 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			selection, err := h.gatewayService.SelectAccountWithLoadAwareness(c.Request.Context(), currentAPIKey.GroupID, sessionKey, reqModel, fs.FailedAccountIDs, parsedReq.MetadataUserID, subject.UserID)
 			if err != nil {
 				if len(fs.FailedAccountIDs) == 0 {
+					if switched, switchErr := switchToNextAPIKeyRoute(c, h.apiKeyService, currentAPIKey, routeAttempts, false); switchErr != nil {
+						reqLog.Warn("gateway.group_route_switch_failed", zap.Error(switchErr))
+					} else if switched {
+						currentSubscription, switchErr = selectedGroupRouteSubscription(c, h.apiKeyService, currentAPIKey)
+						if switchErr == nil {
+							switchErr = checkSelectedGroupRouteEligibility(c, h.billingCacheService, currentAPIKey, currentSubscription)
+						}
+						if switchErr != nil {
+							reqLog.Warn("gateway.group_route_subscription_load_failed", zap.Error(switchErr))
+							h.handleStreamingAwareError(c, http.StatusBadGateway, "api_error", "No available accounts", streamStarted)
+							return
+						}
+						retryWithGroupRoute = true
+						platform = currentAPIKey.Group.Platform
+						reqLog.Warn("gateway.group_route_switched_after_no_account", zap.Int64p("group_id", currentAPIKey.GroupID))
+						break attemptLoop
+					}
 					cls := classifyNoAccountErrorFromGin(c, h.gatewayService, currentAPIKey, reqModel, reqModel, platform)
 					if !cls.ModelNotFound {
 						markOpsRoutingCapacityLimitedIfNoAvailable(c, err)
@@ -633,6 +657,23 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					failoverClientGone(c)
 					return
 				default: // FailoverExhausted
+					if switched, switchErr := switchToNextAPIKeyRoute(c, h.apiKeyService, currentAPIKey, routeAttempts, false); switchErr != nil {
+						reqLog.Warn("gateway.group_route_switch_failed", zap.Error(switchErr))
+					} else if switched {
+						currentSubscription, switchErr = selectedGroupRouteSubscription(c, h.apiKeyService, currentAPIKey)
+						if switchErr == nil {
+							switchErr = checkSelectedGroupRouteEligibility(c, h.billingCacheService, currentAPIKey, currentSubscription)
+						}
+						if switchErr != nil {
+							reqLog.Warn("gateway.group_route_subscription_load_failed", zap.Error(switchErr))
+							h.handleFailoverExhausted(c, fs.LastFailoverErr, platform, streamStarted)
+							return
+						}
+						retryWithGroupRoute = true
+						platform = currentAPIKey.Group.Platform
+						reqLog.Warn("gateway.group_route_switched_after_accounts_exhausted", zap.Int64p("group_id", currentAPIKey.GroupID))
+						break
+					}
 					if fs.LastFailoverErr != nil {
 						h.handleFailoverExhausted(c, fs.LastFailoverErr, platform, streamStarted)
 					} else {
@@ -785,9 +826,9 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			// ===== 用户消息串行队列 END =====
 
 			// 渠道模型映射只作用于本次账号尝试，避免 failover 后污染原始 ParsedRequest。
-			if channelMapping.Mapped {
-				attemptParsedReq.Model = channelMapping.MappedModel
-				if err := attemptParsedReq.ReplaceBody(h.gatewayService.ReplaceModelInBody(attemptParsedReq.Body.Bytes(), channelMapping.MappedModel)); err != nil {
+			if attemptChannelMapping.Mapped {
+				attemptParsedReq.Model = attemptChannelMapping.MappedModel
+				if err := attemptParsedReq.ReplaceBody(h.gatewayService.ReplaceModelInBody(attemptParsedReq.Body.Bytes(), attemptChannelMapping.MappedModel)); err != nil {
 					h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to parse request body")
 					return
 				}
@@ -877,7 +918,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 						currentSubscription = nil
 						fallbackUsed = true
 						retryWithFallback = true
-						break
+						break attemptLoop
 					}
 					_ = h.antigravityGatewayService.WriteMappedClaudeError(c, account, promptTooLongErr.StatusCode, promptTooLongErr.RequestID, promptTooLongErr.Body)
 					return
@@ -894,6 +935,23 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 					case FailoverContinue:
 						continue
 					case FailoverExhausted:
+						if switched, switchErr := switchToNextAPIKeyRoute(c, h.apiKeyService, currentAPIKey, routeAttempts, true); switchErr != nil {
+							reqLog.Warn("gateway.group_route_switch_failed", zap.Error(switchErr))
+						} else if switched {
+							currentSubscription, switchErr = selectedGroupRouteSubscription(c, h.apiKeyService, currentAPIKey)
+							if switchErr == nil {
+								switchErr = checkSelectedGroupRouteEligibility(c, h.billingCacheService, currentAPIKey, currentSubscription)
+							}
+							if switchErr != nil {
+								reqLog.Warn("gateway.group_route_subscription_load_failed", zap.Error(switchErr))
+								h.handleFailoverExhausted(c, fs.LastFailoverErr, account.Platform, streamStarted)
+								return
+							}
+							retryWithGroupRoute = true
+							platform = currentAPIKey.Group.Platform
+							reqLog.Warn("gateway.group_route_switched_after_accounts_exhausted", zap.Int64p("group_id", currentAPIKey.GroupID))
+							break attemptLoop
+						}
 						h.handleFailoverExhausted(c, fs.LastFailoverErr, account.Platform, streamStarted)
 						return
 					case FailoverCanceled:
@@ -1003,7 +1061,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 			})
 			return
 		}
-		if !retryWithFallback {
+		if !retryWithFallback && !retryWithGroupRoute {
 			return
 		}
 	}

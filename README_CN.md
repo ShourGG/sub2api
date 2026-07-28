@@ -178,6 +178,8 @@ Sub2API 是一个 AI API 网关平台，用于分发和管理 AI 产品订阅的
 
 - **多账号管理** - 支持多种上游账号类型（OAuth、API Key）
 - **API Key 分发** - 为用户生成和管理 API Key
+- **模型广场** - 自动同步活跃分组、可调度账号与渠道定价的实时模型目录
+- **API Key 多分组路由** - 单个 Key 可按优先级、权重与冷却秒数跨分组路由，并在上游可重试失败时自动切换
 - **精确计费** - Token 级别的用量追踪和成本计算
 - **智能调度** - 智能账号选择，支持粘性会话
 - **并发控制** - 用户级和账号级并发限制
@@ -389,6 +391,23 @@ docker compose -f docker-compose.local.yml ps
 # 7. 查看日志
 docker compose -f docker-compose.local.yml logs -f sub2api
 ```
+
+#### Fork 镜像部署
+
+本仓库的 Compose 文件默认使用：
+
+```text
+ghcr.io/ziyue67/sub2api:latest
+```
+
+首次启动和后续更新均使用以下命令：
+
+```bash
+docker compose -f docker-compose.local.yml pull sub2api
+docker compose -f docker-compose.local.yml up -d --no-deps sub2api
+```
+
+生产环境如需固定版本，可将 `latest` 替换为已发布的版本标签或镜像摘要。
 
 #### 部署版本对比
 

@@ -114,6 +114,10 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			return
 		}
 		if err := apiKeyService.ApplySelectedGroupRoute(c.Request.Context(), apiKey); err != nil {
+			if errors.Is(err, service.ErrAPIKeyGroupRouteCooling) {
+				AbortWithError(c, http.StatusServiceUnavailable, "API_KEY_GROUP_ROUTE_COOLING", "All API key group routes are cooling down")
+				return
+			}
 			AbortWithError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to select API key route")
 			return
 		}
