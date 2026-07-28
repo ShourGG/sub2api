@@ -382,9 +382,40 @@ export const usageAPI = {
   getMyApiKeyDailyUsage,
   getDashboardSnapshotV2,
   getDashboardApiKeysUsage,
+  getDashboardLeaderboard,
   // Error requests
   listMyErrorRequests,
   getMyErrorDetail
 }
 
 export default usageAPI
+
+// ==================== Leaderboard Types ====================
+
+export interface LeaderboardItem {
+  rank: number
+  user_id: number
+  display_name: string
+  input_tokens: number
+  output_tokens: number
+  cache_creation_tokens: number
+  cache_read_tokens: number
+  image_output_tokens: number
+  total_tokens: number
+  is_current_user: boolean
+}
+
+export interface LeaderboardResponse {
+  ranking: LeaderboardItem[]
+  current_user_rank?: LeaderboardItem
+  generated_at: string
+}
+
+// ==================== Leaderboard API ====================
+
+export async function getDashboardLeaderboard(limit = 20): Promise<LeaderboardResponse> {
+  const { data } = await apiClient.get<LeaderboardResponse>('/usage/dashboard/leaderboard', {
+    params: { limit }
+  })
+  return data
+}

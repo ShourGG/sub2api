@@ -63,6 +63,38 @@ func RegisterUserRoutes(
 			}
 		}
 
+		// 图片创作（异步生图任务 + 结果图库）
+		imageCreator := authenticated.Group("/image-creator")
+		{
+			imageCreator.POST("/tasks", panelRateLimiter.Heavy(), h.ImageCreator.CreateTask)
+			imageCreator.GET("/tasks", h.ImageCreator.ListTasks)
+			imageCreator.GET("/tasks/:id", h.ImageCreator.GetTask)
+			imageCreator.GET("/images", h.ImageCreator.ListImages)
+			imageCreator.DELETE("/images", h.ImageCreator.DeleteImages)
+			imageCreator.GET("/images/:id/file", h.ImageCreator.GetImageFile)
+			imageCreator.GET("/images/:id/reference-file", h.ImageCreator.GetReferenceImageFile)
+		}
+
+		// 画布（节点式生图编排）
+		canvases := authenticated.Group("/canvases")
+		{
+			canvases.GET("", h.Canvas.ListCanvases)
+			canvases.POST("", h.Canvas.SaveCanvas)
+			canvases.GET("/:id", h.Canvas.GetCanvas)
+			canvases.PUT("/:id", h.Canvas.UpdateCanvas)
+			canvases.DELETE("/:id", h.Canvas.DeleteCanvas)
+		}
+
+		canvasRuns := authenticated.Group("/canvas-runs")
+		{
+			canvasRuns.GET("", h.Canvas.ListRuns)
+			canvasRuns.POST("", panelRateLimiter.Heavy(), h.Canvas.CreateRun)
+			canvasRuns.GET("/:id", h.Canvas.GetRun)
+			canvasRuns.POST("/:id/cancel", h.Canvas.CancelRun)
+		}
+
+		authenticated.GET("/canvas/models", h.Canvas.ListModels)
+
 		// API Key管理
 		keys := authenticated.Group("/keys")
 		{
@@ -104,6 +136,7 @@ func RegisterUserRoutes(
 			usage.GET("/dashboard/models", h.Usage.DashboardModels)
 			usage.GET("/dashboard/snapshot-v2", h.Usage.DashboardSnapshotV2)
 			usage.POST("/dashboard/api-keys-usage", h.Usage.DashboardAPIKeysUsage)
+			usage.GET("/dashboard/leaderboard", h.Usage.DashboardLeaderboard)
 		}
 
 		// 公告（用户可见）

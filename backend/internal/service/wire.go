@@ -551,6 +551,34 @@ func ProvideImageTaskService(store ImageTaskStore, settings *ImageStorageSetting
 	return NewImageTaskServiceWithResolver(store, settings.Resolver(), defaultImageTaskTTL, defaultImageTaskExecutionTimeout)
 }
 
+// ProvideImageCreatorService constructs the user image creator service. It reuses
+// the shared object store factory so S3/COS uploads share the backup credentials
+// plumbing rather than opening a second client stack.
+func ProvideImageCreatorService(
+	repo ImageCreatorRepository,
+	apiKeyService *APIKeyService,
+	cfg *config.Config,
+	storeFactory BackupObjectStoreFactory,
+) *ImageCreatorService {
+	return NewImageCreatorService(repo, apiKeyService, cfg, storeFactory)
+}
+
+// ProvideCanvasService wires the canvas orchestration service to the image
+// creator so text-to-image / image-to-image nodes enqueue real tasks.
+func ProvideCanvasService(repo CanvasRepository, imageCreator *ImageCreatorService) *CanvasService {
+	return NewCanvasServiceWithDeps(repo, imageCreator)
+}
+
+// ProvideImageCreatorStorageGovernanceService constructs the admin-facing
+// storage governance service over the image creator storage.
+func ProvideImageCreatorStorageGovernanceService(
+	repo ImageCreatorStorageGovernanceRepository,
+	imageCreator *ImageCreatorService,
+	cfg *config.Config,
+) *ImageCreatorStorageGovernanceService {
+	return NewImageCreatorStorageGovernanceService(repo, imageCreator, cfg)
+}
+
 // ProvideBackupService creates and starts BackupService
 func ProvideBackupService(
 	settingRepo SettingRepository,
@@ -697,6 +725,9 @@ var ProviderSet = wire.NewSet(
 	NewOpenAIGatewayService,
 	ProvideImageStorageSettingService,
 	ProvideImageTaskService,
+	ProvideImageCreatorService,
+	ProvideCanvasService,
+	ProvideImageCreatorStorageGovernanceService,
 	ProvideBatchImageModelPricingResolver,
 	NewBatchImagePublicService,
 	NewBatchImageDownloadService,

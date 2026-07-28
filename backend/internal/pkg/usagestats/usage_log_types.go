@@ -381,3 +381,28 @@ type AccountUsageStatsResponse struct {
 	Endpoints         []EndpointStat        `json:"endpoints"`
 	UpstreamEndpoints []EndpointStat        `json:"upstream_endpoints"`
 }
+
+// UserLeaderboardItem is one row in the token leaderboard (普通用户侧，已脱敏).
+type UserLeaderboardItem struct {
+	Rank                int64  `json:"rank"`
+	UserID              int64  `json:"user_id"`
+	// DisplayName is the desensitized username/email shown to regular users.
+	DisplayName         string `json:"display_name"`
+	// RawName is the original username/email used for desensitization; never serialized.
+	RawName             string `json:"-"`
+	InputTokens         int64  `json:"input_tokens"`
+	OutputTokens        int64  `json:"output_tokens"`
+	CacheCreationTokens int64  `json:"cache_creation_tokens"`
+	CacheReadTokens     int64  `json:"cache_read_tokens"`
+	ImageOutputTokens   int64  `json:"image_output_tokens"`
+	TotalTokens         int64  `json:"total_tokens"`
+	// IsCurrentUser flags the caller's own row so the frontend can highlight it.
+	IsCurrentUser bool `json:"is_current_user"`
+}
+
+// UserLeaderboardResponse is the full payload returned by DashboardLeaderboard.
+type UserLeaderboardResponse struct {
+	Ranking         []UserLeaderboardItem `json:"ranking"`
+	CurrentUserRank *UserLeaderboardItem  `json:"current_user_rank,omitempty"`
+	GeneratedAt     string                `json:"generated_at"`
+}

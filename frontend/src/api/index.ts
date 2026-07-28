@@ -23,6 +23,9 @@ export { totpAPI } from './totp'
 export { default as announcementsAPI } from './announcements'
 export { channelMonitorUserAPI } from './channelMonitor'
 
+// Studio & Image Creator APIs
+export { studioBridgeAPI } from './studioBridge'
+
 // Admin APIs
 export { adminAPI } from './admin'
 

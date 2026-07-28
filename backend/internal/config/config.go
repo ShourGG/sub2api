@@ -98,6 +98,32 @@ type Config struct {
 	Idempotency             IdempotencyConfig             `mapstructure:"idempotency"`
 	BatchImage              BatchImageConfig              `mapstructure:"batch_image"`
 	ImageStorage            ImageStorageConfig            `mapstructure:"image_storage"`
+	ImageCreator            ImageCreatorConfig            `mapstructure:"image_creator"`
+}
+
+// ImageCreatorConfig controls user image creator task persistence.
+type ImageCreatorConfig struct {
+	StorageDir             string                          `mapstructure:"storage_dir"`
+	StorageBackend         string                          `mapstructure:"storage_backend"`
+	ObjectStorage          ImageCreatorObjectStorageConfig `mapstructure:"object_storage"`
+	MaxSavedImagesPerUser  int                             `mapstructure:"max_saved_images_per_user"`
+	RetentionDays          int                             `mapstructure:"retention_days"`
+	WorkerIntervalSeconds  int                             `mapstructure:"worker_interval_seconds"`
+	TaskTimeoutSeconds     int                             `mapstructure:"task_timeout_seconds"`
+	RequestTimeoutSeconds  int                             `mapstructure:"request_timeout_seconds"`
+	CleanupBatchSize       int                             `mapstructure:"cleanup_batch_size"`
+	DownloadBytesPerSecond int64                           `mapstructure:"download_bytes_per_second"`
+	LocalGatewayBaseURL    string                          `mapstructure:"local_gateway_base_url"`
+}
+
+type ImageCreatorObjectStorageConfig struct {
+	Endpoint        string `mapstructure:"endpoint"`
+	Region          string `mapstructure:"region"`
+	Bucket          string `mapstructure:"bucket"`
+	AccessKeyID     string `mapstructure:"access_key_id"`
+	SecretAccessKey string `mapstructure:"secret_access_key"`
+	Prefix          string `mapstructure:"prefix"`
+	ForcePathStyle  bool   `mapstructure:"force_path_style"`
 }
 
 type LogConfig struct {
@@ -2080,6 +2106,25 @@ func setDefaults() {
 	viper.SetDefault("image_storage.access_key_id", "")
 	viper.SetDefault("image_storage.secret_access_key", "")
 	viper.SetDefault("image_storage.public_base_url", "")
+
+	// Image creator (user-console image generation tasks)
+	viper.SetDefault("image_creator.storage_dir", "data/image-creator")
+	viper.SetDefault("image_creator.storage_backend", "auto")
+	viper.SetDefault("image_creator.object_storage.endpoint", "")
+	viper.SetDefault("image_creator.object_storage.region", "")
+	viper.SetDefault("image_creator.object_storage.bucket", "")
+	viper.SetDefault("image_creator.object_storage.access_key_id", "")
+	viper.SetDefault("image_creator.object_storage.secret_access_key", "")
+	viper.SetDefault("image_creator.object_storage.prefix", "image-creator")
+	viper.SetDefault("image_creator.object_storage.force_path_style", false)
+	viper.SetDefault("image_creator.max_saved_images_per_user", 16)
+	viper.SetDefault("image_creator.retention_days", 7)
+	viper.SetDefault("image_creator.worker_interval_seconds", 30)
+	viper.SetDefault("image_creator.task_timeout_seconds", 1800)
+	viper.SetDefault("image_creator.request_timeout_seconds", 1800)
+	viper.SetDefault("image_creator.cleanup_batch_size", 100)
+	viper.SetDefault("image_creator.download_bytes_per_second", 262144)
+	viper.SetDefault("image_creator.local_gateway_base_url", "")
 
 	// Ops (vNext)
 	viper.SetDefault("ops.enabled", true)
