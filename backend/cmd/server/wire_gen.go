@@ -278,7 +278,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	imageCreatorStorageGovernanceRepository := repository.NewImageCreatorStorageGovernanceRepository(db)
 	imageCreatorRepository := repository.NewImageCreatorRepository(db)
 	membershipService := _wireMembershipServiceValue
-	imageCreatorService := service.ProvideImageCreatorService(imageCreatorRepository, apiKeyService, membershipService, configConfig)
+	imageCreatorService := service.ProvideImageCreatorService(imageCreatorRepository, apiKeyService, membershipService, configConfig, backupObjectStoreFactory)
 	imageCreatorStorageGovernanceService := service.NewImageCreatorStorageGovernanceService(imageCreatorStorageGovernanceRepository, imageCreatorService, configConfig)
 	imageCreatorStorageGovernanceHandler := admin.NewImageCreatorStorageGovernanceHandler(imageCreatorStorageGovernanceService)
 	upstreamBillingProbeService := service.ProvideUpstreamBillingProbeService(accountRepository, accountTestService, settingService, leaderLockCache, db)
@@ -312,7 +312,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	batchImageHandler := handler.ProvideBatchImageHandler(batchImagePublicService, batchImageDownloadService, batchImageCleanupService, openAIGatewayHandler)
 	imageCreatorHandler := handler.NewImageCreatorHandler(imageCreatorService)
 	canvasRepository := repository.NewCanvasRepository(db)
-	canvasService := service.NewCanvasService(canvasRepository)
+	canvasService := service.ProvideCanvasService(canvasRepository, imageCreatorService)
 	canvasHandler := handler.NewCanvasHandler(canvasService)
 	studioBridgeRepository := repository.NewStudioBridgeRepository(db)
 	studioBridgeStore := repository.NewStudioBridgeStore(redisClient)
