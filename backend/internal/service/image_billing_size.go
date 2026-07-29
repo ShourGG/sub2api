@@ -7,9 +7,10 @@ import (
 )
 
 const (
-	ImageBillingSize1K = "1K"
-	ImageBillingSize2K = "2K"
-	ImageBillingSize4K = "4K"
+	ImageBillingSize1K    = "1K"
+	ImageBillingSize2K    = "2K"
+	ImageBillingSize4K    = "4K"
+	ImageBillingSizeMixed = "mixed"
 
 	ImageSizeSourceOutput  = "output"
 	ImageSizeSourceInput   = "input"
@@ -68,6 +69,35 @@ func NormalizeImageBillingTierOrDefault(size string) string {
 	return ImageBillingSize2K
 }
 
+func NormalizeImageQuality(quality string) string {
+	quality = strings.ToLower(strings.TrimSpace(quality))
+	switch quality {
+	case "low", "medium", "high":
+		return quality
+	default:
+		return ""
+	}
+}
+
+func ImageBillingTierWithQuality(sizeTier string, quality string) string {
+	tier := NormalizeImageBillingTierOrDefault(sizeTier)
+	if normalizedQuality := NormalizeImageQuality(quality); normalizedQuality != "" {
+		return tier + ":" + normalizedQuality
+	}
+	return tier
+}
+
+func OpenAIImageBillingTierForModel(model string, exactSize string, sizeTier string, quality string) string {
+	if isAPIMartGPTImage2OfficialModel(model) {
+		normalizedSize := normalizeAPIMartImageSize(exactSize)
+		normalizedQuality := normalizeAPIMartImageQuality(quality)
+		if normalizedSize != "" {
+			return normalizedSize + ":" + normalizedQuality
+		}
+	}
+	return ImageBillingTierWithQuality(sizeTier, quality)
+}
+
 func ResolveImageBillingSize(inputSize string, outputSizes []string) ImageBillingSizeResolution {
 	inputSize = strings.TrimSpace(inputSize)
 	outputSizes = compactTrimmedStrings(outputSizes)
@@ -116,6 +146,11 @@ func ApplyOpenAIImageBillingResolution(result *OpenAIForwardResult) {
 	if result == nil || result.ImageCount <= 0 {
 		return
 	}
+	if hasResolvedOutputImageBillingSize(result.ImageSize, result.ImageSizeSource, result.ImageSizeBreakdown) {
+		result.ImageOutputSize = firstNonEmptyString(result.ImageOutputSize, firstDisplayImageOutputSize(result.ImageOutputSizes))
+		result.ImageSizeBreakdown = normalizeImageSizeBreakdown(result.ImageSizeBreakdown)
+		return
+	}
 	inputSize := strings.TrimSpace(result.ImageInputSize)
 	if inputSize == "" && strings.TrimSpace(result.ImageSize) != ImageBillingSize2K {
 		inputSize = strings.TrimSpace(result.ImageSize)
@@ -137,6 +172,11 @@ func ApplyOpenAIImageBillingResolution(result *OpenAIForwardResult) {
 
 func ApplyForwardImageBillingResolution(result *ForwardResult) {
 	if result == nil || result.ImageCount <= 0 {
+		return
+	}
+	if hasResolvedOutputImageBillingSize(result.ImageSize, result.ImageSizeSource, result.ImageSizeBreakdown) {
+		result.ImageOutputSize = firstNonEmptyString(result.ImageOutputSize, firstDisplayImageOutputSize(result.ImageOutputSizes))
+		result.ImageSizeBreakdown = normalizeImageSizeBreakdown(result.ImageSizeBreakdown)
 		return
 	}
 	inputSize := strings.TrimSpace(result.ImageInputSize)
@@ -171,6 +211,13 @@ func applyImageBillingResolution(
 	*outputSize = resolved.OutputSize
 	*source = resolved.Source
 	*breakdown = resolved.Breakdown
+}
+
+func hasResolvedOutputImageBillingSize(size string, source string, breakdown map[string]int) bool {
+	if strings.TrimSpace(size) == "" || strings.TrimSpace(source) != ImageSizeSourceOutput {
+		return false
+	}
+	return len(normalizeImageSizeBreakdown(breakdown)) > 0
 }
 
 func parseImageBillingDimensions(size string) (int, int, bool) {

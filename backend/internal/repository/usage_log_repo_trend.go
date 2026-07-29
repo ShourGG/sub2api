@@ -23,6 +23,13 @@ type UserUsageTrendPoint = usagestats.UserUsageTrendPoint
 type UserSpendingRankingItem = usagestats.UserSpendingRankingItem
 type UserSpendingRankingResponse = usagestats.UserSpendingRankingResponse
 
+// TokenLeaderboardItem / TokenLeaderboardResponse aliases for the Token leaderboard.
+type TokenLeaderboardItem = usagestats.TokenLeaderboardItem
+type TokenLeaderboardResponse = usagestats.TokenLeaderboardResponse
+
+// TokenLeaderboardRow is the raw aggregation row returned by the repository.
+type TokenLeaderboardRow = usagestats.TokenLeaderboardRow
+
 // APIKeyUsageTrendPoint represents API key usage trend data point
 type APIKeyUsageTrendPoint = usagestats.APIKeyUsageTrendPoint
 
@@ -217,6 +224,69 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 		TotalRequests:   totalRequests,
 		TotalTokens:     totalTokens,
 	}, nil
+}
+
+// GetTokenLeaderboard returns the Token consumption leaderboard within [startTime, endTime).
+// Ranking key is total_tokens = input + output + cache_creation + cache_read + image_output.
+// It returns raw emails and RFC3339 last-active timestamps; masking, ranking numbers and
+// "is me" resolution are applied by the caller (handler) so this stays presentation-agnostic.
+func (r *usageLogRepository) GetTokenLeaderboard(ctx context.Context, startTime, endTime time.Time, limit int) (result []TokenLeaderboardRow, err error) {
+	if limit <= 0 {
+		limit = 20
+	}
+
+	query := `
+		SELECT
+			u.user_id,
+			COALESCE(us.email, '') AS email,
+			COUNT(*) AS requests,
+			COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens + u.image_output_tokens), 0) AS total_tokens,
+			COALESCE(SUM(u.input_tokens), 0) AS input_tokens,
+			COALESCE(SUM(u.output_tokens), 0) AS output_tokens,
+			COALESCE(SUM(u.cache_creation_tokens + u.cache_read_tokens), 0) AS cache_tokens,
+			COALESCE(SUM(u.image_output_tokens), 0) AS image_output_tokens,
+			MAX(u.created_at) AS last_active_at
+		FROM usage_logs u
+		LEFT JOIN users us ON u.user_id = us.id
+		WHERE u.created_at >= $1 AND u.created_at < $2
+		GROUP BY u.user_id, us.email
+		ORDER BY total_tokens DESC, requests DESC, u.user_id ASC
+		LIMIT $3
+	`
+
+	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
+
+	items := make([]TokenLeaderboardRow, 0, limit)
+	for rows.Next() {
+		var row TokenLeaderboardRow
+		if err = rows.Scan(
+			&row.UserID,
+			&row.Email,
+			&row.Requests,
+			&row.TotalTokens,
+			&row.InputTokens,
+			&row.OutputTokens,
+			&row.CacheTokens,
+			&row.ImageOutputTokens,
+			&row.LastActiveAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, row)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 // GetUserUsageTrendByUserID 获取指定用户的使用趋势

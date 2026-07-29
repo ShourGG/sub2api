@@ -320,6 +320,53 @@ export async function getDashboardSnapshotV2(
   return data
 }
 
+// ==================== Token Leaderboard ====================
+
+export interface TokenLeaderboardItem {
+  rank: number
+  user: string
+  requests: number
+  total_tokens: number
+  input_tokens: number
+  output_tokens: number
+  cache_tokens: number
+  image_output_tokens: number
+  last_active_at: string
+  is_me: boolean
+}
+
+export interface TokenLeaderboardResponse {
+  days: number
+  label: string
+  timezone: string
+  start: string
+  end: string
+  limit: number
+  items: TokenLeaderboardItem[]
+}
+
+export interface LeaderboardParams {
+  days?: 1 | 7 | 30
+  timezone?: string
+}
+
+/**
+ * Get the Token consumption leaderboard (Top 20, desensitized).
+ * Ranking key: total_tokens = input + output + cache + image_output.
+ * @param params - days window {1,7,30} and timezone
+ * @returns Leaderboard response with Top 20 items
+ */
+export async function getDashboardLeaderboard(
+  params?: LeaderboardParams,
+  options?: { signal?: AbortSignal }
+): Promise<TokenLeaderboardResponse> {
+  const { data } = await apiClient.get<TokenLeaderboardResponse>('/usage/dashboard/leaderboard', {
+    params,
+    signal: options?.signal
+  })
+  return data
+}
+
 export interface BatchApiKeyUsageStats {
   api_key_id: number
   today_actual_cost: number
@@ -382,6 +429,7 @@ export const usageAPI = {
   getMyApiKeyDailyUsage,
   getDashboardSnapshotV2,
   getDashboardApiKeysUsage,
+  getDashboardLeaderboard,
   // Error requests
   listMyErrorRequests,
   getMyErrorDetail

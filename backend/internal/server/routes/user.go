@@ -17,6 +17,16 @@ func RegisterUserRoutes(
 	settingService *service.SettingService,
 	panelRateLimiter *middleware.PanelRateLimiter,
 ) {
+	// Studio Bridge 内部接口（无需 JWT，由 handler 层校验内部 token）
+	internalStudioBridge := v1.Group("/internal/studio-bridge")
+	{
+		internalStudioBridge.POST("/redeem", h.StudioBridge.Redeem)
+		internalStudioBridge.POST("/user-summary", h.StudioBridge.UserSummary)
+		internalStudioBridge.POST("/charges/reserve", h.StudioBridge.Reserve)
+		internalStudioBridge.POST("/charges/commit", h.StudioBridge.Commit)
+		internalStudioBridge.POST("/charges/refund", h.StudioBridge.Refund)
+	}
+
 	authenticated := v1.Group("")
 	authenticated.Use(gin.HandlerFunc(jwtAuth))
 	authenticated.Use(middleware.BackendModeUserGuard(settingService))
@@ -61,6 +71,52 @@ func RegisterUserRoutes(
 				// 敏感操作二次验证：授予当前会话一段时间的 step-up 权限
 				totp.POST("/step-up", h.Totp.StepUp)
 			}
+
+			// Studio Bridge（用户侧）
+			studioBridge := user.Group("/studio-bridge")
+			{
+				studioBridge.POST("/launch", h.StudioBridge.Launch)
+				studioBridge.GET("/session-probe", h.StudioBridge.SessionProbe)
+			}
+
+			// 生图（Image Creator）
+			imageCreator := user.Group("/image-creator")
+			{
+				imageCreator.POST("/tasks", h.ImageCreator.CreateTask)
+				imageCreator.GET("/tasks", h.ImageCreator.ListTasks)
+				imageCreator.GET("/tasks/:id", h.ImageCreator.GetTask)
+				imageCreator.GET("/images", h.ImageCreator.ListImages)
+				imageCreator.DELETE("/images", h.ImageCreator.DeleteImages)
+				imageCreator.GET("/images/:id/file", h.ImageCreator.GetImageFile)
+				imageCreator.GET("/images/:id/reference-file", h.ImageCreator.GetReferenceImageFile)
+			}
+
+			// 画布（Canvas）
+			canvases := user.Group("/canvases")
+			{
+				canvases.GET("", h.Canvas.ListCanvases)
+				canvases.POST("", h.Canvas.SaveCanvas)
+				canvases.GET("/:id", h.Canvas.GetCanvas)
+				canvases.PUT("/:id", h.Canvas.UpdateCanvas)
+				canvases.DELETE("/:id", h.Canvas.DeleteCanvas)
+			}
+
+			// 画布运行记录
+			canvasRuns := user.Group("/canvas-runs")
+			{
+				canvasRuns.GET("", h.Canvas.ListRuns)
+				canvasRuns.POST("", h.Canvas.CreateRun)
+				canvasRuns.GET("/:id", h.Canvas.GetRun)
+				canvasRuns.POST("/:id/cancel", h.Canvas.CancelRun)
+			}
+
+			// 画布可用模型列表
+			user.GET("/canvas/models", h.Canvas.ListModels)
+
+			// 提示词收藏
+			user.GET("/prompt-favorites", h.PromptFavorite.List)
+			user.POST("/prompt-favorites", h.PromptFavorite.Save)
+			user.DELETE("/prompt-favorites/:id", h.PromptFavorite.Delete)
 		}
 
 		// API Key管理
@@ -104,6 +160,8 @@ func RegisterUserRoutes(
 			usage.GET("/dashboard/models", h.Usage.DashboardModels)
 			usage.GET("/dashboard/snapshot-v2", h.Usage.DashboardSnapshotV2)
 			usage.POST("/dashboard/api-keys-usage", h.Usage.DashboardAPIKeysUsage)
+			// Leaderboard（Token 榜：Input + Output + Cache + Image Output 求和排名，Top 1-20，普通用户脱敏）
+			usage.GET("/dashboard/leaderboard", h.Usage.DashboardLeaderboard)
 		}
 
 		// 公告（用户可见）

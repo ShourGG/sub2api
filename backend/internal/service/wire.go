@@ -788,6 +788,14 @@ var ProviderSet = wire.NewSet(
 	ProvideChannelMonitorRunner,
 	NewChannelMonitorRequestTemplateService,
 	ProvideUserPlatformQuotaUsageFlusher,
+
+	// Image-gen services
+	wire.Value((*MembershipService)(nil)),
+	ProvideImageCreatorService,
+	NewCanvasService,
+	NewStudioBridgeService,
+	NewPromptFavoriteService,
+	NewImageCreatorStorageGovernanceService,
 )
 
 // ProvideUserPlatformQuotaUsageFlusher 创建并启动 UserPlatformQuotaUsageFlusher。
@@ -843,4 +851,10 @@ func ProvideChannelMonitorRunner(svc *ChannelMonitorService, settingService *Set
 	svc.SetScheduler(r)
 	r.Start()
 	return r
+}
+
+// ProvideImageCreatorService 构造 ImageCreatorService。
+// NewImageCreatorService 有 variadic 参数，wire 不支持，因此用此 wrapper 包装。
+func ProvideImageCreatorService(repo ImageCreatorRepository, apiKeyService *APIKeyService, membership *MembershipService, cfg *config.Config) *ImageCreatorService {
+	return NewImageCreatorService(repo, apiKeyService, membership, cfg)
 }
