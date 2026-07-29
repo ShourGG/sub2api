@@ -175,6 +175,13 @@ type ImageCreatorCreateTaskInput struct {
 	ReferenceImageFilename string
 }
 
+type ImageCreatorReferenceUploadInput struct {
+	APIKeyID int64
+	Data     []byte
+	MimeType string
+	Filename string
+}
+
 type ImageCreatorGenerateRequest struct {
 	Model                  string
 	Prompt                 string
@@ -434,6 +441,9 @@ func (s *ImageCreatorService) CreateTask(ctx context.Context, userID int64, inpu
 		return nil, infraerrors.BadRequest("INVALID_USER", "user_id is required")
 	}
 	input = normalizeCreateTaskInput(input)
+	if err := validateImageCreatorSize(input.Size); err != nil {
+		return nil, err
+	}
 	if input.APIKeyID <= 0 {
 		return nil, infraerrors.BadRequest("INVALID_API_KEY", "api_key_id is required")
 	}
@@ -504,6 +514,50 @@ func (s *ImageCreatorService) CreateTask(ctx context.Context, userID int64, inpu
 	return task, nil
 }
 
+func (s *ImageCreatorService) UploadReferenceImage(ctx context.Context, userID int64, input ImageCreatorReferenceUploadInput) (*ImageCreatorImage, error) {
+	if s == nil || s.repo == nil || s.apiKeys == nil {
+		return nil, infraerrors.InternalServer("IMAGE_CREATOR_UNAVAILABLE", "image creator service is unavailable")
+	}
+	if userID <= 0 || input.APIKeyID <= 0 {
+		return nil, infraerrors.BadRequest("INVALID_REFERENCE_UPLOAD", "api_key_id is required")
+	}
+	if len(input.Data) == 0 || int64(len(input.Data)) > imageCreatorMaxStoredImageBytes {
+		return nil, infraerrors.BadRequest("INVALID_REFERENCE_IMAGE", "reference image is empty or too large")
+	}
+	mimeType := normalizeImageMimeType(input.MimeType, input.Data)
+	if mimeType != "image/png" && mimeType != "image/jpeg" && mimeType != "image/webp" {
+		return nil, infraerrors.BadRequest("INVALID_REFERENCE_IMAGE", "reference image must be PNG, JPEG, or WebP")
+	}
+	apiKey, err := s.apiKeys.GetByID(ctx, input.APIKeyID)
+	if err != nil || apiKey == nil || apiKey.UserID != userID {
+		return nil, infraerrors.NotFound("API_KEY_NOT_FOUND", "api key not found")
+	}
+	format := outputFormatForImageMimeType(mimeType)
+	task := &ImageCreatorTask{
+		UserID: userID, APIKeyID: input.APIKeyID, Status: ImageCreatorTaskStatusSucceeded,
+		Model: "reference-upload", Prompt: "Reference image upload", OutputFormat: format,
+		Count: 1, ExpiresAt: time.Now().Add(s.retention),
+	}
+	if err := s.repo.CreateTask(ctx, task, maxImageCreatorTaskCount); err != nil {
+		return nil, err
+	}
+	path, hash, byteSize, err := s.saveGeneratedImage(ctx, userID, task.ID, 1, format, input.Data)
+	if err != nil {
+		return nil, err
+	}
+	width, height := imageCreatorImageDimensions(input.Data)
+	image := &ImageCreatorImage{
+		TaskID: task.ID, UserID: userID, FilePath: path, OutputFormat: format, MimeType: mimeType,
+		ByteSize: byteSize, Width: width, Height: height, SHA256: hash, ExpiresAt: task.ExpiresAt,
+	}
+	if err := s.repo.AddImage(ctx, image); err != nil {
+		_ = s.removeStoredImage(context.Background(), path)
+		return nil, err
+	}
+	attachImageCreatorImageDisplayFields(image)
+	return image, nil
+}
+
 func normalizeCreateTaskInput(input ImageCreatorCreateTaskInput) ImageCreatorCreateTaskInput {
 	input.Model = strings.TrimSpace(input.Model)
 	if input.Model == "" {
@@ -511,7 +565,7 @@ func normalizeCreateTaskInput(input ImageCreatorCreateTaskInput) ImageCreatorCre
 	}
 	input.Prompt = strings.TrimSpace(input.Prompt)
 	input.Size = strings.TrimSpace(input.Size)
-	input.Quality = strings.TrimSpace(input.Quality)
+	input.Quality = normalizeImageCreatorQuality(input.Quality)
 	input.OutputFormat = normalizeImageCreatorRequestedOutputFormat(input.OutputFormat)
 	input.Background = normalizeImageCreatorBackground(input.Model, input.Background)
 	input.ReferenceImageMimeType = normalizeImageMimeType(input.ReferenceImageMimeType, input.ReferenceImage)
@@ -1629,11 +1683,41 @@ func normalizeImageCreatorRequestedOutputFormat(format string) string {
 	switch strings.ToLower(strings.TrimSpace(format)) {
 	case "jpg", "jpeg":
 		return "jpeg"
+	case "png":
+		return "png"
 	case "webp":
 		return "webp"
 	default:
 		return "webp"
 	}
+}
+
+func normalizeImageCreatorQuality(quality string) string {
+	switch strings.ToLower(strings.TrimSpace(quality)) {
+	case "standard":
+		return "medium"
+	case "auto", "low", "medium", "high":
+		return strings.ToLower(strings.TrimSpace(quality))
+	default:
+		return ""
+	}
+}
+
+func validateImageCreatorSize(size string) error {
+	size = strings.ToLower(strings.TrimSpace(size))
+	if size == "" || size == "auto" {
+		return nil
+	}
+	parts := strings.Split(size, "x")
+	if len(parts) != 2 {
+		return infraerrors.BadRequest("INVALID_IMAGE_SIZE", "size must use WIDTHxHEIGHT")
+	}
+	width, widthErr := strconv.Atoi(strings.TrimSpace(parts[0]))
+	height, heightErr := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if widthErr != nil || heightErr != nil || width < 16 || height < 16 || width > 3840 || height > 3840 || width%16 != 0 || height%16 != 0 || width*height > 8_294_400 || maxInt(width, height) > minInt(width, height)*3 {
+		return infraerrors.BadRequest("INVALID_IMAGE_SIZE", "width and height must be multiples of 16, no side may exceed 3840px, the aspect ratio must not exceed 3:1, and the maximum is 8294400 pixels")
+	}
+	return nil
 }
 
 func normalizeImageCreatorStoredOutputFormat(format string) string {
@@ -1679,6 +1763,17 @@ func mimeTypeForOutputFormat(format string) string {
 		return "image/webp"
 	default:
 		return "image/png"
+	}
+}
+
+func outputFormatForImageMimeType(mimeType string) string {
+	switch strings.ToLower(strings.TrimSpace(mimeType)) {
+	case "image/jpeg":
+		return "jpeg"
+	case "image/webp":
+		return "webp"
+	default:
+		return "png"
 	}
 }
 

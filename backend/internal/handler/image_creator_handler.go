@@ -25,6 +25,38 @@ type imageCreatorService interface {
 	DeleteImages(ctx context.Context, userID int64, ids []int64) (int, error)
 	GetImageFile(ctx context.Context, userID int64, imageID int64) (*service.ImageCreatorFile, error)
 	GetReferenceImageForUser(ctx context.Context, userID int64, imageID int64) (*service.ImageCreatorFile, error)
+	UploadReferenceImage(ctx context.Context, userID int64, input service.ImageCreatorReferenceUploadInput) (*service.ImageCreatorImage, error)
+}
+
+func (h *ImageCreatorHandler) UploadReferenceImage(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if err := c.Request.ParseMultipartForm(imageCreatorMaxReferenceUploadBytes); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		response.BadRequest(c, "reference image file is required")
+		return
+	}
+	defer func() { _ = file.Close() }()
+	data, err := io.ReadAll(io.LimitReader(file, imageCreatorMaxReferenceUploadBytes+1))
+	if err != nil || int64(len(data)) > imageCreatorMaxReferenceUploadBytes {
+		response.BadRequest(c, "reference image is too large")
+		return
+	}
+	image, err := h.svc.UploadReferenceImage(c.Request.Context(), subject.UserID, service.ImageCreatorReferenceUploadInput{
+		APIKeyID: parseInt64Form(c, "api_key_id"), Data: data, MimeType: header.Header.Get("Content-Type"), Filename: header.Filename,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, image)
 }
 
 type ImageCreatorHandler struct {

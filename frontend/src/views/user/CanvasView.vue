@@ -238,9 +238,9 @@
                   <span class="canvas-node-status-dot" :class="`canvas-node-status-${nodeDisplayStatus(node)}`"></span>
                   {{ t(`canvas.nodeStatus.${nodeDisplayStatus(node)}`) }}
                 </span>
-                <span v-if="node.type === 'result' && nodeResultImageUrl(node)" class="canvas-node-preview">
+                <span v-if="node.type === 'result' && nodeResultPreviewUrl(node)" class="canvas-node-preview">
                   <img
-                    :src="nodeResultImageUrl(node)"
+                    :src="nodeResultPreviewUrl(node)"
                     :alt="t('canvas.resultPreview')"
                     :title="t('canvas.openImagePreview')"
                     data-testid="canvas-node-preview-image"
@@ -379,9 +379,9 @@
             </div>
 
             <div v-if="selectedNode.type === 'result'" class="canvas-result-output" data-testid="canvas-result-output">
-              <template v-if="nodeResultImageUrl(selectedNode)">
+              <template v-if="nodeResultPreviewUrl(selectedNode)">
                 <img
-                  :src="nodeResultImageUrl(selectedNode)"
+                  :src="nodeResultPreviewUrl(selectedNode)"
                   :alt="t('canvas.resultPreview')"
                   :title="t('canvas.openImagePreview')"
                   class="canvas-result-output-image"
@@ -390,6 +390,10 @@
                   @dblclick.stop.prevent="openImagePreview(selectedNode)"
                 />
                 <p>{{ t('canvas.resultImageReady') }}</p>
+              </template>
+              <template v-else-if="nodeResultImageUrl(selectedNode)">
+                <Icon name="refresh" size="md" class="animate-spin" />
+                <p>{{ t('canvas.resultImageLoading') }}</p>
               </template>
               <template v-else>
                 <Icon name="image" size="md" />
@@ -425,7 +429,7 @@
                 :data-testid="`canvas-node-config-${field.key}`"
                 @change="updateSelectedNodeConfigFromEvent(field.key, $event)"
               >
-                <option value="">{{ t('canvas.nodeConfigDefault') }}</option>
+                <option value="">{{ field.key === 'outputFormat' ? t('canvas.nodeConfigDefaultWebp') : t('canvas.nodeConfigDefault') }}</option>
                 <option v-for="option in field.options" :key="option.value" :value="option.value">
                   {{ t(option.labelKey) }}
                 </option>
@@ -441,6 +445,24 @@
                 @input="updateSelectedNodeConfigFromEvent(field.key, $event)"
               />
             </label>
+
+            <div v-if="selectedNode.type === 'image_to_image'" class="canvas-field">
+              <span>{{ t('canvas.nodeConfig.referenceImage') }}</span>
+              <label class="canvas-reference-upload" :class="{ 'canvas-reference-upload-busy': uploadingReferenceImage }">
+                <input
+                  type="file"
+                  class="sr-only"
+                  accept="image/png,image/jpeg,image/webp"
+                  :disabled="uploadingReferenceImage || !selectedKey"
+                  data-testid="canvas-reference-image-upload"
+                  @change="uploadSelectedNodeReferenceImage"
+                />
+                <img v-if="selectedNodeReferencePreviewUrl" :src="selectedNodeReferencePreviewUrl" alt="" />
+                <Icon v-else name="upload" size="md" />
+                <span>{{ uploadingReferenceImage ? t('canvas.uploadingReferenceImage') : t('canvas.uploadReferenceImage') }}</span>
+                <small v-if="selectedNode.config?.referenceImageName">{{ String(selectedNode.config.referenceImageName) }}</small>
+              </label>
+            </div>
 
             <template v-if="selectedNodeSupportsImageDimensions">
               <div class="canvas-field">
@@ -651,6 +673,7 @@ import {
 import {
   downloadImageFile,
   getImageTask,
+  uploadImageCreatorReference,
   type ImageCreatorTask,
   type ImageCreatorTaskStatus,
 } from '@/api/imageCreator'
@@ -693,7 +716,7 @@ interface CanvasPanState {
 }
 
 type CanvasNodeStatus = NonNullable<CanvasNode['status']>
-type NodeConfigKey = 'prompt' | 'text' | 'model' | 'size' | 'quality' | 'referenceImageId' | 'outputFormat'
+type NodeConfigKey = 'prompt' | 'text' | 'model' | 'size' | 'quality' | 'referenceImageId' | 'referenceImageName' | 'outputFormat'
 type NodeConfigFieldKind = 'input' | 'textarea' | 'select'
 type CanvasDimensionMode = 'auto' | 'ratio' | 'custom'
 
@@ -727,6 +750,9 @@ const canvasTaskLinks = ref<CanvasRunImageTaskLink[]>([])
 const canvasTasksById = ref<Record<string, ImageCreatorTask>>({})
 const previewImageUrl = ref('')
 const previewImageName = ref('')
+const previewImageSourceUrl = ref('')
+const imagePreviewUrls = ref<Record<string, string>>({})
+const uploadingReferenceImage = ref(false)
 const downloadingImage = ref(false)
 const stageRef = ref<HTMLElement | null>(null)
 const selectedCanvasId = ref<string | null>(null)
@@ -778,7 +804,8 @@ const nodeTypes: Array<{ type: CanvasNodeType, icon: IconName }> = [
 
 const qualityOptions: NodeConfigOption[] = [
   { value: 'auto', labelKey: 'canvas.nodeConfigOptions.quality.auto' },
-  { value: 'standard', labelKey: 'canvas.nodeConfigOptions.quality.standard' },
+  { value: 'low', labelKey: 'canvas.nodeConfigOptions.quality.low' },
+  { value: 'medium', labelKey: 'canvas.nodeConfigOptions.quality.medium' },
   { value: 'high', labelKey: 'canvas.nodeConfigOptions.quality.high' },
 ]
 
@@ -808,7 +835,6 @@ const nodeConfigFields: Record<CanvasNodeType, NodeConfigField[]> = {
   ],
   image_to_image: [
     makeConfigField('prompt', 'textarea'),
-    makeConfigField('referenceImageId', 'input'),
     makeConfigField('model', 'input'),
     makeConfigField('quality', 'select', qualityOptions),
     makeConfigField('outputFormat', 'select', outputFormatOptions),
@@ -846,6 +872,11 @@ const selectedNodeBasicConfigFields = computed(() =>
 const selectedNodeSupportsImageDimensions = computed(() =>
   selectedNode.value?.type === 'text_to_image' || selectedNode.value?.type === 'image_to_image'
 )
+
+const selectedNodeReferencePreviewUrl = computed(() => {
+  const url = typeof selectedNode.value?.config?.referenceImageUrl === 'string' ? selectedNode.value.config.referenceImageUrl : ''
+  return url ? imagePreviewUrls.value[url] || '' : ''
+})
 
 const canvasDimensionModeOptions: NodeConfigOption[] = [
   { value: 'auto', labelKey: 'canvas.nodeConfig.dimensionModes.auto' },
@@ -969,6 +1000,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   removeCanvasPointerListeners()
   stopCanvasTaskPolling()
+  clearCanvasImagePreviews()
 })
 
 function createDefaultDocument(): CanvasDocument {
@@ -1191,6 +1223,32 @@ async function queueCanvasRun(): Promise<void> {
     appStore.showError(errorMessage(error, t('canvas.queueFailed')))
   } finally {
     queuingRun.value = false
+  }
+}
+
+async function uploadSelectedNodeReferenceImage(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0] ?? null
+  input.value = ''
+  if (!file || !selectedNode.value || !selectedKey.value) return
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type.toLowerCase())) {
+    appStore.showError(t('canvas.invalidReferenceImage'))
+    return
+  }
+  uploadingReferenceImage.value = true
+  try {
+    const image = await uploadImageCreatorReference({ apiKeyId: selectedKey.value.id, file })
+    const nextConfig = { ...(selectedNode.value.config ?? {}) }
+    nextConfig.referenceImageId = String(image.id)
+    nextConfig.referenceImageName = file.name
+    nextConfig.referenceImageUrl = image.url
+    selectedNode.value.config = nextConfig
+    await resolveCanvasImagePreview(image.url)
+    appStore.showSuccess(t('canvas.referenceImageUploaded'))
+  } catch (error: unknown) {
+    appStore.showError(errorMessage(error, t('canvas.referenceImageUploadFailed')))
+  } finally {
+    uploadingReferenceImage.value = false
   }
 }
 
@@ -1454,9 +1512,16 @@ function canvasSizeForResolutionAndRatio(resolution: string, aspectRatio: string
   const [ratioWidth, ratioHeight] = aspectRatio.split(':').map(Number)
   const base = resolution === '4K' ? 3840 : resolution === '2K' ? 2048 : 1024
   const maxPixels = 8_294_400
-  const scale = Math.min(base / Math.max(ratioWidth, ratioHeight), Math.sqrt(maxPixels / (ratioWidth * ratioHeight)))
-  const width = Math.max(16, Math.round((ratioWidth * scale) / 16) * 16)
-  const height = Math.max(16, Math.round((ratioHeight * scale) / 16) * 16)
+  const ratio = ratioWidth > 0 && ratioHeight > 0 ? ratioWidth / ratioHeight : 1
+  let width = ratio >= 1 ? base * ratio : base
+  let height = ratio >= 1 ? base : base / ratio
+  const pixelScale = Math.min(1, 3840 / width, 3840 / height, Math.sqrt(maxPixels / (width * height)))
+  width = Math.max(16, Math.round((width * pixelScale) / 64) * 64)
+  height = Math.max(16, Math.round((height * pixelScale) / 64) * 64)
+  while (width * height > maxPixels) {
+    if (width >= height) width -= 64
+    else height -= 64
+  }
   return `${width}x${height}`
 }
 
@@ -1648,9 +1713,17 @@ function nodeResultImageUrl(node: CanvasNode): string {
   return firstImageUrl(node.result) || firstImageUrl(outputForNode(node))
 }
 
-function openImagePreview(node: CanvasNode): void {
+function nodeResultPreviewUrl(node: CanvasNode): string {
   const imageUrl = nodeResultImageUrl(node)
+  return imageUrl ? imagePreviewUrls.value[imageUrl] || '' : ''
+}
+
+async function openImagePreview(node: CanvasNode): Promise<void> {
+  const sourceUrl = nodeResultImageUrl(node)
+  if (!sourceUrl) return
+  const imageUrl = nodeResultPreviewUrl(node) || await resolveCanvasImagePreview(sourceUrl)
   if (!imageUrl) return
+  previewImageSourceUrl.value = sourceUrl
   previewImageUrl.value = imageUrl
   previewImageName.value = node.title || t('canvas.imagePreview')
 }
@@ -1658,6 +1731,7 @@ function openImagePreview(node: CanvasNode): void {
 function closeImagePreview(): void {
   previewImageUrl.value = ''
   previewImageName.value = ''
+  previewImageSourceUrl.value = ''
 }
 
 async function downloadNodeImage(node: CanvasNode): Promise<void> {
@@ -1683,8 +1757,32 @@ async function downloadNodeImage(node: CanvasNode): Promise<void> {
 }
 
 function downloadPreviewImage(): Promise<void> {
-  const node = canvasDocument.value.nodes.find((candidate) => nodeResultImageUrl(candidate) === previewImageUrl.value)
+  const node = canvasDocument.value.nodes.find((candidate) => nodeResultImageUrl(candidate) === previewImageSourceUrl.value)
   return node ? downloadNodeImage(node) : Promise.resolve()
+}
+
+async function preloadCanvasImagePreviews(tasks: Array<ImageCreatorTask | null>): Promise<void> {
+  const urls = tasks.flatMap((task) => task?.images?.map((image) => image.url) ?? []).filter(Boolean)
+  await Promise.all(urls.map((url) => resolveCanvasImagePreview(url)))
+}
+
+async function resolveCanvasImagePreview(imageUrl: string): Promise<string> {
+  if (!imageUrl) return ''
+  const cached = imagePreviewUrls.value[imageUrl]
+  if (cached) return cached
+  try {
+    const blob = await downloadImageFile(imageUrl)
+    const objectUrl = URL.createObjectURL(blob)
+    imagePreviewUrls.value = { ...imagePreviewUrls.value, [imageUrl]: objectUrl }
+    return objectUrl
+  } catch {
+    return ''
+  }
+}
+
+function clearCanvasImagePreviews(): void {
+  for (const objectUrl of Object.values(imagePreviewUrls.value)) URL.revokeObjectURL(objectUrl)
+  imagePreviewUrls.value = {}
 }
 
 function imageFileExtension(mimeType: string, imageUrl: string): string {
@@ -1814,6 +1912,7 @@ function resetCanvasTaskState(): void {
   canvasTaskSyncVersion += 1
   canvasTaskLinks.value = []
   canvasTasksById.value = {}
+  clearCanvasImagePreviews()
   stopCanvasTaskPolling()
 }
 
@@ -1902,6 +2001,7 @@ async function pollCanvasImageTasks(taskIds = activeCanvasTaskIds()): Promise<vo
       nextTasks[String(task.id)] = task
     }
     canvasTasksById.value = nextTasks
+    void preloadCanvasImagePreviews(tasks)
   } finally {
     pollingCanvasTasks = false
     refreshCanvasTaskPolling()
@@ -2586,6 +2686,50 @@ function errorMessage(error: unknown, fallback: string): string {
   width: 100%;
   cursor: zoom-in;
   object-fit: contain;
+}
+
+.canvas-reference-upload {
+  display: flex;
+  min-height: 7rem;
+  cursor: pointer;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  overflow: hidden;
+  border: 1px dashed rgb(148 163 184);
+  border-radius: 0.375rem;
+  padding: 0.6rem;
+  color: rgb(71 85 105);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.canvas-reference-upload:hover {
+  border-color: rgb(20 184 166);
+  background: rgb(240 253 250);
+}
+
+.canvas-reference-upload-busy {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.canvas-reference-upload img {
+  max-height: 6rem;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.canvas-reference-upload small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dark .canvas-reference-upload:hover {
+  background: rgb(19 78 74 / 0.25);
 }
 
 .dark .canvas-result-output {

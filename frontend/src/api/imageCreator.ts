@@ -15,6 +15,11 @@ export interface ImageCreatorCreateTaskInput {
   referenceImage?: File | null
 }
 
+export interface ImageCreatorReferenceUploadInput {
+  apiKeyId: number
+  file: File
+}
+
 export interface ImageCreatorStoredImage {
   id: number
   task_id: number
@@ -130,6 +135,14 @@ function buildMultipartPayload(input: ImageCreatorCreateTaskInput): FormData {
 export async function createImageTask(input: ImageCreatorCreateTaskInput): Promise<ImageCreatorTask> {
   const payload = input.referenceImage ? buildMultipartPayload(input) : buildJSONPayload(input)
   const { data } = await apiClient.post<ImageCreatorTask>('/user/image-creator/tasks', payload)
+  return data
+}
+
+export async function uploadImageCreatorReference(input: ImageCreatorReferenceUploadInput): Promise<ImageCreatorStoredImage> {
+  const form = new FormData()
+  form.append('api_key_id', String(input.apiKeyId))
+  form.append('file', input.file, input.file.name || 'reference.png')
+  const { data } = await apiClient.post<ImageCreatorStoredImage>('/user/image-creator/references', form)
   return data
 }
 

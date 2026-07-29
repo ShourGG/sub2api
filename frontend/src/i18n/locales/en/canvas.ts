@@ -47,6 +47,7 @@ export default {
     nodeInspector: 'Node Parameters',
     nodeTitle: 'Node name',
     nodeConfigDefault: 'Default',
+    nodeConfigDefaultWebp: 'Default (WebP)',
     selectedNodePlaceholder: 'Select a node to edit parameters',
     noConfigFields: 'No editable parameters for this node',
     resultPreview: 'Result preview',
@@ -57,7 +58,13 @@ export default {
     downloadImage: 'Download image',
     downloadingImage: 'Downloading...',
     downloadImageFailed: 'Failed to download image',
+    uploadReferenceImage: 'Upload reference image',
+    uploadingReferenceImage: 'Uploading...',
+    referenceImageUploaded: 'Reference image uploaded',
+    referenceImageUploadFailed: 'Failed to upload reference image',
+    invalidReferenceImage: 'Only PNG, JPEG, or WebP images are supported',
     resultImagePending: 'The final image will appear after the run completes',
+    resultImageLoading: 'Loading final image preview',
     resultImageReady: 'Double-click to preview or use Download to save the original image',
     nodeConfig: {
       prompt: 'Prompt',
@@ -78,6 +85,7 @@ export default {
       invalidDimensions: 'Dimensions must be multiples of 16, no side may exceed 3840px, the ratio must not exceed 3:1, and the maximum is 8,294,400 pixels.',
       quality: 'Quality',
       outputFormat: 'Output format',
+      referenceImage: 'Reference image',
       referenceImageId: 'Reference Image ID'
     },
     nodeConfigPlaceholders: {
@@ -91,7 +99,8 @@ export default {
     nodeConfigOptions: {
       quality: {
         auto: 'Auto',
-        standard: 'Standard',
+        low: 'Low',
+        medium: 'Medium',
         high: 'High'
       },
       outputFormat: {

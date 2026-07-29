@@ -47,6 +47,7 @@ export default {
     nodeInspector: '节点参数',
     nodeTitle: '节点名称',
     nodeConfigDefault: '默认',
+    nodeConfigDefaultWebp: '默认 (WebP)',
     selectedNodePlaceholder: '选择一个节点后编辑参数',
     noConfigFields: '该节点暂无可编辑参数',
     resultPreview: '结果预览',
@@ -57,7 +58,13 @@ export default {
     downloadImage: '下载图片',
     downloadingImage: '下载中...',
     downloadImageFailed: '下载图片失败',
+    uploadReferenceImage: '上传参考图片',
+    uploadingReferenceImage: '上传中...',
+    referenceImageUploaded: '参考图片已上传',
+    referenceImageUploadFailed: '参考图片上传失败',
+    invalidReferenceImage: '仅支持 PNG、JPEG 或 WebP 图片',
     resultImagePending: '最终图片会在运行完成后显示',
+    resultImageLoading: '正在加载最终图片预览',
     resultImageReady: '双击图片预览，或使用下载按钮保存原图',
     nodeConfig: {
       prompt: 'Prompt',
@@ -78,6 +85,7 @@ export default {
       invalidDimensions: '宽高需为 16 的倍数，单边不超过 3840px，比例不超过 3:1，最大 8294400 像素。',
       quality: 'Quality',
       outputFormat: '输出格式',
+      referenceImage: '参考图片',
       referenceImageId: 'Reference Image ID'
     },
     nodeConfigPlaceholders: {
@@ -91,7 +99,8 @@ export default {
     nodeConfigOptions: {
       quality: {
         auto: '自动',
-        standard: '标准',
+        low: '低',
+        medium: '标准',
         high: '高质量'
       },
       outputFormat: {

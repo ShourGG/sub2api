@@ -410,7 +410,7 @@ func (s *CanvasService) canvasNodeImageTaskInput(ctx context.Context, userID int
 		input.OutputFormat = canvasString(config, "output_format")
 	}
 	if input.OutputFormat == "" {
-		input.OutputFormat = "png"
+		input.OutputFormat = "webp"
 	}
 	if node.Type != CanvasNodeTypeImageToImage {
 		return input, nil
@@ -646,6 +646,10 @@ func DefaultCanvasModelCatalog() CanvasModelCatalog {
 	models := BuildModelCatalog(PlatformOpenAI, []string{
 		defaultCanvasChatModel,
 		"gpt-5.5",
+		"gpt-5.6",
+		"gpt-5.6-sol",
+		"gpt-5.6-terra",
+		"gpt-5.6-luna",
 		defaultCanvasImageModel,
 		"gpt-image-1.5",
 	})
