@@ -56,6 +56,18 @@ export default {
       text: 'Text',
       model: 'Model',
       size: 'Size',
+      dimensionMode: 'Dimension mode',
+      resolution: 'Base resolution',
+      aspectRatio: 'Aspect ratio',
+      width: 'Width',
+      height: 'Height',
+      dimensionModes: {
+        auto: 'Auto',
+        ratio: 'By ratio',
+        custom: 'Custom width and height'
+      },
+      autoSizeHint: 'Let the model choose the most suitable dimensions.',
+      invalidDimensions: 'Dimensions must be multiples of 16, no side may exceed 3840px, the ratio must not exceed 3:1, and the maximum is 8,294,400 pixels.',
       quality: 'Quality',
       referenceImageId: 'Reference Image ID'
     },
@@ -68,11 +80,6 @@ export default {
       referenceImageId: 'Enter image asset ID'
     },
     nodeConfigOptions: {
-      size: {
-        square: '1024 x 1024',
-        portrait: '1024 x 1536',
-        landscape: '1536 x 1024'
-      },
       quality: {
         auto: 'Auto',
         standard: 'Standard',

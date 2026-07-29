@@ -371,7 +371,7 @@
             </datalist>
 
             <label
-              v-for="field in selectedNodeConfigFields"
+              v-for="field in selectedNodeBasicConfigFields"
               :key="field.key"
               class="canvas-field"
             >
@@ -409,7 +409,102 @@
               />
             </label>
 
-            <div v-if="selectedNodeConfigFields.length === 0" class="canvas-placeholder canvas-compact-placeholder">
+            <template v-if="selectedNodeSupportsImageDimensions">
+              <div class="canvas-field">
+                <span>{{ t('canvas.nodeConfig.dimensionMode') }}</span>
+                <div class="canvas-dimension-mode" role="group" :aria-label="t('canvas.nodeConfig.dimensionMode')">
+                  <button
+                    v-for="option in canvasDimensionModeOptions"
+                    :key="option.value"
+                    type="button"
+                    class="canvas-dimension-mode-button"
+                    :class="{ 'canvas-dimension-mode-button-active': selectedNodeDimensionMode === option.value }"
+                    :aria-pressed="selectedNodeDimensionMode === option.value"
+                    @click="setSelectedNodeDimensionMode(option.value)"
+                  >
+                    {{ t(option.labelKey) }}
+                  </button>
+                </div>
+              </div>
+
+              <template v-if="selectedNodeDimensionMode === 'ratio'">
+                <div class="canvas-field">
+                  <span>{{ t('canvas.nodeConfig.resolution') }}</span>
+                  <div class="canvas-resolution-grid" role="group" :aria-label="t('canvas.nodeConfig.resolution')">
+                    <button
+                      v-for="option in canvasResolutionOptions"
+                      :key="option.value"
+                      type="button"
+                      class="canvas-resolution-button"
+                      :class="{ 'canvas-resolution-button-active': selectedNodeResolution === option.value }"
+                      :aria-pressed="selectedNodeResolution === option.value"
+                      @click="setSelectedNodeResolution(option.value)"
+                    >
+                      {{ option.label }}
+                    </button>
+                  </div>
+                </div>
+                <div class="canvas-field">
+                  <span>{{ t('canvas.nodeConfig.aspectRatio') }}</span>
+                  <div class="canvas-aspect-grid" role="group" :aria-label="t('canvas.nodeConfig.aspectRatio')">
+                    <button
+                      v-for="option in canvasAspectRatioOptions"
+                      :key="option.value"
+                      type="button"
+                      class="canvas-aspect-button"
+                      :class="{ 'canvas-aspect-button-active': selectedNodeAspectRatio === option.value }"
+                      :aria-pressed="selectedNodeAspectRatio === option.value"
+                      @click="setSelectedNodeAspectRatio(option.value)"
+                    >
+                      <span class="canvas-aspect-shape" :style="canvasAspectRatioShapeStyle(option.value)"></span>
+                      <span>{{ option.label }}</span>
+                    </button>
+                  </div>
+                </div>
+                <p class="canvas-dimension-summary">{{ selectedNodeResolvedSize }}</p>
+              </template>
+
+              <template v-else-if="selectedNodeDimensionMode === 'custom'">
+                <div class="canvas-custom-dimension-grid">
+                  <label class="canvas-field">
+                    <span>{{ t('canvas.nodeConfig.width') }}</span>
+                    <input
+                      :value="selectedNodeCustomWidth"
+                      class="input text-sm"
+                      type="number"
+                      min="16"
+                      max="3840"
+                      step="16"
+                      inputmode="numeric"
+                      data-testid="canvas-node-config-width"
+                      @input="setSelectedNodeCustomDimension('width', $event)"
+                    />
+                  </label>
+                  <span class="canvas-dimension-cross" aria-hidden="true">x</span>
+                  <label class="canvas-field">
+                    <span>{{ t('canvas.nodeConfig.height') }}</span>
+                    <input
+                      :value="selectedNodeCustomHeight"
+                      class="input text-sm"
+                      type="number"
+                      min="16"
+                      max="3840"
+                      step="16"
+                      inputmode="numeric"
+                      data-testid="canvas-node-config-height"
+                      @input="setSelectedNodeCustomDimension('height', $event)"
+                    />
+                  </label>
+                </div>
+                <p class="canvas-dimension-summary" :class="{ 'canvas-dimension-summary-error': selectedNodeDimensionError }">
+                  {{ selectedNodeDimensionError || selectedNodeResolvedSize }}
+                </p>
+              </template>
+
+              <p v-else class="canvas-dimension-summary">{{ t('canvas.nodeConfig.autoSizeHint') }}</p>
+            </template>
+
+            <div v-if="selectedNodeBasicConfigFields.length === 0 && !selectedNodeSupportsImageDimensions" class="canvas-placeholder canvas-compact-placeholder">
               <span>{{ t('canvas.noConfigFields') }}</span>
             </div>
           </div>
@@ -542,6 +637,7 @@ interface CanvasPanState {
 type CanvasNodeStatus = NonNullable<CanvasNode['status']>
 type NodeConfigKey = 'prompt' | 'text' | 'model' | 'size' | 'quality' | 'referenceImageId'
 type NodeConfigFieldKind = 'input' | 'textarea' | 'select'
+type CanvasDimensionMode = 'auto' | 'ratio' | 'custom'
 
 interface NodeConfigOption {
   value: string
@@ -619,12 +715,6 @@ const nodeTypes: Array<{ type: CanvasNodeType, icon: IconName }> = [
   { type: 'result', icon: 'checkCircle' },
 ]
 
-const sizeOptions: NodeConfigOption[] = [
-  { value: '1024x1024', labelKey: 'canvas.nodeConfigOptions.size.square' },
-  { value: '1024x1536', labelKey: 'canvas.nodeConfigOptions.size.portrait' },
-  { value: '1536x1024', labelKey: 'canvas.nodeConfigOptions.size.landscape' },
-]
-
 const qualityOptions: NodeConfigOption[] = [
   { value: 'auto', labelKey: 'canvas.nodeConfigOptions.quality.auto' },
   { value: 'standard', labelKey: 'canvas.nodeConfigOptions.quality.standard' },
@@ -646,14 +736,12 @@ const nodeConfigFields: Record<CanvasNodeType, NodeConfigField[]> = {
   text_to_image: [
     makeConfigField('prompt', 'textarea'),
     makeConfigField('model', 'input'),
-    makeConfigField('size', 'select', sizeOptions),
     makeConfigField('quality', 'select', qualityOptions),
   ],
   image_to_image: [
     makeConfigField('prompt', 'textarea'),
     makeConfigField('referenceImageId', 'input'),
     makeConfigField('model', 'input'),
-    makeConfigField('size', 'select', sizeOptions),
     makeConfigField('quality', 'select', qualityOptions),
   ],
   loop: [
@@ -682,6 +770,66 @@ const selectedNodeConfigFields = computed(() =>
   selectedNode.value ? nodeConfigFields[selectedNode.value.type] : []
 )
 
+const selectedNodeBasicConfigFields = computed(() =>
+  selectedNodeConfigFields.value.filter((field) => field.key !== 'size')
+)
+
+const selectedNodeSupportsImageDimensions = computed(() =>
+  selectedNode.value?.type === 'text_to_image' || selectedNode.value?.type === 'image_to_image'
+)
+
+const canvasDimensionModeOptions: NodeConfigOption[] = [
+  { value: 'auto', labelKey: 'canvas.nodeConfig.dimensionModes.auto' },
+  { value: 'ratio', labelKey: 'canvas.nodeConfig.dimensionModes.ratio' },
+  { value: 'custom', labelKey: 'canvas.nodeConfig.dimensionModes.custom' },
+]
+
+const canvasResolutionOptions = [
+  { value: '1K', label: '1K' },
+  { value: '2K', label: '2K' },
+  { value: '4K', label: '4K' },
+]
+
+const canvasAspectRatioOptions = [
+  { value: '1:1', label: '1:1' },
+  { value: '3:2', label: '3:2' },
+  { value: '2:3', label: '2:3' },
+  { value: '16:9', label: '16:9' },
+  { value: '9:16', label: '9:16' },
+  { value: '4:3', label: '4:3' },
+  { value: '3:4', label: '3:4' },
+  { value: '21:9', label: '21:9' },
+]
+
+const selectedNodeDimensionMode = computed<CanvasDimensionMode>(() => {
+  const value = selectedNode.value?.config?.dimensionMode
+  return value === 'auto' || value === 'custom' || value === 'ratio' ? value : 'ratio'
+})
+
+const selectedNodeResolution = computed(() => {
+  const value = selectedNode.value?.config?.resolution
+  return value === '2K' || value === '4K' ? value : '1K'
+})
+
+const selectedNodeAspectRatio = computed(() => {
+  const value = selectedNode.value?.config?.aspectRatio
+  return canvasAspectRatioOptions.some((option) => option.value === value) ? String(value) : '1:1'
+})
+
+const selectedNodeCustomWidth = computed(() => canvasNodePositiveIntegerConfig('width', 1024))
+const selectedNodeCustomHeight = computed(() => canvasNodePositiveIntegerConfig('height', 1024))
+
+const selectedNodeDimensionError = computed(() => {
+  if (!selectedNodeSupportsImageDimensions.value || selectedNodeDimensionMode.value !== 'custom') return ''
+  return canvasDimensionValidationError(selectedNodeCustomWidth.value, selectedNodeCustomHeight.value)
+})
+
+const selectedNodeResolvedSize = computed(() => {
+  if (selectedNodeDimensionMode.value === 'auto') return 'auto'
+  if (selectedNodeDimensionMode.value === 'custom') return `${selectedNodeCustomWidth.value}x${selectedNodeCustomHeight.value}`
+  return canvasSizeForResolutionAndRatio(selectedNodeResolution.value, selectedNodeAspectRatio.value)
+})
+
 const latestRun = computed(() => runs.value[0] ?? null)
 
 const selectedKey = computed(() =>
@@ -700,7 +848,8 @@ const canQueueRun = computed(() =>
   !saving.value &&
   !loadingCanvas.value &&
   draftName.value.trim().length > 0 &&
-  canvasDocument.value.nodes.length > 0
+  canvasDocument.value.nodes.length > 0 &&
+  !canvasDocument.value.nodes.some((node) => canvasNodeHasInvalidCustomDimensions(node))
 )
 
 const viewportZoomLabel = computed(() => `${Math.round(currentViewport().zoom * 100)}%`)
@@ -1151,6 +1300,101 @@ function updateSelectedNodeConfig(key: NodeConfigKey, value: string): void {
     delete nextConfig[key]
   }
   node.config = nextConfig
+}
+
+function setSelectedNodeDimensionMode(mode: string): void {
+  const node = selectedNode.value
+  if (!node || !selectedNodeSupportsImageDimensions.value) return
+  const nextConfig: Record<string, unknown> = { ...(node.config ?? {}), dimensionMode: mode }
+  if (mode === 'auto') {
+    nextConfig.size = 'auto'
+  } else if (mode === 'ratio') {
+    nextConfig.size = canvasSizeForResolutionAndRatio(selectedNodeResolution.value, selectedNodeAspectRatio.value)
+  } else {
+    const width = canvasNodePositiveIntegerConfigFrom(node, 'width', 1024)
+    const height = canvasNodePositiveIntegerConfigFrom(node, 'height', 1024)
+    if (!canvasDimensionValidationError(width, height)) nextConfig.size = `${width}x${height}`
+  }
+  node.config = nextConfig
+}
+
+function setSelectedNodeResolution(resolution: string): void {
+  updateSelectedNodeDimensionRatioConfig({ resolution })
+}
+
+function setSelectedNodeAspectRatio(aspectRatio: string): void {
+  updateSelectedNodeDimensionRatioConfig({ aspectRatio })
+}
+
+function updateSelectedNodeDimensionRatioConfig(values: Record<string, string>): void {
+  const node = selectedNode.value
+  if (!node || !selectedNodeSupportsImageDimensions.value) return
+  const nextConfig: Record<string, unknown> = { ...(node.config ?? {}), dimensionMode: 'ratio', ...values }
+  const configuredResolution = nextConfig.resolution
+  const configuredAspectRatio = nextConfig.aspectRatio
+  const resolution = values.resolution ?? (configuredResolution === '2K' || configuredResolution === '4K' ? configuredResolution : '1K')
+  const aspectRatio = values.aspectRatio ?? (typeof configuredAspectRatio === 'string' ? configuredAspectRatio : '1:1')
+  nextConfig.size = canvasSizeForResolutionAndRatio(resolution, aspectRatio)
+  node.config = nextConfig
+}
+
+function setSelectedNodeCustomDimension(dimension: 'width' | 'height', event: Event): void {
+  const node = selectedNode.value
+  if (!node || !selectedNodeSupportsImageDimensions.value) return
+  const nextConfig: Record<string, unknown> = { ...(node.config ?? {}), dimensionMode: 'custom' }
+  const value = Number(inputValue(event))
+  nextConfig[dimension] = Number.isFinite(value) ? Math.trunc(value) : 0
+  const width = canvasNodePositiveIntegerConfigFrom({ ...node, config: nextConfig }, 'width', 0)
+  const height = canvasNodePositiveIntegerConfigFrom({ ...node, config: nextConfig }, 'height', 0)
+  if (!canvasDimensionValidationError(width, height)) nextConfig.size = `${width}x${height}`
+  node.config = nextConfig
+}
+
+function canvasNodePositiveIntegerConfig(key: string, fallback: number): number {
+  return selectedNode.value ? canvasNodePositiveIntegerConfigFrom(selectedNode.value, key, fallback) : fallback
+}
+
+function canvasNodePositiveIntegerConfigFrom(node: CanvasNode, key: string, fallback: number): number {
+  const value = Number(node.config?.[key])
+  return Number.isInteger(value) && value > 0 ? value : fallback
+}
+
+function canvasDimensionValidationError(width: number, height: number): string {
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width < 16 || height < 16) {
+    return t('canvas.nodeConfig.invalidDimensions')
+  }
+  if (width > 3840 || height > 3840 || width % 16 !== 0 || height % 16 !== 0) {
+    return t('canvas.nodeConfig.invalidDimensions')
+  }
+  if (Math.max(width, height) / Math.min(width, height) > 3 || width * height > 8_294_400) {
+    return t('canvas.nodeConfig.invalidDimensions')
+  }
+  return ''
+}
+
+function canvasNodeHasInvalidCustomDimensions(node: CanvasNode): boolean {
+  const mode = node.config?.dimensionMode
+  if (mode !== 'custom') return false
+  return Boolean(canvasDimensionValidationError(
+    canvasNodePositiveIntegerConfigFrom(node, 'width', 0),
+    canvasNodePositiveIntegerConfigFrom(node, 'height', 0),
+  ))
+}
+
+function canvasSizeForResolutionAndRatio(resolution: string, aspectRatio: string): string {
+  const [ratioWidth, ratioHeight] = aspectRatio.split(':').map(Number)
+  const base = resolution === '4K' ? 3840 : resolution === '2K' ? 2048 : 1024
+  const maxPixels = 8_294_400
+  const scale = Math.min(base / Math.max(ratioWidth, ratioHeight), Math.sqrt(maxPixels / (ratioWidth * ratioHeight)))
+  const width = Math.max(16, Math.round((ratioWidth * scale) / 16) * 16)
+  const height = Math.max(16, Math.round((ratioHeight * scale) / 16) * 16)
+  return `${width}x${height}`
+}
+
+function canvasAspectRatioShapeStyle(aspectRatio: string): Record<string, string> {
+  const [width, height] = aspectRatio.split(':').map(Number)
+  const scale = 24 / Math.max(width, height)
+  return { width: `${Math.max(7, Math.round(width * scale))}px`, height: `${Math.max(7, Math.round(height * scale))}px` }
 }
 
 function nodeTypeLabel(type: CanvasNodeType): string {
@@ -2217,6 +2461,105 @@ function errorMessage(error: unknown, fallback: string): string {
   gap: 0.625rem;
 }
 
+.canvas-dimension-mode {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  background: rgb(241 245 249);
+}
+
+.canvas-dimension-mode-button {
+  min-height: 2rem;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: rgb(100 116 139);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.canvas-dimension-mode-button-active {
+  border-color: rgb(37 99 235);
+  background: rgb(255 255 255);
+  color: rgb(30 64 175);
+}
+
+.canvas-resolution-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.canvas-resolution-button,
+.canvas-aspect-button {
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0.5rem;
+  background: rgb(255 255 255);
+  color: rgb(71 85 105);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.canvas-resolution-button {
+  min-height: 2.35rem;
+}
+
+.canvas-resolution-button-active,
+.canvas-aspect-button-active {
+  border-color: rgb(59 130 246);
+  background: rgb(239 246 255);
+  color: rgb(37 99 235);
+}
+
+.canvas-aspect-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.canvas-aspect-button {
+  display: flex;
+  min-height: 4rem;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+}
+
+.canvas-aspect-shape {
+  display: block;
+  box-sizing: border-box;
+  border: 1px solid currentColor;
+  border-radius: 0.125rem;
+}
+
+.canvas-custom-dimension-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1.25rem minmax(0, 1fr);
+  align-items: end;
+  gap: 0.45rem;
+}
+
+.canvas-dimension-cross {
+  padding-bottom: 0.55rem;
+  color: rgb(148 163 184);
+  text-align: center;
+}
+
+.canvas-dimension-summary {
+  margin: -0.15rem 0 0;
+  color: rgb(71 85 105);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.canvas-dimension-summary-error {
+  color: rgb(225 29 72);
+}
+
 .canvas-field {
   display: grid;
   gap: 0.375rem;
@@ -2245,6 +2588,29 @@ function errorMessage(error: unknown, fallback: string): string {
 .dark .canvas-field,
 .dark .canvas-node-editor-status {
   color: rgb(148 163 184);
+}
+
+.dark .canvas-dimension-mode {
+  background: rgb(30 41 59);
+}
+
+.dark .canvas-dimension-mode-button-active,
+.dark .canvas-resolution-button,
+.dark .canvas-aspect-button {
+  background: rgb(17 24 39);
+}
+
+.dark .canvas-resolution-button,
+.dark .canvas-aspect-button {
+  border-color: rgb(55 65 81);
+  color: rgb(203 213 225);
+}
+
+.dark .canvas-resolution-button-active,
+.dark .canvas-aspect-button-active {
+  border-color: rgb(59 130 246);
+  background: rgb(30 58 138 / 0.35);
+  color: rgb(147 197 253);
 }
 
 .canvas-node-list-dot,

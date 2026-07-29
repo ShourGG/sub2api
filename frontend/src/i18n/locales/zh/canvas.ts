@@ -56,6 +56,18 @@ export default {
       text: 'Text',
       model: 'Model',
       size: 'Size',
+      dimensionMode: '尺寸模式',
+      resolution: '基础分辨率',
+      aspectRatio: '图像比例',
+      width: '宽度 (Width)',
+      height: '高度 (Height)',
+      dimensionModes: {
+        auto: '自动',
+        ratio: '按比例',
+        custom: '自定义宽高'
+      },
+      autoSizeHint: '由模型自动选择最合适的画幅。',
+      invalidDimensions: '宽高需为 16 的倍数，单边不超过 3840px，比例不超过 3:1，最大 8294400 像素。',
       quality: 'Quality',
       referenceImageId: 'Reference Image ID'
     },
@@ -68,11 +80,6 @@ export default {
       referenceImageId: '输入图片资源 ID'
     },
     nodeConfigOptions: {
-      size: {
-        square: '1024 x 1024',
-        portrait: '1024 x 1536',
-        landscape: '1536 x 1024'
-      },
       quality: {
         auto: '自动',
         standard: '标准',
