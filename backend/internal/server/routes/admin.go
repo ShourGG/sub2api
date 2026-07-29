@@ -119,6 +119,9 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+
+		// 生图存储治理
+		registerImageCreatorStorageGovernanceRoutes(admin, h)
 	}
 }
 
@@ -769,5 +772,14 @@ func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 			users.PUT("/:user_id", h.Admin.Affiliate.UpdateUserSettings)
 			users.DELETE("/:user_id", h.Admin.Affiliate.ClearUserSettings)
 		}
+	}
+}
+
+// registerImageCreatorStorageGovernanceRoutes 注册生图存储治理管理端路由
+func registerImageCreatorStorageGovernanceRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	imageCreator := admin.Group("/image-creator")
+	{
+		imageCreator.GET("/storage-governance", h.Admin.ImageCreatorStorage.GetStats)
+		imageCreator.POST("/storage-governance", h.Admin.ImageCreatorStorage.Cleanup)
 	}
 }

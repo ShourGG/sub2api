@@ -162,6 +162,49 @@ type UserSpendingRankingResponse struct {
 	TotalTokens     int64                     `json:"total_tokens"`
 }
 
+// TokenLeaderboardItem represents one row in the Token consumption leaderboard.
+// Ranking key is total_tokens = input + output + cache + image_output.
+type TokenLeaderboardItem struct {
+	Rank             int    `json:"rank"`
+	UserID           int64  `json:"user_id"`
+	Email            string `json:"-"` // raw email, never serialized; masked into User
+	User             string `json:"user"`
+	Requests         int64  `json:"requests"`
+	TotalTokens      int64  `json:"total_tokens"`
+	InputTokens      int64  `json:"input_tokens"`
+	OutputTokens     int64  `json:"output_tokens"`
+	CacheTokens      int64  `json:"cache_tokens"`
+	ImageOutputTokens int64 `json:"image_output_tokens"`
+	LastActiveAt     string `json:"last_active_at"`
+	IsMe             bool   `json:"is_me"`
+}
+
+// TokenLeaderboardRow is the raw aggregation row returned by the repository.
+// It carries a real timestamp for last activity; the handler formats it and
+// applies masking/ranking before serving, so this stays presentation-agnostic.
+type TokenLeaderboardRow struct {
+	UserID            int64
+	Email             string
+	Requests          int64
+	TotalTokens       int64
+	InputTokens       int64
+	OutputTokens      int64
+	CacheTokens       int64
+	ImageOutputTokens int64
+	LastActiveAt      time.Time
+}
+
+// TokenLeaderboardResponse is the payload returned to the Token leaderboard page.
+type TokenLeaderboardResponse struct {
+	Days     int                    `json:"days"`
+	Label    string                 `json:"label"`
+	Timezone string                 `json:"timezone"`
+	Start    string                 `json:"start"`
+	End      string                 `json:"end"`
+	Limit    int                    `json:"limit"`
+	Items    []TokenLeaderboardItem `json:"items"`
+}
+
 // UserBreakdownItem represents per-user usage breakdown within a dimension (group, model, endpoint).
 type UserBreakdownItem struct {
 	UserID       int64   `json:"user_id"`
@@ -380,4 +423,29 @@ type AccountUsageStatsResponse struct {
 	Models            []ModelStat           `json:"models"`
 	Endpoints         []EndpointStat        `json:"endpoints"`
 	UpstreamEndpoints []EndpointStat        `json:"upstream_endpoints"`
+}
+
+// UserLeaderboardItem is one row in the token leaderboard (普通用户侧，已脱敏).
+type UserLeaderboardItem struct {
+	Rank                int64  `json:"rank"`
+	UserID              int64  `json:"user_id"`
+	// DisplayName is the desensitized username/email shown to regular users.
+	DisplayName         string `json:"display_name"`
+	// RawName is the original username/email used for desensitization; never serialized.
+	RawName             string `json:"-"`
+	InputTokens         int64  `json:"input_tokens"`
+	OutputTokens        int64  `json:"output_tokens"`
+	CacheCreationTokens int64  `json:"cache_creation_tokens"`
+	CacheReadTokens     int64  `json:"cache_read_tokens"`
+	ImageOutputTokens   int64  `json:"image_output_tokens"`
+	TotalTokens         int64  `json:"total_tokens"`
+	// IsCurrentUser flags the caller's own row so the frontend can highlight it.
+	IsCurrentUser bool `json:"is_current_user"`
+}
+
+// UserLeaderboardResponse is the full payload returned by DashboardLeaderboard.
+type UserLeaderboardResponse struct {
+	Ranking         []UserLeaderboardItem `json:"ranking"`
+	CurrentUserRank *UserLeaderboardItem  `json:"current_user_rank,omitempty"`
+	GeneratedAt     string                `json:"generated_at"`
 }

@@ -551,6 +551,34 @@ func ProvideImageTaskService(store ImageTaskStore, settings *ImageStorageSetting
 	return NewImageTaskServiceWithResolver(store, settings.Resolver(), defaultImageTaskTTL, defaultImageTaskExecutionTimeout)
 }
 
+// ProvideImageCreatorService constructs the user image creator service. It reuses
+// the shared object store factory so S3/COS uploads share the backup credentials
+// plumbing rather than opening a second client stack.
+func ProvideImageCreatorService(
+	repo ImageCreatorRepository,
+	apiKeyService *APIKeyService,
+	cfg *config.Config,
+	storeFactory BackupObjectStoreFactory,
+) *ImageCreatorService {
+	return NewImageCreatorService(repo, apiKeyService, cfg, storeFactory)
+}
+
+// ProvideCanvasService wires the canvas orchestration service to the image
+// creator so text-to-image / image-to-image nodes enqueue real tasks.
+func ProvideCanvasService(repo CanvasRepository, imageCreator *ImageCreatorService) *CanvasService {
+	return NewCanvasServiceWithDeps(repo, imageCreator)
+}
+
+// ProvideImageCreatorStorageGovernanceService constructs the admin-facing
+// storage governance service over the image creator storage.
+func ProvideImageCreatorStorageGovernanceService(
+	repo ImageCreatorStorageGovernanceRepository,
+	imageCreator *ImageCreatorService,
+	cfg *config.Config,
+) *ImageCreatorStorageGovernanceService {
+	return NewImageCreatorStorageGovernanceService(repo, imageCreator, cfg)
+}
+
 // ProvideBackupService creates and starts BackupService
 func ProvideBackupService(
 	settingRepo SettingRepository,
@@ -698,6 +726,9 @@ var ProviderSet = wire.NewSet(
 	NewOpenAIGatewayService,
 	ProvideImageStorageSettingService,
 	ProvideImageTaskService,
+	ProvideImageCreatorService,
+	ProvideCanvasService,
+	ProvideImageCreatorStorageGovernanceService,
 	ProvideBatchImageModelPricingResolver,
 	NewBatchImagePublicService,
 	NewBatchImageDownloadService,
@@ -789,6 +820,14 @@ var ProviderSet = wire.NewSet(
 	ProvideChannelMonitorRunner,
 	NewChannelMonitorRequestTemplateService,
 	ProvideUserPlatformQuotaUsageFlusher,
+
+	// Image-gen services
+	wire.Value((*MembershipService)(nil)),
+	ProvideImageCreatorService,
+	NewCanvasService,
+	NewStudioBridgeService,
+	NewPromptFavoriteService,
+	NewImageCreatorStorageGovernanceService,
 )
 
 // ProvideUserPlatformQuotaUsageFlusher 创建并启动 UserPlatformQuotaUsageFlusher。
@@ -844,4 +883,10 @@ func ProvideChannelMonitorRunner(svc *ChannelMonitorService, settingService *Set
 	svc.SetScheduler(r)
 	r.Start()
 	return r
+}
+
+// ProvideImageCreatorService 构造 ImageCreatorService。
+// NewImageCreatorService 有 variadic 参数，wire 不支持，因此用此 wrapper 包装。
+func ProvideImageCreatorService(repo ImageCreatorRepository, apiKeyService *APIKeyService, membership *MembershipService, cfg *config.Config) *ImageCreatorService {
+	return NewImageCreatorService(repo, apiKeyService, membership, cfg)
 }

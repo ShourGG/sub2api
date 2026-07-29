@@ -587,6 +587,63 @@ func (s *APIKeyService) ApplySelectedGroupRoute(ctx context.Context, key *APIKey
 	return nil
 }
 
+// ResolveImageGenerationAPIKey returns a copy of key whose Group is an
+// OpenAI-platform group with image generation enabled. It considers the key's
+// directly-bound group first, then each enabled multi-group route, loading
+// groups lazily via the group repository. It returns an error if no candidate
+// group qualifies. Used by the user image creator to validate that a key can
+// route image generation requests before enqueuing a task.
+func (s *APIKeyService) ResolveImageGenerationAPIKey(ctx context.Context, key *APIKey) (*APIKey, error) {
+	if key == nil {
+		return nil, infraerrors.NotFound("API_KEY_NOT_FOUND", "api key not found")
+	}
+
+	// Collect candidate group IDs in preference order: direct binding, then routes.
+	var candidateIDs []int64
+	seen := make(map[int64]struct{})
+	addCandidate := func(id int64) {
+		if id <= 0 {
+			return
+		}
+		if _, ok := seen[id]; ok {
+			return
+		}
+		seen[id] = struct{}{}
+		candidateIDs = append(candidateIDs, id)
+	}
+	if key.GroupID != nil {
+		addCandidate(*key.GroupID)
+	}
+	for _, route := range key.GroupRoutes {
+		if route.Enabled {
+			addCandidate(route.GroupID)
+		}
+	}
+
+	for _, groupID := range candidateIDs {
+		group, err := s.groupRepo.GetByID(ctx, groupID)
+		if err != nil || group == nil {
+			continue
+		}
+		if group.Platform != PlatformOpenAI {
+			continue
+		}
+		if !GroupAllowsImageGeneration(group) {
+			continue
+		}
+		if group.Status != "" && !group.IsActive() {
+			continue
+		}
+		clone := *key
+		gid := group.ID
+		clone.GroupID = &gid
+		clone.Group = group
+		return &clone, nil
+	}
+
+	return nil, infraerrors.Forbidden("IMAGE_GENERATION_FORBIDDEN", ImageGenerationPermissionMessage())
+}
+
 // ApplyNextGroupRoute applies an untried, non-cooled route to the same API key.
 // It is used by gateway retry loops before any response bytes have been sent.
 func (s *APIKeyService) ApplyNextGroupRoute(ctx context.Context, key *APIKey, attempted map[int64]struct{}) (bool, error) {
