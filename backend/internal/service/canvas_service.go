@@ -409,6 +409,9 @@ func (s *CanvasService) canvasNodeImageTaskInput(ctx context.Context, userID int
 	if input.OutputFormat == "" {
 		input.OutputFormat = canvasString(config, "output_format")
 	}
+	if input.OutputFormat == "" {
+		input.OutputFormat = "png"
+	}
 	if node.Type != CanvasNodeTypeImageToImage {
 		return input, nil
 	}

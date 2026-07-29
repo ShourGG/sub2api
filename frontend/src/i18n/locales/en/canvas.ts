@@ -51,6 +51,12 @@ export default {
     noConfigFields: 'No editable parameters for this node',
     resultPreview: 'Result preview',
     imageResult: 'Image result',
+    imagePreview: 'Image preview',
+    openImagePreview: 'Double-click to preview image',
+    closeImagePreview: 'Close image preview',
+    downloadImage: 'Download image',
+    downloadingImage: 'Downloading...',
+    downloadImageFailed: 'Failed to download image',
     nodeConfig: {
       prompt: 'Prompt',
       text: 'Text',
@@ -69,6 +75,7 @@ export default {
       autoSizeHint: 'Let the model choose the most suitable dimensions.',
       invalidDimensions: 'Dimensions must be multiples of 16, no side may exceed 3840px, the ratio must not exceed 3:1, and the maximum is 8,294,400 pixels.',
       quality: 'Quality',
+      outputFormat: 'Output format',
       referenceImageId: 'Reference Image ID'
     },
     nodeConfigPlaceholders: {
@@ -84,6 +91,11 @@ export default {
         auto: 'Auto',
         standard: 'Standard',
         high: 'High'
+      },
+      outputFormat: {
+        png: 'PNG',
+        jpeg: 'JPEG',
+        webp: 'WebP'
       }
     },
     nodeTypes: {

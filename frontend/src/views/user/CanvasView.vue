@@ -238,12 +238,14 @@
                   <span class="canvas-node-status-dot" :class="`canvas-node-status-${nodeDisplayStatus(node)}`"></span>
                   {{ t(`canvas.nodeStatus.${nodeDisplayStatus(node)}`) }}
                 </span>
-                <span v-if="nodeResultImageUrl(node)" class="canvas-node-preview">
+                <span v-if="node.type === 'result' && nodeResultImageUrl(node)" class="canvas-node-preview">
                   <img
                     :src="nodeResultImageUrl(node)"
                     :alt="t('canvas.resultPreview')"
+                    :title="t('canvas.openImagePreview')"
                     data-testid="canvas-node-preview-image"
                     draggable="false"
+                    @dblclick.stop.prevent="openImagePreview(node)"
                   />
                 </span>
                 <span
@@ -362,6 +364,18 @@
             <div class="canvas-node-editor-status">
               <span class="canvas-run-status" :class="`canvas-run-status-${nodeDisplayStatus(selectedNode)}`"></span>
               <span>{{ t(`canvas.nodeStatus.${nodeDisplayStatus(selectedNode)}`) }}</span>
+              <button
+                v-if="selectedNode.type === 'result' && nodeResultImageUrl(selectedNode)"
+                type="button"
+                class="canvas-node-download-button"
+                :title="t('canvas.downloadImage')"
+                :disabled="downloadingImage"
+                data-testid="canvas-node-download-image"
+                @click="downloadNodeImage(selectedNode)"
+              >
+                <Icon name="download" size="sm" />
+                <span>{{ downloadingImage ? t('canvas.downloadingImage') : t('canvas.downloadImage') }}</span>
+              </button>
             </div>
 
             <datalist id="canvas-model-options">
@@ -564,6 +578,30 @@
       </aside>
     </div>
   </AppLayout>
+
+  <Teleport to="body">
+    <div
+      v-if="previewImageUrl"
+      class="canvas-image-preview-overlay"
+      data-testid="canvas-image-preview-overlay"
+      @click.self="closeImagePreview"
+    >
+      <section class="canvas-image-preview" role="dialog" aria-modal="true" :aria-label="t('canvas.imagePreview')">
+        <header class="canvas-image-preview-header">
+          <span class="truncate">{{ previewImageName }}</span>
+          <div class="canvas-image-preview-actions">
+            <button type="button" class="canvas-icon-button" :title="t('canvas.downloadImage')" @click="downloadPreviewImage">
+              <Icon name="download" size="sm" />
+            </button>
+            <button type="button" class="canvas-icon-button" :title="t('canvas.closeImagePreview')" @click="closeImagePreview">
+              <Icon name="x" size="sm" />
+            </button>
+          </div>
+        </header>
+        <img :src="previewImageUrl" :alt="t('canvas.imagePreview')" data-testid="canvas-image-preview-image" />
+      </section>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -592,6 +630,7 @@ import {
   type UserCanvasSummary,
 } from '@/api/canvas'
 import {
+  downloadImageFile,
   getImageTask,
   type ImageCreatorTask,
   type ImageCreatorTaskStatus,
@@ -635,7 +674,7 @@ interface CanvasPanState {
 }
 
 type CanvasNodeStatus = NonNullable<CanvasNode['status']>
-type NodeConfigKey = 'prompt' | 'text' | 'model' | 'size' | 'quality' | 'referenceImageId'
+type NodeConfigKey = 'prompt' | 'text' | 'model' | 'size' | 'quality' | 'referenceImageId' | 'outputFormat'
 type NodeConfigFieldKind = 'input' | 'textarea' | 'select'
 type CanvasDimensionMode = 'auto' | 'ratio' | 'custom'
 
@@ -667,6 +706,9 @@ const runs = ref<CanvasRun[]>([])
 const apiKeys = ref<ApiKey[]>([])
 const canvasTaskLinks = ref<CanvasRunImageTaskLink[]>([])
 const canvasTasksById = ref<Record<string, ImageCreatorTask>>({})
+const previewImageUrl = ref('')
+const previewImageName = ref('')
+const downloadingImage = ref(false)
 const stageRef = ref<HTMLElement | null>(null)
 const selectedCanvasId = ref<string | null>(null)
 const selectedNodeId = ref<string | null>(null)
@@ -721,6 +763,12 @@ const qualityOptions: NodeConfigOption[] = [
   { value: 'high', labelKey: 'canvas.nodeConfigOptions.quality.high' },
 ]
 
+const outputFormatOptions = [
+  { value: 'png', labelKey: 'canvas.nodeConfigOptions.outputFormat.png' },
+  { value: 'jpeg', labelKey: 'canvas.nodeConfigOptions.outputFormat.jpeg' },
+  { value: 'webp', labelKey: 'canvas.nodeConfigOptions.outputFormat.webp' },
+]
+
 const nodeConfigFields: Record<CanvasNodeType, NodeConfigField[]> = {
   prompt: [
     makeConfigField('prompt', 'textarea'),
@@ -737,12 +785,14 @@ const nodeConfigFields: Record<CanvasNodeType, NodeConfigField[]> = {
     makeConfigField('prompt', 'textarea'),
     makeConfigField('model', 'input'),
     makeConfigField('quality', 'select', qualityOptions),
+    makeConfigField('outputFormat', 'select', outputFormatOptions),
   ],
   image_to_image: [
     makeConfigField('prompt', 'textarea'),
     makeConfigField('referenceImageId', 'input'),
     makeConfigField('model', 'input'),
     makeConfigField('quality', 'select', qualityOptions),
+    makeConfigField('outputFormat', 'select', outputFormatOptions),
   ],
   loop: [
     makeConfigField('text', 'input'),
@@ -1555,6 +1605,10 @@ function clampNumber(value: number, min: number, max: number): number {
 }
 
 function nodeDisplayStatus(node: CanvasNode): CanvasNodeStatus {
+  if (node.type === 'result') {
+    const upstreamTask = resultNodeUpstreamImageTask(node)
+    if (upstreamTask) return canvasNodeStatusFromTaskStatus(upstreamTask.status)
+  }
   const taskLink = imageTaskLinkForNode(node.id)
   if (taskLink) {
     return canvasNodeStatusFromTaskStatus(imageTaskStatusForNode(node.id) ?? 'pending')
@@ -1566,12 +1620,67 @@ function nodeDisplayStatus(node: CanvasNode): CanvasNodeStatus {
 }
 
 function nodeResultImageUrl(node: CanvasNode): string {
+  if (node.type === 'result') {
+    const task = resultNodeUpstreamImageTask(node)
+    return task ? firstImageUrl(imageTaskToNodeOutput(task)) : ''
+  }
   const taskOutput = canvasTaskOutputForNode(node)
   if (taskOutput !== undefined) return firstImageUrl(taskOutput)
   return firstImageUrl(node.result) || firstImageUrl(outputForNode(node))
 }
 
+function openImagePreview(node: CanvasNode): void {
+  const imageUrl = nodeResultImageUrl(node)
+  if (!imageUrl) return
+  previewImageUrl.value = imageUrl
+  previewImageName.value = node.title || t('canvas.imagePreview')
+}
+
+function closeImagePreview(): void {
+  previewImageUrl.value = ''
+  previewImageName.value = ''
+}
+
+async function downloadNodeImage(node: CanvasNode): Promise<void> {
+  const imageUrl = nodeResultImageUrl(node)
+  if (!imageUrl || downloadingImage.value) return
+  downloadingImage.value = true
+  try {
+    const blob = await downloadImageFile(imageUrl)
+    const extension = imageFileExtension(blob.type, imageUrl)
+    const objectUrl = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = objectUrl
+    anchor.download = `${node.title || 'canvas-image'}.${extension}`
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(objectUrl)
+  } catch (error: unknown) {
+    appStore.showError(errorMessage(error, t('canvas.downloadImageFailed')))
+  } finally {
+    downloadingImage.value = false
+  }
+}
+
+function downloadPreviewImage(): Promise<void> {
+  const node = canvasDocument.value.nodes.find((candidate) => nodeResultImageUrl(candidate) === previewImageUrl.value)
+  return node ? downloadNodeImage(node) : Promise.resolve()
+}
+
+function imageFileExtension(mimeType: string, imageUrl: string): string {
+  if (mimeType === 'image/png') return 'png'
+  if (mimeType === 'image/jpeg') return 'jpeg'
+  if (mimeType === 'image/webp') return 'webp'
+  const match = imageUrl.match(/\.(png|jpe?g|webp)(?:\?|$)/i)
+  return match?.[1]?.toLowerCase() === 'jpg' ? 'jpeg' : match?.[1]?.toLowerCase() || 'png'
+}
+
 function nodeResultSummary(node: CanvasNode): string {
+  if (node.type === 'result') {
+    const task = resultNodeUpstreamImageTask(node)
+    return task ? summarizeUnknown(imageTaskToNodeOutput(task)) : ''
+  }
   const taskOutput = canvasTaskOutputForNode(node)
   if (taskOutput !== undefined) return summarizeUnknown(taskOutput)
   const result = node.result ?? outputForNode(node)
@@ -1579,6 +1688,10 @@ function nodeResultSummary(node: CanvasNode): string {
 }
 
 function nodeErrorSummary(node: CanvasNode): string {
+  if (node.type === 'result') {
+    const task = resultNodeUpstreamImageTask(node)
+    return task?.error_message || ''
+  }
   const task = imageTaskForNode(node.id)
   if (task?.error_message) return task.error_message
   const output = outputForNode(node)
@@ -1587,6 +1700,10 @@ function nodeErrorSummary(node: CanvasNode): string {
 }
 
 function outputForNode(node: CanvasNode): unknown {
+  if (node.type === 'result') {
+    const task = resultNodeUpstreamImageTask(node)
+    return task ? imageTaskToNodeOutput(task) : undefined
+  }
   const taskOutput = canvasTaskOutputForNode(node)
   if (taskOutput !== undefined) return taskOutput
   const outputs = latestRun.value ? runOutputs(latestRun.value) : {}
@@ -1812,6 +1929,28 @@ function imageTaskLinkForNode(nodeId: string): CanvasRunImageTaskLink | null {
 function imageTaskForNode(nodeId: string): ImageCreatorTask | null {
   const link = imageTaskLinkForNode(nodeId)
   return link ? canvasTasksById.value[String(link.taskId)] ?? null : null
+}
+
+function resultNodeUpstreamImageTask(resultNode: CanvasNode): ImageCreatorTask | null {
+  const nodesByID = new Map(canvasDocument.value.nodes.map((node) => [node.id, node]))
+  const queuedNodeIDs = [resultNode.id]
+  const visitedNodeIDs = new Set<string>()
+  while (queuedNodeIDs.length > 0) {
+    const targetID = queuedNodeIDs.shift()
+    if (!targetID || visitedNodeIDs.has(targetID)) continue
+    visitedNodeIDs.add(targetID)
+    for (const edge of canvasDocument.value.edges) {
+      if (edge.target_node_id !== targetID) continue
+      const source = nodesByID.get(edge.source_node_id)
+      if (!source) continue
+      if (source.type === 'text_to_image' || source.type === 'image_to_image') {
+        const task = imageTaskForNode(source.id)
+        if (task) return task
+      }
+      queuedNodeIDs.push(source.id)
+    }
+  }
+  return null
 }
 
 function imageTaskStatusForNode(nodeId: string): ImageCreatorTaskStatus | undefined {
@@ -2402,6 +2541,7 @@ function errorMessage(error: unknown, fallback: string): string {
   display: block;
   height: 3rem;
   width: 100%;
+  cursor: zoom-in;
   object-fit: cover;
 }
 
@@ -2585,9 +2725,93 @@ function errorMessage(error: unknown, fallback: string): string {
   color: rgb(100 116 139);
 }
 
+.canvas-node-download-button {
+  display: inline-flex;
+  min-height: 1.875rem;
+  margin-left: auto;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid rgb(191 219 254);
+  border-radius: 0.375rem;
+  background: rgb(239 246 255);
+  padding: 0 0.5rem;
+  color: rgb(37 99 235);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.canvas-node-download-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.canvas-image-preview-overlay {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgb(15 23 42 / 0.8);
+}
+
+.canvas-image-preview {
+  display: flex;
+  max-height: calc(100dvh - 3rem);
+  width: min(100%, 72rem);
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background: rgb(255 255 255);
+  box-shadow: 0 24px 60px rgb(15 23 42 / 0.35);
+}
+
+.canvas-image-preview-header {
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid rgb(226 232 240);
+  padding: 0.5rem 0.75rem;
+  color: rgb(30 41 59);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.canvas-image-preview-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.25rem;
+}
+
+.canvas-image-preview > img {
+  display: block;
+  min-height: 0;
+  max-height: calc(100dvh - 6rem);
+  width: 100%;
+  object-fit: contain;
+  background: rgb(15 23 42);
+}
+
 .dark .canvas-field,
 .dark .canvas-node-editor-status {
   color: rgb(148 163 184);
+}
+
+.dark .canvas-node-download-button {
+  border-color: rgb(30 64 175);
+  background: rgb(30 58 138 / 0.35);
+  color: rgb(147 197 253);
+}
+
+.dark .canvas-image-preview {
+  background: rgb(17 24 39);
+}
+
+.dark .canvas-image-preview-header {
+  border-bottom-color: rgb(55 65 81);
+  color: rgb(226 232 240);
 }
 
 .dark .canvas-dimension-mode {

@@ -51,6 +51,12 @@ export default {
     noConfigFields: '该节点暂无可编辑参数',
     resultPreview: '结果预览',
     imageResult: '图片结果',
+    imagePreview: '图片预览',
+    openImagePreview: '双击预览图片',
+    closeImagePreview: '关闭图片预览',
+    downloadImage: '下载图片',
+    downloadingImage: '下载中...',
+    downloadImageFailed: '下载图片失败',
     nodeConfig: {
       prompt: 'Prompt',
       text: 'Text',
@@ -69,6 +75,7 @@ export default {
       autoSizeHint: '由模型自动选择最合适的画幅。',
       invalidDimensions: '宽高需为 16 的倍数，单边不超过 3840px，比例不超过 3:1，最大 8294400 像素。',
       quality: 'Quality',
+      outputFormat: '输出格式',
       referenceImageId: 'Reference Image ID'
     },
     nodeConfigPlaceholders: {
@@ -84,6 +91,11 @@ export default {
         auto: '自动',
         standard: '标准',
         high: '高质量'
+      },
+      outputFormat: {
+        png: 'PNG',
+        jpeg: 'JPEG',
+        webp: 'WebP'
       }
     },
     nodeTypes: {
