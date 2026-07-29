@@ -80,7 +80,7 @@
             <span>{{ t('canvas.apiKey') }}</span>
             <select v-model.number="selectedKeyId" class="input text-sm" data-testid="canvas-api-key-select">
               <option :value="null">{{ t('canvas.selectApiKey') }}</option>
-              <option v-for="key in apiKeys" :key="key.id" :value="key.id">
+              <option v-for="key in imageApiKeys" :key="key.id" :value="key.id">
                 {{ apiKeyLabel(key) }}
               </option>
             </select>
@@ -402,10 +402,25 @@
             </div>
 
             <datalist id="canvas-model-options">
-              <option v-for="modelItem in models" :key="modelItem.id" :value="modelItem.id">
+              <option v-for="modelItem in selectedNodeModels" :key="modelItem.id" :value="modelItem.id">
                 {{ modelLabel(modelItem) }}
               </option>
             </datalist>
+
+            <label v-if="selectedNodeSupportsApiKey" class="canvas-field">
+              <span>{{ t('canvas.nodeConfig.apiKey') }}</span>
+              <select
+                :value="selectedNodeApiKeyId || ''"
+                class="input text-sm"
+                data-testid="canvas-node-api-key-select"
+                @change="setSelectedNodeApiKeyFromEvent"
+              >
+                <option value="">{{ t('canvas.nodeConfig.useCanvasApiKey') }}</option>
+                <option v-for="key in apiKeys" :key="key.id" :value="key.id">
+                  {{ apiKeyLabel(key) }}
+                </option>
+              </select>
+            </label>
 
             <label
               v-for="field in selectedNodeBasicConfigFields"
@@ -446,7 +461,7 @@
               />
             </label>
 
-            <div v-if="selectedNode.type === 'image_to_image'" class="canvas-field">
+            <div v-if="selectedNode.type === 'image' || selectedNode.type === 'image_to_image'" class="canvas-field">
               <span>{{ t('canvas.nodeConfig.referenceImage') }}</span>
               <label class="canvas-reference-upload" :class="{ 'canvas-reference-upload-busy': uploadingReferenceImage }">
                 <input
@@ -646,7 +661,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -716,7 +731,7 @@ interface CanvasPanState {
 }
 
 type CanvasNodeStatus = NonNullable<CanvasNode['status']>
-type NodeConfigKey = 'prompt' | 'text' | 'model' | 'size' | 'quality' | 'referenceImageId' | 'referenceImageName' | 'outputFormat'
+type NodeConfigKey = 'prompt' | 'text' | 'model' | 'size' | 'quality' | 'referenceImageName' | 'outputFormat'
 type NodeConfigFieldKind = 'input' | 'textarea' | 'select'
 type CanvasDimensionMode = 'auto' | 'ratio' | 'custom'
 
@@ -744,6 +759,7 @@ const appStore = useAppStore()
 
 const canvases = ref<UserCanvasSummary[]>([])
 const models = ref<CanvasModel[]>([])
+const selectedNodeModels = ref<CanvasModel[]>([])
 const runs = ref<CanvasRun[]>([])
 const apiKeys = ref<ApiKey[]>([])
 const canvasTaskLinks = ref<CanvasRunImageTaskLink[]>([])
@@ -776,6 +792,7 @@ const canvasTaskPollIntervalMs = 4000
 let canvasTaskPollTimerId: ReturnType<typeof setInterval> | null = null
 let pollingCanvasTasks = false
 let canvasTaskSyncVersion = 0
+const imagePreviewLoads = new Map<string, Promise<string>>()
 const canvasDragState = ref<CanvasDragState | null>(null)
 const canvasPanState = ref<CanvasPanState | null>(null)
 let canvasPointerListenersActive = false
@@ -824,9 +841,7 @@ const nodeConfigFields: Record<CanvasNodeType, NodeConfigField[]> = {
     makeConfigField('text', 'textarea'),
     makeConfigField('model', 'input'),
   ],
-  image: [
-    makeConfigField('referenceImageId', 'input'),
-  ],
+  image: [],
   text_to_image: [
     makeConfigField('prompt', 'textarea'),
     makeConfigField('model', 'input'),
@@ -871,6 +886,22 @@ const selectedNodeBasicConfigFields = computed(() =>
 
 const selectedNodeSupportsImageDimensions = computed(() =>
   selectedNode.value?.type === 'text_to_image' || selectedNode.value?.type === 'image_to_image'
+)
+
+const selectedNodeSupportsApiKey = computed(() =>
+  selectedNode.value?.type === 'text' ||
+  selectedNode.value?.type === 'prompt' ||
+  selectedNode.value?.type === 'text_to_image' ||
+  selectedNode.value?.type === 'image_to_image'
+)
+
+const selectedNodeApiKeyId = computed(() => {
+  const value = positiveIntegerFromUnknown(selectedNode.value?.config?.apiKeyId)
+  return value ?? selectedKeyId.value
+})
+
+const selectedNodeApiKey = computed(() =>
+  apiKeys.value.find((key) => key.id === selectedNodeApiKeyId.value) ?? null
 )
 
 const selectedNodeReferencePreviewUrl = computed(() => {
@@ -933,8 +964,10 @@ const selectedNodeResolvedSize = computed(() => {
 const latestRun = computed(() => runs.value[0] ?? null)
 
 const selectedKey = computed(() =>
-  apiKeys.value.find((key) => key.id === selectedKeyId.value) ?? null
+  imageApiKeys.value.find((key) => key.id === selectedKeyId.value) ?? null
 )
+
+const imageApiKeys = computed(() => apiKeys.value.filter(apiKeySupportsOpenAIImageGeneration))
 
 const canSave = computed(() =>
   !saving.value &&
@@ -1107,8 +1140,11 @@ async function loadCanvases(): Promise<void> {
 async function loadModels(): Promise<void> {
   loadingModels.value = true
   try {
-    const response = await listCanvasModels()
+    const response = await listCanvasModels(selectedKeyId.value)
     models.value = response.items
+    if (!selectedNode.value || selectedNodeApiKeyId.value === selectedKeyId.value) {
+      selectedNodeModels.value = response.items
+    }
     if (!selectedModel.value) {
       selectedModel.value = response.items[0]?.id ?? ''
     }
@@ -1131,8 +1167,8 @@ async function loadApiKeys(): Promise<void> {
       sort_by: 'created_at',
       sort_order: 'desc',
     })
-    apiKeys.value = response.items.filter(isUsableImageKey)
-    selectedKeyId.value = pickDefaultApiKey(apiKeys.value)?.id ?? null
+    apiKeys.value = response.items
+    selectedKeyId.value = pickDefaultApiKey(imageApiKeys.value)?.id ?? null
   } catch {
     apiKeys.value = []
     selectedKeyId.value = null
@@ -1141,6 +1177,15 @@ async function loadApiKeys(): Promise<void> {
     loadingKeys.value = false
   }
 }
+
+watch(selectedKeyId, async (keyID, previousKeyID) => {
+  if (keyID === previousKeyID) return
+  await loadModels()
+})
+
+watch(selectedNodeId, () => {
+  void loadSelectedNodeModels()
+})
 
 async function openCanvas(id: string): Promise<void> {
   loadingCanvas.value = true
@@ -1230,14 +1275,14 @@ async function uploadSelectedNodeReferenceImage(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0] ?? null
   input.value = ''
-  if (!file || !selectedNode.value || !selectedKey.value) return
+  if (!file || !selectedNode.value || !selectedNodeApiKey.value) return
   if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type.toLowerCase())) {
     appStore.showError(t('canvas.invalidReferenceImage'))
     return
   }
   uploadingReferenceImage.value = true
   try {
-    const image = await uploadImageCreatorReference({ apiKeyId: selectedKey.value.id, file })
+    const image = await uploadImageCreatorReference({ apiKeyId: selectedNodeApiKey.value.id, file })
     const nextConfig = { ...(selectedNode.value.config ?? {}) }
     nextConfig.referenceImageId = String(image.id)
     nextConfig.referenceImageName = file.name
@@ -1427,6 +1472,36 @@ function updateSelectedNodeConfig(key: NodeConfigKey, value: string): void {
     delete nextConfig[key]
   }
   node.config = nextConfig
+}
+
+function setSelectedNodeApiKeyFromEvent(event: Event): void {
+  const node = selectedNode.value
+  if (!node) return
+  const keyID = positiveIntegerFromUnknown(inputValue(event))
+  const nextConfig = { ...(node.config ?? {}) }
+  if (keyID) {
+    nextConfig.apiKeyId = keyID
+  } else {
+    delete nextConfig.apiKeyId
+  }
+  // A model belongs to the previous Key's groups. Reset it before loading the
+  // selected Key's Canvas catalog to prevent an invalid model/key pair.
+  delete nextConfig.model
+  node.config = nextConfig
+  void loadSelectedNodeModels()
+}
+
+async function loadSelectedNodeModels(): Promise<void> {
+  if (!selectedNode.value || !selectedNodeSupportsApiKey.value) {
+    selectedNodeModels.value = models.value
+    return
+  }
+  try {
+    const response = await listCanvasModels(selectedNodeApiKeyId.value)
+    selectedNodeModels.value = response.items
+  } catch {
+    selectedNodeModels.value = []
+  }
 }
 
 function setSelectedNodeDimensionMode(mode: string): void {
@@ -1700,6 +1775,12 @@ function nodeDisplayStatus(node: CanvasNode): CanvasNodeStatus {
   if (node.status && node.status !== 'idle') return normalizeNodeStatus(node.status)
   if (nodeErrorSummary(node)) return 'failed'
   if (node.result !== undefined || outputForNode(node) !== undefined) return 'done'
+  const config = node.config ?? {}
+  if ((node.type === 'prompt' && stringFromUnknown(config.prompt)) ||
+    (node.type === 'text' && stringFromUnknown(config.text)) ||
+    (node.type === 'image' && positiveIntegerFromUnknown(config.referenceImageId))) {
+    return 'done'
+  }
   return 'idle'
 }
 
@@ -1770,19 +1851,24 @@ async function resolveCanvasImagePreview(imageUrl: string): Promise<string> {
   if (!imageUrl) return ''
   const cached = imagePreviewUrls.value[imageUrl]
   if (cached) return cached
-  try {
-    const blob = await downloadImageFile(imageUrl)
-    const objectUrl = URL.createObjectURL(blob)
-    imagePreviewUrls.value = { ...imagePreviewUrls.value, [imageUrl]: objectUrl }
-    return objectUrl
-  } catch {
-    return ''
-  }
+  const inFlight = imagePreviewLoads.get(imageUrl)
+  if (inFlight) return inFlight
+  const load = downloadImageFile(imageUrl)
+    .then((blob) => {
+      const objectUrl = URL.createObjectURL(blob)
+      imagePreviewUrls.value = { ...imagePreviewUrls.value, [imageUrl]: objectUrl }
+      return objectUrl
+    })
+    .catch(() => '')
+    .finally(() => imagePreviewLoads.delete(imageUrl))
+  imagePreviewLoads.set(imageUrl, load)
+  return load
 }
 
 function clearCanvasImagePreviews(): void {
   for (const objectUrl of Object.values(imagePreviewUrls.value)) URL.revokeObjectURL(objectUrl)
   imagePreviewUrls.value = {}
+  imagePreviewLoads.clear()
 }
 
 function imageFileExtension(mimeType: string, imageUrl: string): string {
@@ -2166,10 +2252,6 @@ function modelLabel(modelItem: CanvasModel): string {
 
 function apiKeyLabel(key: ApiKey): string {
   return [key.name, primaryAPIKeyImageGroupName(key), 'OpenAI'].filter(Boolean).join(' · ')
-}
-
-function isUsableImageKey(key: ApiKey): boolean {
-  return apiKeySupportsOpenAIImageGeneration(key)
 }
 
 function pickDefaultApiKey(keys: ApiKey[]): ApiKey | null {

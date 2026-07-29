@@ -85,6 +85,8 @@ export default {
       invalidDimensions: '宽高需为 16 的倍数，单边不超过 3840px，比例不超过 3:1，最大 8294400 像素。',
       quality: 'Quality',
       outputFormat: '输出格式',
+      apiKey: 'API Key',
+      useCanvasApiKey: '使用 Canvas API Key',
       referenceImage: '参考图片',
       referenceImageId: 'Reference Image ID'
     },

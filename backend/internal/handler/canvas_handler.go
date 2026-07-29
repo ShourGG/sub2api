@@ -20,7 +20,7 @@ type canvasService interface {
 	ListRuns(ctx context.Context, userID int64, filters service.CanvasRunListFilters) ([]service.CanvasRun, int, error)
 	GetRun(ctx context.Context, userID int64, runID int64) (*service.CanvasRun, error)
 	CancelRun(ctx context.Context, userID int64, runID int64) (*service.CanvasRun, error)
-	ListModels(ctx context.Context, userID int64) (service.CanvasModelCatalog, error)
+	ListModels(ctx context.Context, userID, apiKeyID int64) (service.CanvasModelCatalog, error)
 }
 
 type CanvasHandler struct {
@@ -219,12 +219,29 @@ func (h *CanvasHandler) ListModels(c *gin.Context) {
 	if !ok {
 		return
 	}
-	catalog, err := h.svc.ListModels(c.Request.Context(), userID)
+	apiKeyID, ok := parseCanvasOptionalPositiveInt64Query(c, "api_key_id")
+	if !ok {
+		return
+	}
+	catalog, err := h.svc.ListModels(c.Request.Context(), userID, apiKeyID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 	response.Success(c, catalog)
+}
+
+func parseCanvasOptionalPositiveInt64Query(c *gin.Context, name string) (int64, bool) {
+	raw := strings.TrimSpace(c.Query(name))
+	if raw == "" {
+		return 0, true
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || value <= 0 {
+		response.BadRequest(c, "invalid "+name)
+		return 0, false
+	}
+	return value, true
 }
 
 func currentCanvasUserID(c *gin.Context) (int64, bool) {

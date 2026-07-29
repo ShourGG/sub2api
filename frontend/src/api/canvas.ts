@@ -420,8 +420,10 @@ export async function cancelCanvasRun(id: string): Promise<CanvasRun> {
   return fromBackendRun(data.item)
 }
 
-export async function listCanvasModels(): Promise<CanvasModelListResponse> {
-  const { data } = await apiClient.get<BackendCanvasModelsResponse>('/user/canvas/models')
+export async function listCanvasModels(apiKeyId?: number | null): Promise<CanvasModelListResponse> {
+  const { data } = await apiClient.get<BackendCanvasModelsResponse>('/user/canvas/models', {
+    params: apiKeyId ? { api_key_id: apiKeyId } : undefined,
+  })
   return {
     items: (data.items ?? []).map((item) => ({
       id: item.id,

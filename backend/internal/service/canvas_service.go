@@ -194,14 +194,19 @@ type CanvasImageTaskCreator interface {
 type CanvasService struct {
 	repo         CanvasRepository
 	imageCreator CanvasImageTaskCreator
+	apiKeys      *APIKeyService
 }
 
 func NewCanvasService(repo CanvasRepository) *CanvasService {
 	return &CanvasService{repo: repo}
 }
 
-func NewCanvasServiceWithDeps(repo CanvasRepository, imageCreator CanvasImageTaskCreator) *CanvasService {
-	return &CanvasService{repo: repo, imageCreator: imageCreator}
+func NewCanvasServiceWithDeps(repo CanvasRepository, imageCreator CanvasImageTaskCreator, apiKeys ...*APIKeyService) *CanvasService {
+	svc := &CanvasService{repo: repo, imageCreator: imageCreator}
+	if len(apiKeys) > 0 {
+		svc.apiKeys = apiKeys[0]
+	}
+	return svc
 }
 
 func (s *CanvasService) ListCanvases(ctx context.Context, userID int64, filters CanvasListFilters) ([]CanvasListItem, int, error) {
@@ -635,11 +640,94 @@ func (s *CanvasService) CancelRun(ctx context.Context, userID int64, runID int64
 	return nil, infraerrors.Conflict("CANVAS_RUN_NOT_CANCELABLE", "canvas run is not cancelable")
 }
 
-func (s *CanvasService) ListModels(_ context.Context, userID int64) (CanvasModelCatalog, error) {
+func (s *CanvasService) ListModels(ctx context.Context, userID, apiKeyID int64) (CanvasModelCatalog, error) {
 	if err := validateCanvasUser(userID); err != nil {
 		return CanvasModelCatalog{}, err
 	}
-	return DefaultCanvasModelCatalog(), nil
+	if apiKeyID <= 0 || s.apiKeys == nil {
+		return DefaultCanvasModelCatalog(), nil
+	}
+	key, err := s.apiKeys.GetByID(ctx, apiKeyID)
+	if err != nil || key == nil || key.UserID != userID {
+		return CanvasModelCatalog{}, infraerrors.NotFound("API_KEY_NOT_FOUND", "api key not found")
+	}
+	modelIDs := s.canvasModelsForAPIKey(ctx, key)
+	if len(modelIDs) == 0 {
+		return DefaultCanvasModelCatalog(), nil
+	}
+	return canvasModelCatalogForIDs(modelIDs), nil
+}
+
+func (s *CanvasService) canvasModelsForAPIKey(ctx context.Context, key *APIKey) []string {
+	if key == nil || s.apiKeys == nil || s.apiKeys.groupRepo == nil {
+		return nil
+	}
+	groups := make([]*Group, 0, len(key.GroupRoutes)+1)
+	seen := make(map[int64]struct{})
+	addGroup := func(group *Group) {
+		if group == nil || group.ID <= 0 {
+			return
+		}
+		if _, ok := seen[group.ID]; ok {
+			return
+		}
+		seen[group.ID] = struct{}{}
+		groups = append(groups, group)
+	}
+	addGroup(key.Group)
+	if key.GroupID != nil && key.Group == nil {
+		if group, err := s.apiKeys.groupRepo.GetByID(ctx, *key.GroupID); err == nil {
+			addGroup(group)
+		}
+	}
+	for _, route := range key.GroupRoutes {
+		if !route.Enabled {
+			continue
+		}
+		if group, err := s.apiKeys.groupRepo.GetByID(ctx, route.GroupID); err == nil {
+			addGroup(group)
+		}
+	}
+	models := make([]string, 0)
+	seenModels := make(map[string]struct{})
+	for _, group := range groups {
+		if !group.ModelsListConfig.Enabled {
+			continue
+		}
+		for _, model := range group.ModelsListConfig.Models {
+			model = strings.TrimSpace(model)
+			if model == "" {
+				continue
+			}
+			if _, ok := seenModels[model]; ok {
+				continue
+			}
+			seenModels[model] = struct{}{}
+			models = append(models, model)
+		}
+	}
+	return models
+}
+
+func canvasModelCatalogForIDs(modelIDs []string) CanvasModelCatalog {
+	models := BuildModelCatalog(PlatformOpenAI, modelIDs)
+	defaultChatModel := ""
+	if len(models.ChatModels) > 0 {
+		defaultChatModel = models.ChatModels[0]
+	}
+	defaultImageModel := ""
+	if len(models.ImageModels) > 0 {
+		defaultImageModel = models.ImageModels[0]
+	}
+	return CanvasModelCatalog{
+		Object:            "canvas_model_catalog",
+		Items:             models.Items,
+		ChatModels:        models.ChatModels,
+		ImageModels:       models.ImageModels,
+		NodeTypes:         append([]string(nil), canvasNodeTypes...),
+		DefaultChatModel:  defaultChatModel,
+		DefaultImageModel: defaultImageModel,
+	}
 }
 
 func DefaultCanvasModelCatalog() CanvasModelCatalog {

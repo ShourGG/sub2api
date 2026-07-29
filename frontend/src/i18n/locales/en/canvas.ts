@@ -85,6 +85,8 @@ export default {
       invalidDimensions: 'Dimensions must be multiples of 16, no side may exceed 3840px, the ratio must not exceed 3:1, and the maximum is 8,294,400 pixels.',
       quality: 'Quality',
       outputFormat: 'Output format',
+      apiKey: 'API Key',
+      useCanvasApiKey: 'Use Canvas API Key',
       referenceImage: 'Reference image',
       referenceImageId: 'Reference Image ID'
     },

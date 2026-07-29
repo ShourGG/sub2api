@@ -566,8 +566,8 @@ func ProvideImageCreatorService(
 
 // ProvideCanvasService wires the canvas orchestration service to the image
 // creator so text-to-image / image-to-image nodes enqueue real tasks.
-func ProvideCanvasService(repo CanvasRepository, imageCreator *ImageCreatorService) *CanvasService {
-	return NewCanvasServiceWithDeps(repo, imageCreator)
+func ProvideCanvasService(repo CanvasRepository, imageCreator *ImageCreatorService, apiKeyService *APIKeyService) *CanvasService {
+	return NewCanvasServiceWithDeps(repo, imageCreator, apiKeyService)
 }
 
 // ProvideImageCreatorStorageGovernanceService constructs the admin-facing

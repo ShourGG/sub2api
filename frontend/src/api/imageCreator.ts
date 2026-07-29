@@ -171,9 +171,13 @@ export async function getImageTask(id: number): Promise<ImageCreatorTask> {
 }
 
 export async function downloadImageFile(url: string): Promise<Blob> {
-  const { data } = await apiClient.get<Blob>(url, {
-    baseURL: '',
-    responseType: 'blob',
+  const token = localStorage.getItem('auth_token')
+  const response = await fetch(url, {
+    credentials: 'include',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   })
-  return data
+  if (!response.ok) {
+    throw new Error(`Image download failed (${response.status})`)
+  }
+  return response.blob()
 }
