@@ -57,6 +57,8 @@ export default {
     downloadImage: 'Download image',
     downloadingImage: 'Downloading...',
     downloadImageFailed: 'Failed to download image',
+    resultImagePending: 'The final image will appear after the run completes',
+    resultImageReady: 'Double-click to preview or use Download to save the original image',
     nodeConfig: {
       prompt: 'Prompt',
       text: 'Text',

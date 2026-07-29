@@ -57,6 +57,8 @@ export default {
     downloadImage: '下载图片',
     downloadingImage: '下载中...',
     downloadImageFailed: '下载图片失败',
+    resultImagePending: '最终图片会在运行完成后显示',
+    resultImageReady: '双击图片预览，或使用下载按钮保存原图',
     nodeConfig: {
       prompt: 'Prompt',
       text: 'Text',

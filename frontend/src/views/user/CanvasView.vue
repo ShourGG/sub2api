@@ -365,17 +365,36 @@
               <span class="canvas-run-status" :class="`canvas-run-status-${nodeDisplayStatus(selectedNode)}`"></span>
               <span>{{ t(`canvas.nodeStatus.${nodeDisplayStatus(selectedNode)}`) }}</span>
               <button
-                v-if="selectedNode.type === 'result' && nodeResultImageUrl(selectedNode)"
+                v-if="selectedNode.type === 'result'"
                 type="button"
                 class="canvas-node-download-button"
                 :title="t('canvas.downloadImage')"
-                :disabled="downloadingImage"
+                :disabled="!nodeResultImageUrl(selectedNode) || downloadingImage"
                 data-testid="canvas-node-download-image"
                 @click="downloadNodeImage(selectedNode)"
               >
                 <Icon name="download" size="sm" />
                 <span>{{ downloadingImage ? t('canvas.downloadingImage') : t('canvas.downloadImage') }}</span>
               </button>
+            </div>
+
+            <div v-if="selectedNode.type === 'result'" class="canvas-result-output" data-testid="canvas-result-output">
+              <template v-if="nodeResultImageUrl(selectedNode)">
+                <img
+                  :src="nodeResultImageUrl(selectedNode)"
+                  :alt="t('canvas.resultPreview')"
+                  :title="t('canvas.openImagePreview')"
+                  class="canvas-result-output-image"
+                  data-testid="canvas-result-output-image"
+                  draggable="false"
+                  @dblclick.stop.prevent="openImagePreview(selectedNode)"
+                />
+                <p>{{ t('canvas.resultImageReady') }}</p>
+              </template>
+              <template v-else>
+                <Icon name="image" size="md" />
+                <p>{{ t('canvas.resultImagePending') }}</p>
+              </template>
             </div>
 
             <datalist id="canvas-model-options">
@@ -518,7 +537,7 @@
               <p v-else class="canvas-dimension-summary">{{ t('canvas.nodeConfig.autoSizeHint') }}</p>
             </template>
 
-            <div v-if="selectedNodeBasicConfigFields.length === 0 && !selectedNodeSupportsImageDimensions" class="canvas-placeholder canvas-compact-placeholder">
+            <div v-if="selectedNodeBasicConfigFields.length === 0 && !selectedNodeSupportsImageDimensions && selectedNode.type !== 'result'" class="canvas-placeholder canvas-compact-placeholder">
               <span>{{ t('canvas.noConfigFields') }}</span>
             </div>
           </div>
@@ -2543,6 +2562,35 @@ function errorMessage(error: unknown, fallback: string): string {
   width: 100%;
   cursor: zoom-in;
   object-fit: cover;
+}
+
+.canvas-result-output {
+  display: flex;
+  min-height: 7rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  overflow: hidden;
+  border: 1px dashed rgb(191 219 254);
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  color: rgb(100 116 139);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.canvas-result-output-image {
+  display: block;
+  max-height: 11rem;
+  width: 100%;
+  cursor: zoom-in;
+  object-fit: contain;
+}
+
+.dark .canvas-result-output {
+  border-color: rgb(30 58 138);
+  color: rgb(148 163 184);
 }
 
 .canvas-node-result-summary,
