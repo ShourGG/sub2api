@@ -804,3 +804,76 @@ func (h *UsageHandler) GetMyAPIKeyDailyUsage(c *gin.Context) {
 		"end_date":   endTime.AddDate(0, 0, -1).Format("2006-01-02"),
 	})
 }
+
+// ── Token Leaderboard ──────────────────────────────────────────────────────
+
+const (
+	leaderboardDefaultLimit = 20
+	leaderboardMaxLimit     = 20
+)
+
+// DashboardLeaderboard returns the top-20 token ranking with desensitized names.
+// GET /api/v1/usage/dashboard/leaderboard
+func (h *UsageHandler) DashboardLeaderboard(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	limitStr := c.DefaultQuery("limit", strconv.Itoa(leaderboardDefaultLimit))
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 || limit > leaderboardMaxLimit {
+		limit = leaderboardDefaultLimit
+	}
+
+	leaderboard, err := h.usageService.GetUserLeaderboard(c.Request.Context(), time.Time{}, time.Time{}, limit, subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if leaderboard == nil {
+		response.Success(c, map[string]any{"ranking": []any{}, "generated_at": time.Now().UTC().Format(time.RFC3339)})
+		return
+	}
+
+	for i := range leaderboard.Ranking {
+		item := &leaderboard.Ranking[i]
+		if item.IsCurrentUser {
+			leaderboard.CurrentUserRank = item
+		}
+		// Always desensitize — current user included. Frontend uses is_current_user to highlight.
+		item.DisplayName = leaderboardDesensitizeName(item.RawName)
+	}
+
+	response.Success(c, leaderboard)
+}
+
+// leaderboardDesensitizeName masks a raw username/email for the public leaderboard.
+func leaderboardDesensitizeName(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "用户" // fallback label
+	}
+	// Email: mask local part
+	if strings.Count(value, "@") == 1 && !strings.ContainsAny(value, " \t") {
+		parts := strings.SplitN(value, "@", 2)
+		local := parts[0]
+		if len([]rune(local)) <= 2 {
+			return string([]rune(local)[:1]) + "***@" + parts[1]
+		}
+		r := []rune(local)
+		return string(r[:1]) + "***" + string(r[len(r)-1:]) + "@" + parts[1]
+	}
+	runes := []rune(value)
+	switch len(runes) {
+	case 1:
+		return "*"
+	case 2:
+		return string(runes[:1]) + "*"
+	case 3:
+		return string(runes[:1]) + "*" + string(runes[2:])
+	default:
+		return string(runes[:1]) + "***" + string(runes[len(runes)-1:])
+	}
+}

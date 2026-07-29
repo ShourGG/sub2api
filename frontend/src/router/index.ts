@@ -327,6 +327,78 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/leaderboard',
+    name: 'Leaderboard',
+    component: () => import('@/views/user/LeaderboardView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Leaderboard',
+      titleKey: 'leaderboard.title',
+      descriptionKey: 'leaderboard.description'
+    }
+  },
+  {
+    path: '/image-creator',
+    name: 'ImageCreator',
+    component: () => import('@/views/user/ImageCreatorView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Image Creator',
+      titleKey: 'imageCreator.title',
+      descriptionKey: 'imageCreator.subtitle'
+    }
+  },
+  {
+    path: '/image-manager',
+    name: 'ImageManager',
+    component: () => import('@/views/user/ImageManagerView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Image Manager',
+      titleKey: 'imageManager.title',
+      descriptionKey: 'imageManager.subtitle'
+    }
+  },
+  {
+    path: '/canvas',
+    name: 'Canvas',
+    component: () => import('@/views/user/CanvasView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Canvas',
+      titleKey: 'canvas.title',
+      descriptionKey: 'canvas.subtitle'
+    }
+  },
+  {
+    path: '/chat-studio',
+    name: 'ChatStudio',
+    component: () => import('@/views/user/ChatStudioView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Chat Studio',
+      titleKey: 'chatStudio.title',
+      descriptionKey: 'chatStudio.subtitle'
+    }
+  },
+  {
+    path: '/chat-image-studio',
+    name: 'ChatImageStudioNative',
+    component: () => import('@/views/user/ChatImageStudioView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Chat Image Studio',
+      titleKey: 'chatImageStudio.title',
+      descriptionKey: 'chatImageStudio.subtitle'
+    }
+  },
+  {
     path: '/usage',
     name: 'Usage',
     component: () => import('@/views/user/UsageView.vue'),

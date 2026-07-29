@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -221,4 +222,92 @@ func buildRequestTypeFilterConditionWithAlias(startArgIndex int, requestType int
 	default:
 		return fmt.Sprintf("%srequest_type = $%d", prefix, startArgIndex), []any{requestTypeArg}
 	}
+}
+
+// GetUserLeaderboard returns the top-N users ranked by total tokens consumed
+// (input + output + cache_creation + cache_read + image_output). The current
+// user's entry is always included even when outside the top-N window.
+// This method satisfies the optional service.leaderboardRepository interface.
+func (r *usageLogRepository) GetUserLeaderboard(ctx context.Context, startTime, endTime time.Time, limit int, currentUserID int64) ([]service.UserLeaderboardRow, error) {
+	if limit <= 0 || limit > 20 {
+		limit = 20
+	}
+
+	args := make([]any, 0, 4)
+	var conditions []string
+
+	if !startTime.IsZero() {
+		args = append(args, startTime)
+		conditions = append(conditions, fmt.Sprintf("ul.created_at >= $%d", len(args)))
+	}
+	if !endTime.IsZero() {
+		args = append(args, endTime)
+		conditions = append(conditions, fmt.Sprintf("ul.created_at < $%d", len(args)))
+	}
+
+	whereClause := ""
+	if len(conditions) > 0 {
+		whereClause = "WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	limitArg := len(args) + 1
+	currentUserArg := len(args) + 2
+	args = append(args, limit, currentUserID)
+
+	query := fmt.Sprintf(`
+		WITH user_tokens AS (
+			SELECT
+				ul.user_id,
+				COALESCE(u.username, '') AS username,
+				COALESCE(u.email, '') AS email,
+				COALESCE(SUM(ul.input_tokens), 0) AS input_tokens,
+				COALESCE(SUM(ul.output_tokens), 0) AS output_tokens,
+				COALESCE(SUM(ul.cache_creation_tokens), 0) AS cache_creation_tokens,
+				COALESCE(SUM(ul.cache_read_tokens), 0) AS cache_read_tokens,
+				COALESCE(SUM(ul.image_output_tokens), 0) AS image_output_tokens,
+				COALESCE(SUM(
+					ul.input_tokens + ul.output_tokens +
+					ul.cache_creation_tokens + ul.cache_read_tokens +
+					ul.image_output_tokens
+				), 0) AS total_tokens
+			FROM usage_logs ul
+			LEFT JOIN users u ON u.id = ul.user_id
+			%s
+			GROUP BY ul.user_id, u.username, u.email
+		),
+		ranked AS (
+			SELECT
+				ROW_NUMBER() OVER (ORDER BY total_tokens DESC, user_id ASC) AS rank,
+				user_id, username, email,
+				input_tokens, output_tokens, cache_creation_tokens,
+				cache_read_tokens, image_output_tokens, total_tokens
+			FROM user_tokens
+		)
+		SELECT rank, user_id, username, email,
+			input_tokens, output_tokens, cache_creation_tokens,
+			cache_read_tokens, image_output_tokens, total_tokens
+		FROM ranked
+		WHERE rank <= $%d OR user_id = $%d
+		ORDER BY rank ASC
+	`, whereClause, limitArg, currentUserArg)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("leaderboard query: %w", err)
+	}
+	defer rows.Close()
+
+	result := make([]service.UserLeaderboardRow, 0, limit)
+	for rows.Next() {
+		var row service.UserLeaderboardRow
+		if err := rows.Scan(
+			&row.Rank, &row.UserID, &row.Username, &row.Email,
+			&row.InputTokens, &row.OutputTokens, &row.CacheCreationTokens,
+			&row.CacheReadTokens, &row.ImageOutputTokens, &row.TotalTokens,
+		); err != nil {
+			return nil, fmt.Errorf("leaderboard scan: %w", err)
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
 }
