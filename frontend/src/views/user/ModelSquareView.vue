@@ -80,8 +80,15 @@ const filteredModels = computed(() => {
   return models.value.filter((item) => (platform.value === 'all' || item.platform === platform.value) && (!query || [item.name, item.platform, item.group.name].join(' ').toLowerCase().includes(query)))
 })
 
+const PER_MILLION_TOKENS = 1_000_000
+
 function formatPrice(value?: number) {
-  return value === undefined || value === null ? '未配置' : `$${value.toFixed(value < 1 ? 3 : 2)}/M`
+  if (value === undefined || value === null) return '未配置'
+  const perMillion = value * PER_MILLION_TOKENS
+  return `$${perMillion.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: perMillion < 1 ? 6 : 2,
+  })}/M`
 }
 
 async function loadModels() {
