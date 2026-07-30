@@ -41,43 +41,50 @@
           </header>
 
           <div class="divide-y divide-[var(--app-border)]">
-            <section v-for="entry in model.entries" :key="entryKey(entry)" class="p-4">
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p class="font-medium text-[var(--app-text)]">{{ entry.channel_name || '账号模型' }}</p>
-                  <p class="mt-0.5 text-xs text-[var(--app-text-muted)]">{{ entry.account_count }} 个可调度账号</p>
+            <section v-for="channel in model.channels" :key="channel.key" class="p-4">
+              <dl class="space-y-2 text-sm">
+                <div class="flex items-start gap-3">
+                  <dt class="w-12 shrink-0 text-[var(--app-text-muted)]">渠道</dt>
+                  <dd class="min-w-0 font-medium text-[var(--app-text)]">{{ channel.name }}</dd>
                 </div>
-                <GroupBadge
-                  :name="entry.group.name"
-                  :platform="entry.group.platform as GroupPlatform"
-                  :subscription-type="entry.group.subscription_type as SubscriptionType"
-                  :rate-multiplier="entry.group.rate_multiplier"
-                  :user-rate-multiplier="userGroupRates[entry.group.id] ?? null"
-                  :peak-rate-enabled="entry.group.peak_rate_enabled"
-                  :peak-start="entry.group.peak_start"
-                  :peak-end="entry.group.peak_end"
-                  :peak-rate-multiplier="entry.group.peak_rate_multiplier"
-                  :always-show-rate="true"
-                />
-              </div>
+                <div class="flex items-start gap-3">
+                  <dt class="w-12 shrink-0 text-[var(--app-text-muted)]">分组</dt>
+                  <dd class="flex flex-wrap gap-1.5">
+                    <GroupBadge
+                      v-for="entry in channel.entries"
+                      :key="entryKey(entry)"
+                      :name="entry.group.name"
+                      :platform="entry.group.platform as GroupPlatform"
+                      :subscription-type="entry.group.subscription_type as SubscriptionType"
+                      :rate-multiplier="entry.group.rate_multiplier"
+                      :user-rate-multiplier="userGroupRates[entry.group.id] ?? null"
+                      :peak-rate-enabled="entry.group.peak_rate_enabled"
+                      :peak-start="entry.group.peak_start"
+                      :peak-end="entry.group.peak_end"
+                      :peak-rate-multiplier="entry.group.peak_rate_multiplier"
+                      :always-show-rate="true"
+                    />
+                  </dd>
+                </div>
+              </dl>
 
               <div class="mt-4 rounded border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                   <p class="text-sm font-medium text-[var(--app-text)]">渠道基础定价</p>
-                  <span class="text-xs text-[var(--app-text-muted)]">{{ billingModeLabel(entry) }}</span>
+                  <span class="text-xs text-[var(--app-text-muted)]">{{ billingModeLabel(channel.pricing) }}</span>
                 </div>
                 <div class="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-3">
-                  <div v-for="item in priceItems(entry)" :key="item.label">
+                  <div v-for="item in priceItems(channel.pricing)" :key="item.label">
                     <p class="text-xs text-[var(--app-text-muted)]">{{ item.label }}</p>
                     <p class="mt-1 break-all font-mono text-[var(--app-text)]">{{ formatTokenPrice(item.value) }}</p>
                   </div>
                 </div>
-                <div v-if="isRequestBilling(entry)" class="mt-3 border-t border-[var(--app-border)] pt-3 text-sm">
-                  <p class="text-xs text-[var(--app-text-muted)]">{{ entry.pricing?.billing_mode === 'image' ? '每张价格' : '每次价格' }}</p>
-                  <p class="mt-1 font-mono text-[var(--app-text)]">{{ formatRequestPrice(entry.pricing?.per_request_price, entry.pricing?.billing_mode) }}</p>
+                <div v-if="isRequestBilling(channel.pricing)" class="mt-3 border-t border-[var(--app-border)] pt-3 text-sm">
+                  <p class="text-xs text-[var(--app-text-muted)]">{{ channel.pricing?.billing_mode === 'image' ? '每张价格' : '每次价格' }}</p>
+                  <p class="mt-1 font-mono text-[var(--app-text)]">{{ formatRequestPrice(channel.pricing?.per_request_price, channel.pricing?.billing_mode) }}</p>
                 </div>
-                <div v-if="entry.pricing?.intervals?.length" class="mt-3 border-t border-[var(--app-border)] pt-3 text-xs text-[var(--app-text-muted)]">
-                  已配置 {{ entry.pricing.intervals.length }} 个阶梯价格
+                <div v-if="channel.pricing?.intervals?.length" class="mt-3 border-t border-[var(--app-border)] pt-3 text-xs text-[var(--app-text-muted)]">
+                  已配置 {{ channel.pricing.intervals.length }} 个阶梯价格
                 </div>
               </div>
             </section>
@@ -105,6 +112,14 @@ interface ModelSquareModel {
   name: string
   platform: string
   entries: ModelSquareEntry[]
+  channels: ModelSquareChannel[]
+}
+
+interface ModelSquareChannel {
+  key: string
+  name: string
+  entries: ModelSquareEntry[]
+  pricing: UserSupportedModelPricing | null
 }
 
 const appStore = useAppStore()
@@ -116,14 +131,16 @@ const userGroupRates = ref<Record<number, number>>({})
 
 const platforms = computed(() => ['all', ...Array.from(new Set(models.value.map((item) => item.platform))).sort()])
 const modelGroups = computed<ModelSquareModel[]>(() => {
-  const groups = new Map<string, ModelSquareModel>()
+  const modelsByKey = new Map<string, ModelSquareModel>()
   for (const entry of models.value) {
     const key = `${entry.platform}:${entry.name.toLowerCase()}`
-    const existing = groups.get(key)
+    const existing = modelsByKey.get(key)
     if (existing) existing.entries.push(entry)
-    else groups.set(key, { key, name: entry.name, platform: entry.platform, entries: [entry] })
+    else modelsByKey.set(key, { key, name: entry.name, platform: entry.platform, entries: [entry], channels: [] })
   }
-  return Array.from(groups.values()).sort((a, b) => a.platform.localeCompare(b.platform) || a.name.localeCompare(b.name))
+  return Array.from(modelsByKey.values())
+    .map((model) => ({ ...model, channels: groupChannels(model.entries) }))
+    .sort((a, b) => a.platform.localeCompare(b.platform) || a.name.localeCompare(b.name))
 })
 const filteredModels = computed(() => {
   const query = search.value.trim().toLowerCase()
@@ -144,7 +161,25 @@ function entryKey(entry: ModelSquareEntry) {
 }
 
 function channelCount(model: ModelSquareModel) {
-  return new Set(model.entries.map((entry) => entry.channel_id || `account:${entry.group.id}`)).size
+  return model.channels.length
+}
+
+function groupChannels(entries: ModelSquareEntry[]): ModelSquareChannel[] {
+  const channelsByKey = new Map<string, ModelSquareChannel>()
+  for (const entry of entries) {
+    // Channel-less account mappings have no independent channel price. Keep
+    // their groups together so one model is not rendered as a repeated card.
+    const key = entry.channel_id > 0 ? `channel:${entry.channel_id}` : 'account-only'
+    const existing = channelsByKey.get(key)
+    if (existing) existing.entries.push(entry)
+    else channelsByKey.set(key, {
+      key,
+      name: entry.channel_name || '未关联渠道',
+      entries: [entry],
+      pricing: entry.pricing,
+    })
+  }
+  return Array.from(channelsByKey.values())
 }
 
 function formatTokenPrice(value: number | null | undefined) {
@@ -158,20 +193,19 @@ function formatRequestPrice(value: number | null | undefined, billingMode?: stri
   return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}/${billingMode === 'image' ? '张' : '次'}`
 }
 
-function billingModeLabel(entry: ModelSquareEntry) {
-  switch (entry.pricing?.billing_mode) {
+function billingModeLabel(pricing: UserSupportedModelPricing | null) {
+  switch (pricing?.billing_mode) {
     case 'image': return '图片计费'
     case 'per_request': return '按次计费'
     default: return 'Token 计费'
   }
 }
 
-function isRequestBilling(entry: ModelSquareEntry) {
-  return entry.pricing?.billing_mode === 'image' || entry.pricing?.billing_mode === 'per_request'
+function isRequestBilling(pricing: UserSupportedModelPricing | null) {
+  return pricing?.billing_mode === 'image' || pricing?.billing_mode === 'per_request'
 }
 
-function priceItems(entry: ModelSquareEntry) {
-  const pricing: UserSupportedModelPricing | null = entry.pricing
+function priceItems(pricing: UserSupportedModelPricing | null) {
   return [
     { label: '输入', value: pricing?.input_price },
     { label: '输出', value: pricing?.output_price },
