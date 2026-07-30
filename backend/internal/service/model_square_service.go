@@ -4,7 +4,6 @@ import (
 	"context"
 	"sort"
 	"strings"
-	"time"
 )
 
 // ModelSquareEntry is one routable model in one active group. A model is kept
@@ -13,6 +12,8 @@ import (
 type ModelSquareEntry struct {
 	Name         string
 	Platform     string
+	ChannelID    int64
+	ChannelName  string
 	Group        AvailableGroupRef
 	AccountCount int
 	Pricing      *ChannelModelPricing
@@ -38,7 +39,6 @@ type ModelSquareService struct {
 	groupRepo      modelSquareGroupRepository
 	accountRepo    modelSquareAccountRepository
 	channelService modelSquareChannelService
-	now            func() time.Time
 }
 
 func NewModelSquareService(
@@ -50,7 +50,6 @@ func NewModelSquareService(
 		groupRepo:      groupRepo,
 		accountRepo:    accountRepo,
 		channelService: channelService,
-		now:            time.Now,
 	}
 }
 
@@ -82,7 +81,6 @@ func (s *ModelSquareService) List(ctx context.Context) ([]ModelSquareEntry, erro
 		channelModels = buildModelSquareChannelModels(channels)
 	}
 
-	now := s.now()
 	entries := make([]ModelSquareEntry, 0)
 	for i := range groups {
 		group := groups[i]
@@ -91,15 +89,19 @@ func (s *ModelSquareService) List(ctx context.Context) ([]ModelSquareEntry, erro
 			return nil, err
 		}
 
-		models := make(map[string]modelSquareModel)
+		models := make(map[modelSquareEntryKey]modelSquareModel)
+		configuredModels := make(map[string]struct{})
 		for key, channelModel := range channelModels {
 			if key.groupID != group.ID || key.platform != group.Platform {
 				continue
 			}
-			models[key.model] = modelSquareModel{
-				name:    channelModel.name,
-				pricing: channelModel.pricing,
+			models[modelSquareEntryKey{channelID: channelModel.channelID, model: key.model}] = modelSquareModel{
+				name:        channelModel.name,
+				channelID:   channelModel.channelID,
+				channelName: channelModel.channelName,
+				pricing:     channelModel.pricing,
 			}
+			configuredModels[key.model] = struct{}{}
 		}
 		for _, account := range accounts {
 			for model := range account.GetModelMapping() {
@@ -108,8 +110,9 @@ func (s *ModelSquareService) List(ctx context.Context) ([]ModelSquareEntry, erro
 					continue
 				}
 				key := strings.ToLower(name)
-				if _, exists := models[key]; !exists {
-					models[key] = modelSquareModel{name: name}
+				if _, exists := configuredModels[key]; !exists {
+					models[modelSquareEntryKey{model: key}] = modelSquareModel{name: name}
+					configuredModels[key] = struct{}{}
 				}
 			}
 		}
@@ -128,9 +131,14 @@ func (s *ModelSquareService) List(ctx context.Context) ([]ModelSquareEntry, erro
 			entries = append(entries, ModelSquareEntry{
 				Name:         model.name,
 				Platform:     group.Platform,
+				ChannelID:    model.channelID,
+				ChannelName:  model.channelName,
 				Group:        ref,
 				AccountCount: accountCount,
-				Pricing:      scaleModelSquarePricing(model.pricing, group.RateMultiplier*group.PeakMultiplierAt(now)),
+				// The model square displays the channel base price. Rate and peak
+				// multipliers remain visible in the group badge and are applied only
+				// when the user makes a request through that group.
+				Pricing: model.pricing,
 			})
 		}
 	}
@@ -142,25 +150,41 @@ func (s *ModelSquareService) List(ctx context.Context) ([]ModelSquareEntry, erro
 		if entries[i].Name != entries[j].Name {
 			return strings.ToLower(entries[i].Name) < strings.ToLower(entries[j].Name)
 		}
-		return entries[i].Group.Name < entries[j].Group.Name
+		if entries[i].Group.Name != entries[j].Group.Name {
+			return entries[i].Group.Name < entries[j].Group.Name
+		}
+		if entries[i].ChannelName != entries[j].ChannelName {
+			return entries[i].ChannelName < entries[j].ChannelName
+		}
+		return entries[i].ChannelID < entries[j].ChannelID
 	})
 	return entries, nil
 }
 
 type modelSquarePricingKey struct {
-	groupID  int64
-	platform string
-	model    string
+	groupID   int64
+	channelID int64
+	platform  string
+	model     string
+}
+
+type modelSquareEntryKey struct {
+	channelID int64
+	model     string
 }
 
 type modelSquareChannelModel struct {
-	name    string
-	pricing *ChannelModelPricing
+	name        string
+	channelID   int64
+	channelName string
+	pricing     *ChannelModelPricing
 }
 
 type modelSquareModel struct {
-	name    string
-	pricing *ChannelModelPricing
+	name        string
+	channelID   int64
+	channelName string
+	pricing     *ChannelModelPricing
 }
 
 // buildModelSquareChannelModels preserves every configured supported model,
@@ -180,13 +204,18 @@ func buildModelSquareChannelModels(channels []AvailableChannel) map[modelSquareP
 				}
 				key := modelSquarePricingKey{
 					groupID:  group.ID,
+					channelID: channel.ID,
 					platform: group.Platform,
 					model:    strings.ToLower(strings.TrimSpace(model.Name)),
 				}
 				if _, exists := index[key]; exists {
 					continue
 				}
-				entry := modelSquareChannelModel{name: model.Name}
+				entry := modelSquareChannelModel{
+					name:        model.Name,
+					channelID:   channel.ID,
+					channelName: channel.Name,
+				}
 				if model.Pricing != nil {
 					pricing := model.Pricing.Clone()
 					entry.pricing = &pricing
@@ -211,34 +240,4 @@ func availableGroupRefFromGroup(group Group) AvailableGroupRef {
 		PeakRateMultiplier: group.PeakRateMultiplier,
 		IsExclusive:        group.IsExclusive,
 	}
-}
-
-func scaleModelSquarePricing(pricing *ChannelModelPricing, multiplier float64) *ChannelModelPricing {
-	if pricing == nil {
-		return nil
-	}
-	copy := pricing.Clone()
-	copy.InputPrice = scaleModelSquarePrice(copy.InputPrice, multiplier)
-	copy.OutputPrice = scaleModelSquarePrice(copy.OutputPrice, multiplier)
-	copy.CacheWritePrice = scaleModelSquarePrice(copy.CacheWritePrice, multiplier)
-	copy.CacheReadPrice = scaleModelSquarePrice(copy.CacheReadPrice, multiplier)
-	copy.ImageInputPrice = scaleModelSquarePrice(copy.ImageInputPrice, multiplier)
-	copy.ImageOutputPrice = scaleModelSquarePrice(copy.ImageOutputPrice, multiplier)
-	copy.PerRequestPrice = scaleModelSquarePrice(copy.PerRequestPrice, multiplier)
-	for i := range copy.Intervals {
-		copy.Intervals[i].InputPrice = scaleModelSquarePrice(copy.Intervals[i].InputPrice, multiplier)
-		copy.Intervals[i].OutputPrice = scaleModelSquarePrice(copy.Intervals[i].OutputPrice, multiplier)
-		copy.Intervals[i].CacheWritePrice = scaleModelSquarePrice(copy.Intervals[i].CacheWritePrice, multiplier)
-		copy.Intervals[i].CacheReadPrice = scaleModelSquarePrice(copy.Intervals[i].CacheReadPrice, multiplier)
-		copy.Intervals[i].PerRequestPrice = scaleModelSquarePrice(copy.Intervals[i].PerRequestPrice, multiplier)
-	}
-	return &copy
-}
-
-func scaleModelSquarePrice(value *float64, multiplier float64) *float64 {
-	if value == nil {
-		return nil
-	}
-	result := *value * multiplier
-	return &result
 }

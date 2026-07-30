@@ -20,6 +20,8 @@ func NewModelSquareHandler(service *service.ModelSquareService) *ModelSquareHand
 type modelSquareEntry struct {
 	Name         string                     `json:"name"`
 	Platform     string                     `json:"platform"`
+	ChannelID    int64                      `json:"channel_id"`
+	ChannelName  string                     `json:"channel_name"`
 	Group        userAvailableGroup         `json:"group"`
 	AccountCount int                        `json:"account_count"`
 	Pricing      *userSupportedModelPricing `json:"pricing"`
@@ -41,6 +43,8 @@ func (h *ModelSquareHandler) List(c *gin.Context) {
 		out = append(out, modelSquareEntry{
 			Name:         entry.Name,
 			Platform:     entry.Platform,
+			ChannelID:    entry.ChannelID,
+			ChannelName:  entry.ChannelName,
 			Group:        toUserAvailableGroup(entry.Group),
 			AccountCount: entry.AccountCount,
 			Pricing:      toUserPricing(entry.Pricing),

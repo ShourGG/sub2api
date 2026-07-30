@@ -48,7 +48,7 @@ func TestModelSquareList_AccountModelsAppearWithoutChannel(t *testing.T) {
 	require.Nil(t, entries[0].Pricing)
 }
 
-func TestModelSquareList_KeepsDuplicateModelsPerGroupAndScalesPrice(t *testing.T) {
+func TestModelSquareList_KeepsDuplicateModelsPerGroupWithBasePrice(t *testing.T) {
 	inputPrice := 0.000002
 	groups := []Group{
 		{ID: 1, Name: "Standard", Platform: PlatformAnthropic, Status: StatusActive, RateMultiplier: 1},
@@ -83,7 +83,7 @@ func TestModelSquareList_KeepsDuplicateModelsPerGroupAndScalesPrice(t *testing.T
 	require.Equal(t, int64(1), entries[1].Group.ID)
 	require.NotNil(t, entries[0].Pricing)
 	require.NotNil(t, entries[1].Pricing)
-	require.InDelta(t, inputPrice*2, *entries[0].Pricing.InputPrice, 1e-12)
+	require.InDelta(t, inputPrice, *entries[0].Pricing.InputPrice, 1e-12)
 	require.InDelta(t, inputPrice, *entries[1].Pricing.InputPrice, 1e-12)
 }
 
@@ -113,7 +113,7 @@ func TestModelSquareList_ChannelModelsSyncWithoutAccountMapping(t *testing.T) {
 	require.Equal(t, "gpt-5.4", entries[0].Name)
 	require.Equal(t, 1, entries[0].AccountCount)
 	require.NotNil(t, entries[0].Pricing)
-	require.InDelta(t, inputPrice*1.5, *entries[0].Pricing.InputPrice, 1e-12)
+	require.InDelta(t, inputPrice, *entries[0].Pricing.InputPrice, 1e-12)
 }
 
 func TestModelSquareList_HidesChannelModelWithoutSupportingAccount(t *testing.T) {
@@ -133,4 +133,37 @@ func TestModelSquareList_HidesChannelModelWithoutSupportingAccount(t *testing.T)
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	require.Equal(t, "gpt-4.1", entries[0].Name)
+}
+
+func TestModelSquareList_KeepsSameModelFromMultipleChannels(t *testing.T) {
+	firstPrice := 0.000001
+	secondPrice := 0.000005
+	svc := NewModelSquareService(
+		modelSquareGroupRepoStub{groups: []Group{{ID: 1, Name: "OpenAI", Platform: PlatformOpenAI, Status: StatusActive, RateMultiplier: 1}}},
+		modelSquareAccountRepoStub{accounts: map[int64][]Account{
+			1: {{ID: 101, Platform: PlatformOpenAI, Credentials: map[string]any{}}},
+		}},
+		modelSquareChannelServiceStub{channels: []AvailableChannel{
+			{
+				ID: 11, Name: "Primary channel", Status: StatusActive,
+				Groups: []AvailableGroupRef{{ID: 1, Name: "OpenAI", Platform: PlatformOpenAI}},
+				SupportedModels: []SupportedModel{{Name: "gpt-5", Platform: PlatformOpenAI, Pricing: &ChannelModelPricing{BillingMode: BillingModeToken, InputPrice: &firstPrice}}},
+			},
+			{
+				ID: 12, Name: "Fallback channel", Status: StatusActive,
+				Groups: []AvailableGroupRef{{ID: 1, Name: "OpenAI", Platform: PlatformOpenAI}},
+				SupportedModels: []SupportedModel{{Name: "gpt-5", Platform: PlatformOpenAI, Pricing: &ChannelModelPricing{BillingMode: BillingModeToken, InputPrice: &secondPrice}}},
+			},
+		}},
+	)
+
+	entries, err := svc.List(context.Background())
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+	require.Equal(t, "Fallback channel", entries[0].ChannelName)
+	require.Equal(t, int64(12), entries[0].ChannelID)
+	require.InDelta(t, secondPrice, *entries[0].Pricing.InputPrice, 1e-12)
+	require.Equal(t, "Primary channel", entries[1].ChannelName)
+	require.Equal(t, int64(11), entries[1].ChannelID)
+	require.InDelta(t, firstPrice, *entries[1].Pricing.InputPrice, 1e-12)
 }

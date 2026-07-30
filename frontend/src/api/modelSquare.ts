@@ -4,6 +4,8 @@ import type { UserAvailableGroup, UserSupportedModelPricing } from './channels'
 export interface ModelSquareEntry {
   name: string
   platform: string
+  channel_id: number
+  channel_name: string
   group: UserAvailableGroup
   account_count: number
   pricing: UserSupportedModelPricing | null
