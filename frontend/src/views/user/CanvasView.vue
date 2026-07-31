@@ -123,10 +123,9 @@
           </div>
           <div class="canvas-toolbar-actions">
             <button
-              v-if="hasActiveCanvasImageTasks"
               type="button"
               class="btn btn-secondary btn-sm"
-              :disabled="cancelingActiveTasks"
+              :disabled="!hasActiveCanvasImageTasks || cancelingActiveTasks"
               data-testid="canvas-cancel-active-tasks-button"
               @click="cancelActiveCanvasTasks"
             >
