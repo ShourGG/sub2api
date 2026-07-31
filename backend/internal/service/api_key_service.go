@@ -63,13 +63,13 @@ const (
 // 若编辑 Key 时无条件整行回写，并发累计的配额与限流计数就会被旧快照覆盖。
 // 因此调用方必须显式声明要改的列。
 type APIKeyUpdateFields struct {
-	Name      bool
-	Status    bool
-	Quota     bool
-	GroupID   bool
+	Name    bool
+	Status  bool
+	Quota   bool
+	GroupID bool
 	// GroupRoutes 覆盖 API Key 的多分组路由配置。
 	GroupRoutes bool
-	ExpiresAt bool
+	ExpiresAt   bool
 	// QuotaUsed 仅供"重置配额用量"路径声明；常规计费走 IncrementQuotaUsed。
 	QuotaUsed bool
 	// RateLimits 覆盖 rate_limit_5h / _1d / _7d 三个阈值。
@@ -568,9 +568,27 @@ func (s *APIKeyService) MarkGroupRouteFailed(key *APIKey, groupID int64) {
 	}
 }
 
-// ApplySelectedGroupRoute chooses the highest-priority enabled route and loads
-// its group before the gateway applies normal group availability checks.
+// ApplySelectedGroupRoute keeps the API Key's directly-bound group as the
+// first attempt. Multi-group routes are fallbacks and are only applied by
+// ApplyNextGroupRoute after selection or upstream forwarding fails.
+//
+// Route-only legacy keys are still supported by selecting their first route.
 func (s *APIKeyService) ApplySelectedGroupRoute(ctx context.Context, key *APIKey) error {
+	if key == nil {
+		return nil
+	}
+	if key.GroupID != nil {
+		if key.Group != nil {
+			return nil
+		}
+		group, err := s.groupRepo.GetByID(ctx, *key.GroupID)
+		if err != nil {
+			return fmt.Errorf("get primary group: %w", err)
+		}
+		key.Group = group
+		return nil
+	}
+
 	route := s.selectedAPIKeyGroupRoute(key)
 	if route == nil {
 		if s.allEnabledGroupRoutesCooling(key) {
@@ -721,7 +739,10 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 	if err := s.validateAPIKeyGroupRoutes(ctx, user, groupRoutes); err != nil {
 		return nil, err
 	}
-	if len(groupRoutes) > 0 {
+	// A route is a fallback, not the API Key's primary group. Preserve an
+	// explicitly selected group so its price and permissions remain the key's
+	// default; only legacy route-only requests need a primary-group fallback.
+	if len(groupRoutes) > 0 && req.GroupID == nil {
 		firstGroupID := groupRoutes[0].GroupID
 		req.GroupID = &firstGroupID
 	}
@@ -1072,10 +1093,6 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		}
 		apiKey.GroupRoutes = routes
 		fields.GroupRoutes = true
-		if len(routes) > 0 {
-			primaryGroupID := routes[0].GroupID
-			apiKey.GroupID = &primaryGroupID
-		}
 	}
 
 	if req.Status != nil {
