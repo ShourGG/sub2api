@@ -1,10 +1,12 @@
 package service
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/domain"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNormalizeAPIKeyGroupRoutes(t *testing.T) {
@@ -64,4 +66,57 @@ func TestAPIKeyServiceSelectedGroupRouteSkipsCooldownAndAttempts(t *testing.T) {
 	if route == nil || route.Priority != 1 {
 		t.Fatalf("route after cooldown expiry = %#v", route)
 	}
+}
+
+func TestAPIKeyServiceApplySelectedGroupRoutePreservesPrimaryGroup(t *testing.T) {
+	primaryID := int64(75)
+	primary := &Group{ID: primaryID, Name: "primary", Status: StatusActive}
+	key := &APIKey{
+		GroupID: &primaryID,
+		Group:   primary,
+		GroupRoutes: []domain.APIKeyGroupRoute{{
+			GroupID:  95,
+			Priority: 1,
+			Weight:   1,
+			Enabled:  true,
+		}},
+	}
+
+	require.NoError(t, (&APIKeyService{}).ApplySelectedGroupRoute(context.Background(), key))
+	if key.GroupID == nil || *key.GroupID != primaryID {
+		t.Fatalf("primary group was replaced: %#v", key.GroupID)
+	}
+	if key.Group != primary {
+		t.Fatalf("primary group object was replaced: %#v", key.Group)
+	}
+}
+
+func TestAPIKeyServiceUpdateRoutesPreservesPrimaryGroup(t *testing.T) {
+	primaryID := int64(75)
+	routes := []domain.APIKeyGroupRoute{{GroupID: 95, Priority: 1, Weight: 1, Enabled: true}}
+	primary := &Group{ID: primaryID, Name: "primary", Status: StatusActive}
+	repo := &apiKeyRepoStubForGroupUpdate{key: &APIKey{
+		ID:      1,
+		UserID:  7,
+		Key:     "sk-test",
+		Status:  StatusActive,
+		GroupID: &primaryID,
+		Group:   primary,
+	}}
+	svc := &APIKeyService{
+		apiKeyRepo: repo,
+		userRepo: &userRepoStubForGroupUpdate{user: &User{
+			ID:            7,
+			AllowedGroups: []int64{95},
+		}},
+		groupRepo: &groupRepoStubForGroupUpdate{group: &Group{ID: 95, Status: StatusActive}},
+	}
+
+	updated, err := svc.Update(context.Background(), 1, 7, UpdateAPIKeyRequest{GroupRoutes: &routes})
+	require.NoError(t, err)
+	require.NotNil(t, updated.GroupID)
+	require.Equal(t, primaryID, *updated.GroupID)
+	require.NotNil(t, repo.updated)
+	require.NotNil(t, repo.updated.GroupID)
+	require.Equal(t, primaryID, *repo.updated.GroupID)
 }
