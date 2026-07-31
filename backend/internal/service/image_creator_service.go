@@ -38,6 +38,7 @@ const (
 	ImageCreatorTaskStatusRunning   = "running"
 	ImageCreatorTaskStatusSucceeded = "succeeded"
 	ImageCreatorTaskStatusFailed    = "failed"
+	ImageCreatorTaskStatusCanceled  = "canceled"
 
 	defaultImageCreatorStorageDir                = "data/image-creator"
 	defaultImageCreatorMaxSavedImages            = 16
@@ -217,6 +218,7 @@ type ImageCreatorRepository interface {
 	GetTaskByID(ctx context.Context, taskID int64) (*ImageCreatorTask, error)
 	GetTaskForUser(ctx context.Context, userID int64, taskID int64) (*ImageCreatorTask, error)
 	ListTasksForUser(ctx context.Context, userID int64, limit int) ([]ImageCreatorTask, error)
+	CancelTasksForUser(ctx context.Context, userID int64, taskIDs []int64) (int, error)
 	GetImageForUser(ctx context.Context, userID int64, imageID int64) (*ImageCreatorImage, error)
 	ClaimNextPendingTask(ctx context.Context, staleRunningAfter time.Duration) (*ImageCreatorTask, error)
 	MarkTaskRunning(ctx context.Context, taskID int64) error
@@ -793,6 +795,18 @@ func (s *ImageCreatorService) GetImageFile(ctx context.Context, userID int64, im
 
 func (s *ImageCreatorService) GetReferenceImageForUser(ctx context.Context, userID int64, imageID int64) (*ImageCreatorFile, error) {
 	return s.GetImageFile(ctx, userID, imageID)
+}
+
+// CancelTasksForUser stops queued work and discards any provider response that
+// arrives after an in-flight task has been canceled locally.
+func (s *ImageCreatorService) CancelTasksForUser(ctx context.Context, userID int64, taskIDs []int64) (int, error) {
+	if s == nil || s.repo == nil {
+		return 0, infraerrors.InternalServer("IMAGE_CREATOR_UNAVAILABLE", "image creator service is unavailable")
+	}
+	if userID <= 0 || len(taskIDs) == 0 {
+		return 0, nil
+	}
+	return s.repo.CancelTasksForUser(ctx, userID, taskIDs)
 }
 
 func (s *ImageCreatorService) ProcessTask(ctx context.Context, taskID int64) error {

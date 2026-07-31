@@ -191,6 +191,10 @@ type CanvasImageTaskCreator interface {
 	GetReferenceImageForUser(ctx context.Context, userID int64, imageID int64) (*ImageCreatorFile, error)
 }
 
+type CanvasImageTaskCanceler interface {
+	CancelTasksForUser(ctx context.Context, userID int64, taskIDs []int64) (int, error)
+}
+
 type CanvasService struct {
 	repo           CanvasRepository
 	imageCreator   CanvasImageTaskCreator
@@ -627,6 +631,18 @@ func (s *CanvasService) CancelRun(ctx context.Context, userID int64, runID int64
 	if runID <= 0 {
 		return nil, infraerrors.BadRequest("INVALID_CANVAS_RUN_ID", "invalid canvas run id")
 	}
+	existing, err := s.repo.GetCanvasRun(ctx, userID, runID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, infraerrors.NotFound("CANVAS_RUN_NOT_FOUND", "canvas run not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if canceler, ok := s.imageCreator.(CanvasImageTaskCanceler); ok {
+		if _, err := canceler.CancelTasksForUser(ctx, userID, canvasRunImageTaskIDs(existing)); err != nil {
+			return nil, err
+		}
+	}
 	run, err := s.repo.CancelCanvasRun(ctx, userID, runID)
 	if err == nil {
 		normalizeCanvasRunJSON(run)
@@ -647,6 +663,27 @@ func (s *CanvasService) CancelRun(ctx context.Context, userID int64, runID int64
 		return existing, nil
 	}
 	return nil, infraerrors.Conflict("CANVAS_RUN_NOT_CANCELABLE", "canvas run is not cancelable")
+}
+
+func canvasRunImageTaskIDs(run *CanvasRun) []int64 {
+	if run == nil || run.Output == nil {
+		return nil
+	}
+	rawTasks, ok := run.Output["image_tasks"].([]any)
+	if !ok {
+		return nil
+	}
+	ids := make([]int64, 0, len(rawTasks))
+	for _, rawTask := range rawTasks {
+		task, ok := rawTask.(map[string]any)
+		if !ok {
+			continue
+		}
+		if id := canvasInt64(task, "task_id"); id > 0 {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }
 
 func (s *CanvasService) ListModels(ctx context.Context, userID, apiKeyID int64) (CanvasModelCatalog, error) {
