@@ -79,6 +79,8 @@ export const useAuthStore = defineStore('auth', () => {
   const pendingAuthSession = ref<PendingAuthSessionSummary | null>(null)
   let refreshIntervalId: ReturnType<typeof setInterval> | null = null
   let tokenRefreshTimeoutId: ReturnType<typeof setTimeout> | null = null
+  let refreshUserInFlight: Promise<User> | null = null
+  let authSessionVersion = 0
 
   // ==================== Computed ====================
 
@@ -92,6 +94,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isSimpleMode = computed(() => runMode.value === 'simple')
   const hasPendingAuthSession = computed(() => pendingAuthSession.value !== null)
+
+  function invalidateAuthSession(): void {
+    authSessionVersion += 1
+    refreshUserInFlight = null
+  }
 
   // ==================== Actions ====================
 
@@ -291,6 +298,8 @@ export const useAuthStore = defineStore('auth', () => {
    * Internal helper function
    */
   function setAuthFromResponse(response: AuthResponse): void {
+    invalidateAuthSession()
+
     // Store token and user
     token.value = response.access_token
 
@@ -351,6 +360,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function setToken(newToken: string): Promise<User> {
     // Clear any previous state first (avoid mixing sessions)
     // Note: Don't clear localStorage here as OAuth callback may have set refresh_token
+    invalidateAuthSession()
     stopAutoRefresh()
     stopTokenRefresh()
     token.value = null
@@ -426,30 +436,55 @@ export const useAuthStore = defineStore('auth', () => {
    * @returns Promise resolving to the updated user
    * @throws Error if not authenticated or request fails
    */
-  async function refreshUser(): Promise<User> {
+  function refreshUser(): Promise<User> {
     if (!token.value) {
-      throw new Error('Not authenticated')
+      return Promise.reject(new Error('Not authenticated'))
     }
 
-    try {
-      const response = await authAPI.getCurrentUser()
-      if (response.data.run_mode) {
-        runMode.value = response.data.run_mode
-      }
-      const { run_mode: _run_mode, ...userData } = response.data
-      user.value = userData
-
-      // Update localStorage
-      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData))
-
-      return userData
-    } catch (error) {
-      // If refresh fails with 401, clear auth state
-      if ((error as { status?: number }).status === 401) {
-        clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
-      }
-      throw error
+    if (refreshUserInFlight) {
+      return refreshUserInFlight
     }
+
+    const requestToken = token.value
+    const requestSessionVersion = authSessionVersion
+
+    const request = (async () => {
+      try {
+        const response = await authAPI.getCurrentUser()
+        if (authSessionVersion !== requestSessionVersion || token.value !== requestToken) {
+          throw new Error('Authentication session changed')
+        }
+        if (response.data.run_mode) {
+          runMode.value = response.data.run_mode
+        }
+        const { run_mode: _run_mode, ...userData } = response.data
+        user.value = userData
+
+        // Update localStorage
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData))
+
+        return userData
+      } catch (error) {
+        // A response from an older session must never clear a newer session.
+        if (
+          authSessionVersion === requestSessionVersion &&
+          token.value === requestToken &&
+          (error as { status?: number }).status === 401
+        ) {
+          clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
+        }
+        throw error
+      }
+    })()
+
+    refreshUserInFlight = request
+    const clearInFlightRequest = () => {
+      if (refreshUserInFlight === request) {
+        refreshUserInFlight = null
+      }
+    }
+    void request.then(clearInFlightRequest, clearInFlightRequest)
+    return request
   }
 
   /**
@@ -457,6 +492,8 @@ export const useAuthStore = defineStore('auth', () => {
    * Internal helper function
    */
   function clearAuth(options?: { preservePendingAuthSession?: boolean }): void {
+    invalidateAuthSession()
+
     // Stop auto-refresh
     stopAutoRefresh()
     // Stop token refresh

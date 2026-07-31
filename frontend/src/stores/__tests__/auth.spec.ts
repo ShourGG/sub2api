@@ -364,6 +364,53 @@ describe('useAuthStore', () => {
       const store = useAuthStore()
       await expect(store.refreshUser()).rejects.toThrow('Not authenticated')
     })
+
+    it('启动恢复和页面刷新共用同一个资料请求', async () => {
+      localStorage.setItem('auth_token', 'saved-token')
+      localStorage.setItem('auth_user', JSON.stringify({ ...fakeUser, balance: 100 }))
+
+      let resolveCurrentUser!: (response: { data: typeof fakeUser }) => void
+      mockGetCurrentUser.mockReturnValue(
+        new Promise((resolve) => {
+          resolveCurrentUser = resolve
+        })
+      )
+
+      const store = useAuthStore()
+      store.checkAuth()
+      const dashboardRefresh = store.refreshUser()
+
+      expect(mockGetCurrentUser).toHaveBeenCalledTimes(1)
+
+      const updatedUser = { ...fakeUser, balance: 88 }
+      resolveCurrentUser({ data: updatedUser })
+
+      await expect(dashboardRefresh).resolves.toEqual(updatedUser)
+      expect(store.user).toEqual(updatedUser)
+      expect(JSON.parse(localStorage.getItem('auth_user')!)).toEqual(updatedUser)
+    })
+
+    it('登出后忽略旧资料请求的响应', async () => {
+      mockLogin.mockResolvedValue(fakeAuthResponse)
+      mockLogout.mockResolvedValue(undefined)
+      const store = useAuthStore()
+      await store.login({ email: 'test@example.com', password: '123456' })
+
+      let resolveCurrentUser!: (response: { data: typeof fakeUser }) => void
+      mockGetCurrentUser.mockReturnValue(
+        new Promise((resolve) => {
+          resolveCurrentUser = resolve
+        })
+      )
+
+      const pendingRefresh = store.refreshUser()
+      await store.logout()
+      resolveCurrentUser({ data: { ...fakeUser, balance: 88 } })
+
+      await expect(pendingRefresh).rejects.toThrow('Authentication session changed')
+      expect(store.user).toBeNull()
+      expect(localStorage.getItem('auth_user')).toBeNull()
+    })
   })
 
   // --- isSimpleMode ---
