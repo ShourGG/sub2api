@@ -55,6 +55,9 @@ export default {
     batchImageAgentDesc: 'Copy instructions for an agent',
     viewUsage: 'View Usage',
     checkDetailedLogs: 'Check detailed usage logs',
+    loadFailed: 'The dashboard could not be loaded',
+    loadFailedHint: 'Reload the dashboard. If the problem continues, try again shortly.',
+    retry: 'Reload',
     redeemCode: 'Redeem Code',
     addBalanceWithCode: 'Add balance with a code'
   },
