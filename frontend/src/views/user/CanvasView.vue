@@ -468,7 +468,7 @@
                   type="file"
                   class="sr-only"
                   accept="image/png,image/jpeg,image/webp"
-                  :disabled="uploadingReferenceImage || !selectedKey"
+                  :disabled="uploadingReferenceImage || !selectedNodeApiKey"
                   data-testid="canvas-reference-image-upload"
                   @change="uploadSelectedNodeReferenceImage"
                 />
@@ -796,6 +796,8 @@ const imagePreviewLoads = new Map<string, Promise<string>>()
 const canvasDragState = ref<CanvasDragState | null>(null)
 const canvasPanState = ref<CanvasPanState | null>(null)
 let canvasPointerListenersActive = false
+let modelsRequestId = 0
+let selectedNodeModelsRequestId = 0
 
 const canvasWorldSize = {
   width: 1400,
@@ -1138,20 +1140,29 @@ async function loadCanvases(): Promise<void> {
 }
 
 async function loadModels(): Promise<void> {
+  const requestId = ++modelsRequestId
   loadingModels.value = true
   try {
     const response = await listCanvasModels(selectedKeyId.value)
+    if (requestId !== modelsRequestId) return
     models.value = response.items
     if (!selectedNode.value || selectedNodeApiKeyId.value === selectedKeyId.value) {
+      ++selectedNodeModelsRequestId
       selectedNodeModels.value = response.items
     }
-    if (!selectedModel.value) {
+    if (!response.items.some((item) => item.id === selectedModel.value)) {
       selectedModel.value = response.items[0]?.id ?? ''
     }
   } catch {
-    models.value = []
+    if (requestId === modelsRequestId) {
+      models.value = []
+      if (!selectedNode.value || selectedNodeApiKeyId.value === selectedKeyId.value) {
+        ++selectedNodeModelsRequestId
+        selectedNodeModels.value = []
+      }
+    }
   } finally {
-    loadingModels.value = false
+    if (requestId === modelsRequestId) loadingModels.value = false
   }
 }
 
@@ -1492,15 +1503,17 @@ function setSelectedNodeApiKeyFromEvent(event: Event): void {
 }
 
 async function loadSelectedNodeModels(): Promise<void> {
+  const requestId = ++selectedNodeModelsRequestId
   if (!selectedNode.value || !selectedNodeSupportsApiKey.value) {
     selectedNodeModels.value = models.value
     return
   }
   try {
     const response = await listCanvasModels(selectedNodeApiKeyId.value)
+    if (requestId !== selectedNodeModelsRequestId) return
     selectedNodeModels.value = response.items
   } catch {
-    selectedNodeModels.value = []
+    if (requestId === selectedNodeModelsRequestId) selectedNodeModels.value = []
   }
 }
 
@@ -2603,7 +2616,8 @@ function errorMessage(error: unknown, fallback: string): string {
   position: relative;
   min-height: 620px;
   flex: 1;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
   background-color: rgb(248 250 252);
   background-image:
     linear-gradient(rgb(226 232 240 / 0.72) 1px, transparent 1px),
@@ -3238,13 +3252,60 @@ function errorMessage(error: unknown, fallback: string): string {
     display: flex;
   }
 
+  .canvas-panel,
+  .canvas-workspace {
+    min-width: 0;
+  }
+
+  .canvas-panel-header,
+  .canvas-stage-header {
+    align-items: flex-start;
+  }
+
+  .canvas-panel-header {
+    flex-wrap: wrap;
+  }
+
+  .canvas-panel-header .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
   .canvas-toolbar {
     align-items: stretch;
     flex-direction: column;
   }
 
   .canvas-toolbar-actions {
-    justify-content: flex-start;
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .canvas-toolbar-actions .btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .canvas-latest-run {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .canvas-stage {
+    min-height: min(70dvh, 34rem);
+  }
+
+  .canvas-stage-header {
+    flex-wrap: wrap;
+  }
+
+  .canvas-stage-tools {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .canvas-inspector-panel .canvas-section {
+    border-right: 0;
   }
 }
 </style>
