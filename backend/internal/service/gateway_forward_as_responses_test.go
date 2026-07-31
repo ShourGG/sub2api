@@ -16,6 +16,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNewResponsesUpstreamFailoverErrorHonorsPoolRetryStatus(t *testing.T) {
+	t.Parallel()
+
+	poolAccount := &Account{Credentials: map[string]any{
+		"pool_mode":                    true,
+		"pool_mode_retry_status_codes": []any{float64(http.StatusForbidden)},
+	}}
+	failoverErr := newResponsesUpstreamFailoverError(poolAccount, http.StatusForbidden, []byte("forbidden"))
+	require.True(t, failoverErr.RetryableOnSameAccount)
+
+	nonPoolError := newResponsesUpstreamFailoverError(&Account{}, http.StatusForbidden, nil)
+	require.False(t, nonPoolError.RetryableOnSameAccount)
+
+	configuredWithout403 := &Account{Credentials: map[string]any{
+		"pool_mode":                    true,
+		"pool_mode_retry_status_codes": []any{float64(http.StatusTooManyRequests)},
+	}}
+	require.False(t, newResponsesUpstreamFailoverError(configuredWithout403, http.StatusForbidden, nil).RetryableOnSameAccount)
+}
+
 func TestAdaptResponsesClientToolsForAnthropic_FlattensNamespace(t *testing.T) {
 	t.Parallel()
 

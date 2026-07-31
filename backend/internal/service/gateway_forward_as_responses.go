@@ -173,10 +173,7 @@ func (s *GatewayService) ForwardAsResponses(
 			if s.rateLimitService != nil {
 				s.rateLimitService.HandleUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody, mappedModel)
 			}
-			return nil, &UpstreamFailoverError{
-				StatusCode:   resp.StatusCode,
-				ResponseBody: respBody,
-			}
+			return nil, newResponsesUpstreamFailoverError(account, resp.StatusCode, respBody)
 		}
 
 		// Non-failover error: return Responses-formatted error to client
@@ -194,6 +191,14 @@ func (s *GatewayService) ForwardAsResponses(
 	}
 
 	return result, handleErr
+}
+
+func newResponsesUpstreamFailoverError(account *Account, statusCode int, responseBody []byte) *UpstreamFailoverError {
+	return &UpstreamFailoverError{
+		StatusCode:             statusCode,
+		ResponseBody:           responseBody,
+		RetryableOnSameAccount: account != nil && account.IsPoolMode() && account.IsPoolModeRetryableStatus(statusCode),
+	}
 }
 
 func adaptResponsesClientToolsForAnthropic(body []byte) ([]byte, apicompat.ResponsesClientToolMapping, error) {
