@@ -24,29 +24,15 @@ func plazaGroups() []service.PlazaGroup {
 }
 
 func TestFilterPlazaVisibleGroups_AnonymousSeesOnlyNonExclusive(t *testing.T) {
-	// 匿名(allowedExclusive == nil):仅非专属分组;订阅型公开分组照常可见(橱窗语义)。
-	visible := filterPlazaVisibleGroups(plazaGroups(), nil)
+	visible := filterPlazaVisibleGroups(plazaGroups())
 	require.Len(t, visible, 2)
 	ids := []int64{visible[0].ID, visible[1].ID}
 	require.ElementsMatch(t, []int64{1, 3}, ids)
 }
 
-func TestFilterPlazaVisibleGroups_AuthedSeesGrantedExclusive(t *testing.T) {
-	// 登录:非专属 + 授权的专属;未授权的专属仍不可见。
-	allowed := map[int64]struct{}{2: {}}
-	visible := filterPlazaVisibleGroups(plazaGroups(), allowed)
-	require.Len(t, visible, 3)
-	ids := make([]int64, 0, len(visible))
-	for _, g := range visible {
-		ids = append(ids, g.ID)
-	}
-	require.ElementsMatch(t, []int64{1, 2, 3}, ids)
-}
-
-func TestFilterPlazaVisibleGroups_AuthedEmptySetSeesNoExclusive(t *testing.T) {
-	// 登录但无任何专属授权(空集合,非 nil):与匿名同样只见非专属,
-	// 但语义区分要保持——空集合不能被当作 nil 匿名分支。
-	visible := filterPlazaVisibleGroups(plazaGroups(), map[int64]struct{}{})
+func TestFilterPlazaVisibleGroups_AssignedViewerStillSeesOnlyPublicGroups(t *testing.T) {
+	// The viewer's group assignments do not affect public catalogue visibility.
+	visible := filterPlazaVisibleGroups(plazaGroups())
 	require.Len(t, visible, 2)
 }
 
