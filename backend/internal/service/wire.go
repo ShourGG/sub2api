@@ -557,17 +557,29 @@ func ProvideImageTaskService(store ImageTaskStore, settings *ImageStorageSetting
 func ProvideImageCreatorService(
 	repo ImageCreatorRepository,
 	apiKeyService *APIKeyService,
-	membership *MembershipService,
 	cfg *config.Config,
 	storeFactory BackupObjectStoreFactory,
 ) *ImageCreatorService {
-	return NewImageCreatorService(repo, apiKeyService, membership, cfg, storeFactory)
+	// MembershipService is currently an optional compatibility stub. Keep image
+	// task limits on the standard default until a real membership provider exists.
+	return NewImageCreatorService(repo, apiKeyService, nil, cfg, storeFactory)
 }
 
 // ProvideCanvasService wires the canvas orchestration service to the image
 // creator so text-to-image / image-to-image nodes enqueue real tasks.
 func ProvideCanvasService(repo CanvasRepository, imageCreator *ImageCreatorService, apiKeyService *APIKeyService) *CanvasService {
 	return NewCanvasServiceWithDeps(repo, imageCreator, apiKeyService)
+}
+
+func ProvideStudioBridgeService(
+	settings *SettingService,
+	repo StudioBridgeRepository,
+	store StudioBridgeStore,
+	apiKeyService *APIKeyService,
+) *StudioBridgeService {
+	svc := NewStudioBridgeService(settings, repo, store)
+	svc.SetAPIKeyService(apiKeyService)
+	return svc
 }
 
 // ProvideImageCreatorStorageGovernanceService constructs the admin-facing
@@ -729,10 +741,12 @@ var ProviderSet = wire.NewSet(
 	ProvideImageTaskService,
 	ProvideImageCreatorService,
 	ProvideCanvasService,
+	ProvideStudioBridgeService,
 	ProvideImageCreatorStorageGovernanceService,
 	ProvideBatchImageModelPricingResolver,
 	NewBatchImagePublicService,
 	NewBatchImageDownloadService,
+	NewPromptFavoriteService,
 	ProvideBatchImageCleanupService,
 	ProvideBatchImageWorkerRuntime,
 	wire.Bind(new(AccountRuntimeBlocker), new(*OpenAIGatewayService)),
