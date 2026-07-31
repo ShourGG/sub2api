@@ -10,11 +10,15 @@ import (
 
 // ModelSquareHandler exposes the live catalogue of group-routable account models.
 type ModelSquareHandler struct {
-	service *service.ModelSquareService
+	service       *service.ModelSquareService
+	apiKeyService *service.APIKeyService
 }
 
-func NewModelSquareHandler(service *service.ModelSquareService) *ModelSquareHandler {
-	return &ModelSquareHandler{service: service}
+func NewModelSquareHandler(
+	service *service.ModelSquareService,
+	apiKeyService *service.APIKeyService,
+) *ModelSquareHandler {
+	return &ModelSquareHandler{service: service, apiKeyService: apiKeyService}
 }
 
 type modelSquareEntry struct {
@@ -29,8 +33,14 @@ type modelSquareEntry struct {
 
 // List handles GET /api/v1/model-square.
 func (h *ModelSquareHandler) List(c *gin.Context) {
-	if _, ok := middleware.GetAuthSubjectFromContext(c); !ok {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
 		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	allowedExclusive, err := h.apiKeyService.GetUserAllowedGroupIDSet(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
 		return
 	}
 	entries, err := h.service.List(c.Request.Context())
@@ -38,6 +48,7 @@ func (h *ModelSquareHandler) List(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	entries = filterModelSquareVisibleEntries(entries, allowedExclusive)
 	out := make([]modelSquareEntry, 0, len(entries))
 	for _, entry := range entries {
 		out = append(out, modelSquareEntry{
@@ -51,4 +62,23 @@ func (h *ModelSquareHandler) List(c *gin.Context) {
 		})
 	}
 	response.Success(c, out)
+}
+
+// filterModelSquareVisibleEntries hides exclusive groups which are not
+// explicitly granted to the current user. Public groups remain visible to all
+// authenticated users, matching the API key group picker and Model Plaza.
+func filterModelSquareVisibleEntries(
+	entries []service.ModelSquareEntry,
+	allowedExclusive map[int64]struct{},
+) []service.ModelSquareEntry {
+	visible := make([]service.ModelSquareEntry, 0, len(entries))
+	for _, entry := range entries {
+		if entry.Group.IsExclusive {
+			if _, ok := allowedExclusive[entry.Group.ID]; !ok {
+				continue
+			}
+		}
+		visible = append(visible, entry)
+	}
+	return visible
 }
