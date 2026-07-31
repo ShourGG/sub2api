@@ -2474,6 +2474,35 @@ func setEnvReachableDefaults() {
 	viper.SetDefault("dingtalk_connect.sync_corp_email", false)
 	viper.SetDefault("dingtalk_connect.sync_corp_email_attr_key", "")
 	viper.SetDefault("dingtalk_connect.sync_corp_email_attr_name", "")
+
+	// Image creator settings are environment-driven in Docker deployments.
+	viper.SetDefault("image_creator.storage_dir", "")
+	viper.SetDefault("image_creator.storage_backend", "")
+	viper.SetDefault("image_creator.max_saved_images_per_user", 0)
+	viper.SetDefault("image_creator.retention_days", 0)
+	viper.SetDefault("image_creator.worker_interval_seconds", 0)
+	viper.SetDefault("image_creator.task_timeout_seconds", 0)
+	viper.SetDefault("image_creator.request_timeout_seconds", 0)
+	viper.SetDefault("image_creator.cleanup_batch_size", 0)
+	viper.SetDefault("image_creator.download_bytes_per_second", int64(0))
+	viper.SetDefault("image_creator.local_gateway_base_url", "")
+	for key := range map[string]struct{}{
+		"endpoint":          {},
+		"region":            {},
+		"bucket":            {},
+		"access_key_id":     {},
+		"secret_access_key": {},
+		"prefix":            {},
+		"force_path_style":  {},
+	} {
+		var value any
+		if key == "force_path_style" {
+			value = false
+		} else {
+			value = ""
+		}
+		viper.SetDefault("image_creator.object_storage."+key, value)
+	}
 }
 
 func (c *Config) Validate() error {

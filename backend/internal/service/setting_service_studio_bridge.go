@@ -67,6 +67,7 @@ func validateStudioBridgeAppSettings(cfg StudioBridgeAppSettings) error {
 	return nil
 }
 
+//nolint:unused // Retained for Studio Bridge fallback-group validation.
 func (s *SettingService) validateDefaultKeyFallbackGroup(ctx context.Context, cfg StudioBridgeAppSettings) error {
 	raw := strings.TrimSpace(cfg.DefaultFallbackGroup)
 	if raw == "" {
@@ -174,6 +175,7 @@ func normalizeStudioBridgeStringSlice(values []string) []string {
 	return normalized
 }
 
+//nolint:unused // Retained for Studio Bridge settings repair.
 func marshalStudioBridgeAppSettings(cfg StudioBridgeAppSettings) (string, error) {
 	normalized := normalizeStudioBridgeAppSettingsForSave(cfg)
 	raw, err := json.Marshal(normalized)
@@ -183,6 +185,7 @@ func marshalStudioBridgeAppSettings(cfg StudioBridgeAppSettings) (string, error)
 	return string(raw), nil
 }
 
+//nolint:unused // Retained for Studio Bridge settings repair.
 func marshalStudioBridgeAppSettingsOrDefault(cfg *StudioBridgeAppSettings) string {
 	if cfg == nil {
 		cfg = defaultStudioBridgeAppSettings()
@@ -194,16 +197,19 @@ func marshalStudioBridgeAppSettingsOrDefault(cfg *StudioBridgeAppSettings) strin
 	return raw
 }
 
+//nolint:unused // Retained for Studio Bridge settings repair.
 func defaultStudioBridgeSettingsFromEnv() *StudioBridgeAppSettings {
 	cfg := defaultStudioBridgeAppSettings()
 	cfg.InternalSecret = strings.TrimSpace(os.Getenv("STUDIO_BRIDGE_LUOYE_AI_INTERNAL_SECRET"))
 	return normalizeStudioBridgeAppSettingsForSave(*cfg)
 }
 
+//nolint:unused // Retained for Studio Bridge settings repair.
 func studioBridgeEnvSecret() string {
 	return strings.TrimSpace(os.Getenv("STUDIO_BRIDGE_LUOYE_AI_INTERNAL_SECRET"))
 }
 
+//nolint:unused // Retained for Studio Bridge settings repair.
 func (s *SettingService) localStudioBridgeDefaults(ctx context.Context, base *StudioBridgeAppSettings) *StudioBridgeAppSettings {
 	cfg := defaultStudioBridgeAppSettings()
 	if base != nil {
@@ -228,6 +234,7 @@ func (s *SettingService) localStudioBridgeDefaults(ctx context.Context, base *St
 	return normalizeStudioBridgeAppSettingsForSave(*cfg)
 }
 
+//nolint:unused // Retained for Studio Bridge settings repair.
 func (s *SettingService) defaultStudioBridgeGroups(ctx context.Context) (imageGroup string, textGroup string) {
 	if s == nil || s.studioBridgeDefaultGroupReader == nil {
 		return "", ""
@@ -262,6 +269,7 @@ func (s *SettingService) defaultStudioBridgeGroups(ctx context.Context) (imageGr
 	return imageGroup, textGroup
 }
 
+//nolint:unused // Retained for Studio Bridge settings repair.
 func studioBridgeSettingsNeedLocalRepair(raw string, cfg *StudioBridgeAppSettings) bool {
 	if studioBridgeEnvSecret() == "" {
 		return false
@@ -283,10 +291,12 @@ func studioBridgeSettingsNeedLocalRepair(raw string, cfg *StudioBridgeAppSetting
 		studioBridgeDomainsArePlaceholder(cfg.AllowedReturnDomains)
 }
 
+//nolint:unused // Retained for Studio Bridge settings repair.
 func studioBridgeHasPlaceholderURL(value string) bool {
 	return strings.Contains(strings.ToLower(strings.TrimSpace(value)), "example.com")
 }
 
+//nolint:unused // Retained for Studio Bridge settings repair.
 func studioBridgeDomainsArePlaceholder(values []string) bool {
 	if len(values) == 0 {
 		return true
@@ -315,6 +325,7 @@ func (s *SettingService) GetStudioBridgeLuoyeAISettings(ctx context.Context) (*S
 	return parseStudioBridgeAppSettings(raw), nil
 }
 
+//nolint:unused // Retained for Studio Bridge settings repair.
 func (s *SettingService) repairLocalStudioBridgeDefaults(ctx context.Context) error {
 	raw, err := s.settingRepo.GetValue(ctx, SettingKeyStudioBridgeLuoyeAI)
 	if err != nil && !errors.Is(err, ErrSettingNotFound) {

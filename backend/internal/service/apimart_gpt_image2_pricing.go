@@ -13,12 +13,14 @@ const (
 	apimartGPTImage2OfficialDefaultPrice      = 0.2109
 )
 
+//nolint:unused // Retained until image pricing is connected to the channel flow.
 type apimartImagePriceRow struct {
 	Size     string
 	Quality  string
 	Official float64
 }
 
+//nolint:unused // Retained until image pricing is connected to the channel flow.
 var apimartGPTImage2OfficialPriceRows = []apimartImagePriceRow{
 	{Size: "1536x512", Quality: "low", Official: 0.0018},
 	{Size: "512x1536", Quality: "auto", Official: 0.0018},
@@ -202,8 +204,10 @@ var apimartGPTImage2OfficialPriceRows = []apimartImagePriceRow{
 	{Size: "2880x2880", Quality: "high", Official: 0.7117},
 }
 
+//nolint:unused // Retained until image pricing is connected to the channel flow.
 var apimartGPTImage2OfficialPriceIndex = buildAPIMartImagePriceIndex(apimartGPTImage2OfficialPriceRows)
 
+//nolint:unused // Retained until image pricing is connected to the channel flow.
 func buildAPIMartImagePriceIndex(rows []apimartImagePriceRow) map[string]float64 {
 	out := make(map[string]float64, len(rows))
 	for _, row := range rows {
@@ -212,6 +216,7 @@ func buildAPIMartImagePriceIndex(rows []apimartImagePriceRow) map[string]float64
 	return out
 }
 
+//nolint:unused // Retained until image pricing is connected to the channel flow.
 func apimartImagePriceKey(size string, quality string) string {
 	return normalizeAPIMartImageSize(size) + ":" + normalizeAPIMartImageQuality(quality)
 }
@@ -232,10 +237,12 @@ func isAPIMartGPTImage2OfficialModel(model string) bool {
 	return strings.EqualFold(strings.TrimSpace(model), apimartGPTImage2OfficialModel)
 }
 
+//nolint:unused // Retained until image pricing is connected to the channel flow.
 func isAPIMartGPTImage2Model(model string) bool {
 	return strings.EqualFold(strings.TrimSpace(model), apimartGPTImage2Model)
 }
 
+//nolint:unused // Retained until image pricing is connected to the channel flow.
 func isAPIMartOpenAIAPIKeyAccount(account *Account) bool {
 	if account == nil || !account.IsOpenAIApiKey() {
 		return false
@@ -244,10 +251,12 @@ func isAPIMartOpenAIAPIKeyAccount(account *Account) bool {
 	return strings.EqualFold(host, apimartOpenAIBaseURLHost)
 }
 
+//nolint:unused // Retained until image pricing is connected to the channel flow.
 func apimartGPTImage2OfficialBalancePrice(upstreamPrice float64) float64 {
 	return upstreamPrice * apimartGPTImage2OfficialBalanceMultiplier
 }
 
+//nolint:unused // Retained until image pricing is connected to the channel flow.
 func apimartGPTImage2UsageMultiplierForModels(account *Account, models []string, baseMultiplier float64) float64 {
 	apimartAccount := isAPIMartOpenAIAPIKeyAccount(account)
 	for _, model := range models {
@@ -261,6 +270,7 @@ func apimartGPTImage2UsageMultiplierForModels(account *Account, models []string,
 	return baseMultiplier
 }
 
+//nolint:unused // Retained until image pricing is connected to the channel flow.
 func lookupAPIMartGPTImage2OfficialPrice(size string, quality string) (float64, bool) {
 	size = normalizeAPIMartImageSize(size)
 	if size == "" {
@@ -283,6 +293,7 @@ func lookupAPIMartGPTImage2OfficialPrice(size string, quality string) (float64, 
 	return 0, false
 }
 
+//nolint:unused // Retained until image pricing is connected to the channel flow.
 func apimartGPTImage2OfficialReferencePricing() *ChannelModelPricing {
 	intervals := make([]PricingInterval, 0, len(apimartGPTImage2OfficialPriceRows)+1)
 	defaultPrice := apimartGPTImage2OfficialDefaultPrice
@@ -312,6 +323,7 @@ func apimartGPTImage2OfficialReferencePricing() *ChannelModelPricing {
 	}
 }
 
+//nolint:unused // Retained until image pricing is connected to the channel flow.
 func appendAPIMartGPTImage2OfficialIntervals(intervals []PricingInterval) []PricingInterval {
 	existing := make(map[string]struct{}, len(intervals))
 	maxSort := 0

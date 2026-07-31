@@ -295,7 +295,7 @@ func (r *usageLogRepository) GetUserLeaderboard(ctx context.Context, startTime, 
 	if err != nil {
 		return nil, fmt.Errorf("leaderboard query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	result := make([]service.UserLeaderboardRow, 0, limit)
 	for rows.Next() {

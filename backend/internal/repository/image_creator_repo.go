@@ -185,10 +185,7 @@ func (r *imageCreatorRepository) GetImageForUser(ctx context.Context, userID int
 	return &image, rows.Err()
 }
 
-func (r *imageCreatorRepository) ClaimNextPendingTask(ctx context.Context, staleRunningAfter time.Duration) (*service.ImageCreatorTask, error) {
-	if staleRunningAfter <= 0 {
-		staleRunningAfter = 30 * time.Minute
-	}
+func (r *imageCreatorRepository) ClaimNextPendingTask(ctx context.Context, _ time.Duration) (*service.ImageCreatorTask, error) {
 	query := `
 		WITH next AS (
 			SELECT id
@@ -361,11 +358,12 @@ func buildImageCreatorImageListWhere(userID int64, filters service.ImageCreatorI
 		}
 	}
 	if filters.Format != "" {
-		if filters.Format == "other" {
+		switch filters.Format {
+		case "other":
 			clauses = append(clauses, "images.output_format NOT IN ('png', 'jpeg', 'jpg', 'webp')")
-		} else if filters.Format == "jpeg" {
+		case "jpeg":
 			clauses = append(clauses, "images.output_format IN ('jpeg', 'jpg')")
-		} else {
+		default:
 			clauses = append(clauses, "images.output_format = "+addArg(filters.Format))
 		}
 	}

@@ -95,12 +95,7 @@ func (s *ModelSquareService) List(ctx context.Context) ([]ModelSquareEntry, erro
 			if key.groupID != group.ID || key.platform != group.Platform {
 				continue
 			}
-			models[modelSquareEntryKey{channelID: channelModel.channelID, model: key.model}] = modelSquareModel{
-				name:        channelModel.name,
-				channelID:   channelModel.channelID,
-				channelName: channelModel.channelName,
-				pricing:     channelModel.pricing,
-			}
+			models[modelSquareEntryKey{channelID: channelModel.channelID, model: key.model}] = modelSquareModel(channelModel)
 			configuredModels[key.model] = struct{}{}
 		}
 		for _, account := range accounts {
@@ -203,10 +198,10 @@ func buildModelSquareChannelModels(channels []AvailableChannel) map[modelSquareP
 					continue
 				}
 				key := modelSquarePricingKey{
-					groupID:  group.ID,
+					groupID:   group.ID,
 					channelID: channel.ID,
-					platform: group.Platform,
-					model:    strings.ToLower(strings.TrimSpace(model.Name)),
+					platform:  group.Platform,
+					model:     strings.ToLower(strings.TrimSpace(model.Name)),
 				}
 				if _, exists := index[key]; exists {
 					continue

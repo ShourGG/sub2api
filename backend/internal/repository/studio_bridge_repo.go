@@ -76,7 +76,7 @@ func (r *studioBridgeRepository) GetUserSummary(ctx context.Context, userID int6
 		if err != nil {
 			return nil, err
 		}
-		defer usageRows.Close()
+		defer func() { _ = usageRows.Close() }()
 		for usageRows.Next() {
 			var item service.StudioBridgeUsageSummary
 			var billingMode, mediaType, inboundEndpoint string
@@ -106,7 +106,7 @@ func (r *studioBridgeRepository) GetUserSummary(ctx context.Context, userID int6
 		if err != nil {
 			return nil, err
 		}
-		defer orderRows.Close()
+		defer func() { _ = orderRows.Close() }()
 		for orderRows.Next() {
 			var item service.StudioBridgeRechargeOrder
 			if err := orderRows.Scan(&item.ID, &item.Amount, &item.Status, &item.CreatedAt, &item.PaidAt); err != nil {

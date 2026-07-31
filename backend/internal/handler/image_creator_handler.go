@@ -317,7 +317,7 @@ func (r *throttledReader) Read(p []byte) (int, error) {
 	}
 	expected := time.Duration(int64(n) * int64(time.Second) / r.bytesPerSecond)
 	if !r.lastRead.IsZero() {
-		if sleepFor := r.lastRead.Add(expected).Sub(time.Now()); sleepFor > 0 {
+		if sleepFor := time.Until(r.lastRead.Add(expected)); sleepFor > 0 {
 			time.Sleep(sleepFor)
 		}
 	}

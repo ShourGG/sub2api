@@ -577,6 +577,9 @@ func (s *APIKeyService) ApplySelectedGroupRoute(ctx context.Context, key *APIKey
 	if key == nil {
 		return nil
 	}
+	if s == nil || s.groupRepo == nil {
+		return nil
+	}
 	if key.GroupID != nil {
 		if key.Group != nil {
 			return nil

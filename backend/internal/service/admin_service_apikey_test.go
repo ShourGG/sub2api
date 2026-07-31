@@ -23,8 +23,6 @@ type userRepoStubForGroupUpdate struct {
 	addGroupCalled bool
 	addedUserID    int64
 	addedGroupID   int64
-	user           *User
-	getErr         error
 }
 
 func (s *userRepoStubForGroupUpdate) AddGroupToAllowedGroups(_ context.Context, userID int64, groupID int64) error {
@@ -39,14 +37,7 @@ func (s *userRepoStubForGroupUpdate) CreateWithEmailAliasGuard(context.Context, 
 	panic("unexpected")
 }
 func (s *userRepoStubForGroupUpdate) GetByID(context.Context, int64) (*User, error) {
-	if s.getErr != nil {
-		return nil, s.getErr
-	}
-	if s.user == nil {
-		panic("unexpected")
-	}
-	clone := *s.user
-	return &clone, nil
+	panic("unexpected")
 }
 func (s *userRepoStubForGroupUpdate) GetByEmail(context.Context, string) (*User, error) {
 	panic("unexpected")

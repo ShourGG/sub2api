@@ -165,18 +165,18 @@ type UserSpendingRankingResponse struct {
 // TokenLeaderboardItem represents one row in the Token consumption leaderboard.
 // Ranking key is total_tokens = input + output + cache + image_output.
 type TokenLeaderboardItem struct {
-	Rank             int    `json:"rank"`
-	UserID           int64  `json:"user_id"`
-	Email            string `json:"-"` // raw email, never serialized; masked into User
-	User             string `json:"user"`
-	Requests         int64  `json:"requests"`
-	TotalTokens      int64  `json:"total_tokens"`
-	InputTokens      int64  `json:"input_tokens"`
-	OutputTokens     int64  `json:"output_tokens"`
-	CacheTokens      int64  `json:"cache_tokens"`
-	ImageOutputTokens int64 `json:"image_output_tokens"`
-	LastActiveAt     string `json:"last_active_at"`
-	IsMe             bool   `json:"is_me"`
+	Rank              int    `json:"rank"`
+	UserID            int64  `json:"user_id"`
+	Email             string `json:"-"` // raw email, never serialized; masked into User
+	User              string `json:"user"`
+	Requests          int64  `json:"requests"`
+	TotalTokens       int64  `json:"total_tokens"`
+	InputTokens       int64  `json:"input_tokens"`
+	OutputTokens      int64  `json:"output_tokens"`
+	CacheTokens       int64  `json:"cache_tokens"`
+	ImageOutputTokens int64  `json:"image_output_tokens"`
+	LastActiveAt      string `json:"last_active_at"`
+	IsMe              bool   `json:"is_me"`
 }
 
 // TokenLeaderboardRow is the raw aggregation row returned by the repository.
@@ -427,10 +427,10 @@ type AccountUsageStatsResponse struct {
 
 // UserLeaderboardItem is one row in the token leaderboard (普通用户侧，已脱敏).
 type UserLeaderboardItem struct {
-	Rank                int64  `json:"rank"`
-	UserID              int64  `json:"user_id"`
+	Rank   int64 `json:"rank"`
+	UserID int64 `json:"user_id"`
 	// DisplayName is the desensitized username/email shown to regular users.
-	DisplayName         string `json:"display_name"`
+	DisplayName string `json:"display_name"`
 	// RawName is the original username/email used for desensitization; never serialized.
 	RawName             string `json:"-"`
 	InputTokens         int64  `json:"input_tokens"`

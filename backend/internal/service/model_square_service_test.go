@@ -146,12 +146,12 @@ func TestModelSquareList_KeepsSameModelFromMultipleChannels(t *testing.T) {
 		modelSquareChannelServiceStub{channels: []AvailableChannel{
 			{
 				ID: 11, Name: "Primary channel", Status: StatusActive,
-				Groups: []AvailableGroupRef{{ID: 1, Name: "OpenAI", Platform: PlatformOpenAI}},
+				Groups:          []AvailableGroupRef{{ID: 1, Name: "OpenAI", Platform: PlatformOpenAI}},
 				SupportedModels: []SupportedModel{{Name: "gpt-5", Platform: PlatformOpenAI, Pricing: &ChannelModelPricing{BillingMode: BillingModeToken, InputPrice: &firstPrice}}},
 			},
 			{
 				ID: 12, Name: "Fallback channel", Status: StatusActive,
-				Groups: []AvailableGroupRef{{ID: 1, Name: "OpenAI", Platform: PlatformOpenAI}},
+				Groups:          []AvailableGroupRef{{ID: 1, Name: "OpenAI", Platform: PlatformOpenAI}},
 				SupportedModels: []SupportedModel{{Name: "gpt-5", Platform: PlatformOpenAI, Pricing: &ChannelModelPricing{BillingMode: BillingModeToken, InputPrice: &secondPrice}}},
 			},
 		}},

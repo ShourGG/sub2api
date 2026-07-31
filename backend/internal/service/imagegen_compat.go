@@ -132,6 +132,8 @@ var (
 
 // parseStudioBridgeDefaultGroupID 从设置字符串中解析整数分组 ID。
 // 空字符串或非法格式返回 0。
+//
+//nolint:unused // Retained for the default fallback-group validation flow.
 func parseStudioBridgeDefaultGroupID(raw string) int64 {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -150,12 +152,14 @@ func parseStudioBridgeDefaultGroupID(raw string) int64 {
 
 // IsVideoGenerationIntent 报告请求是否针对视频生成。
 // stub 实现，供 model_catalog.go 编译兼容使用。
-func IsVideoGenerationIntent(_ string, _ string, _ interface{}) bool {
+func IsVideoGenerationIntent(_, _ string, _ any) bool {
 	return false
 }
 
 // openAIBaseURLHost 从 OpenAI base URL 中提取 hostname。
 // 供 apimart_gpt_image2_pricing.go 使用。
+//
+//nolint:unused // Retained for the APIMart account detection flow.
 func openAIBaseURLHost(rawBaseURL string) string {
 	parsed, err := url.Parse(strings.TrimSpace(rawBaseURL))
 	if err != nil {

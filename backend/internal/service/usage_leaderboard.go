@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	leaderboardCacheTTL     = 60 * time.Second
-	leaderboardMaxTop       = 20
+	leaderboardCacheTTL = 60 * time.Second
+	leaderboardMaxTop   = 20
 )
 
 // UserLeaderboardRow is the raw DB row returned by the repo layer.

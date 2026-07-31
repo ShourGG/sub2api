@@ -458,7 +458,7 @@ func (s *ImageCreatorService) CreateTask(ctx context.Context, userID int64, inpu
 	if err != nil || apiKey == nil {
 		return nil, infraerrors.NotFound("API_KEY_NOT_FOUND", "api key not found")
 	}
-	apiKey, err = validateImageCreatorAPIKeyForUser(apiKey, userID, input.Model)
+	_, err = validateImageCreatorAPIKeyForUser(apiKey, userID, input.Model)
 	if err != nil {
 		return nil, err
 	}

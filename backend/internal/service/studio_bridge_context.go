@@ -14,6 +14,7 @@ func IsStudioBridgeGatewayContext(ctx context.Context) bool {
 	return value
 }
 
+//nolint:unused // Retained for Studio Bridge gateway usage billing.
 func skipStudioBridgeGatewayUsageBilling(ctx context.Context, account *Account, deferredService *DeferredService) bool {
 	if !IsStudioBridgeGatewayContext(ctx) {
 		return false

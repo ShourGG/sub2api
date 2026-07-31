@@ -20,6 +20,7 @@ const (
 	welfareVoucherPrecision = 100000000
 )
 
+//nolint:unused // Retained for the voucher grant integration.
 type welfareVoucherGrantInput struct {
 	UserID       int64
 	SourceType   string
@@ -54,6 +55,7 @@ func normalizeWelfareVoucherAmount(amount float64) float64 {
 	return math.Round(amount*welfareVoucherPrecision) / welfareVoucherPrecision
 }
 
+//nolint:unused // Retained for the voucher grant integration.
 func welfareVoucherNullableTimeArg(value *time.Time) any {
 	if value == nil || value.IsZero() {
 		return nil
@@ -61,6 +63,7 @@ func welfareVoucherNullableTimeArg(value *time.Time) any {
 	return value.UTC()
 }
 
+//nolint:unused // Retained for the voucher grant integration.
 func welfareVoucherNullableInt64Arg(value *int64) any {
 	if value == nil || *value <= 0 {
 		return nil
@@ -72,6 +75,7 @@ func welfareVoucherOperationKey(operationType, operationKey string) (string, str
 	return strings.TrimSpace(operationType), strings.TrimSpace(operationKey)
 }
 
+//nolint:unused // Retained for the voucher grant integration.
 func grantWelfareVoucher(ctx context.Context, exec sqlQueryExecutor, input welfareVoucherGrantInput) error {
 	if exec == nil {
 		return fmt.Errorf("welfare voucher executor is nil")
@@ -434,6 +438,7 @@ func refundWelfareVoucherDeductions(ctx context.Context, tx *sql.Tx, userID int6
 	return result, err
 }
 
+//nolint:unused // Retained for the voucher operation rebinding flow.
 func rebindWelfareVoucherDeductions(ctx context.Context, tx *sql.Tx, userID int64, operationType, oldOperationKey, newOperationKey string) error {
 	if tx == nil {
 		return fmt.Errorf("welfare voucher transaction is nil")

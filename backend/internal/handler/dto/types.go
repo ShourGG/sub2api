@@ -56,7 +56,7 @@ type APIKey struct {
 	Key         string                    `json:"key"`
 	Name        string                    `json:"name"`
 	GroupID     *int64                    `json:"group_id"`
-	GroupRoutes []domain.APIKeyGroupRoute `json:"group_routes"`
+	GroupRoutes []domain.APIKeyGroupRoute `json:"group_routes,omitempty"`
 	Status      string                    `json:"status"`
 	IPWhitelist []string                  `json:"ip_whitelist"`
 	IPBlacklist []string                  `json:"ip_blacklist"`

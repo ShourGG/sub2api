@@ -534,6 +534,7 @@ func studioBridgeImageSizeFromBreakdown(breakdown map[string]int) string {
 	return size
 }
 
+//nolint:unused // Retained for Studio Bridge charge compatibility.
 func studioBridgeChargeFingerprint(cmd StudioBridgeChargeCommand) string {
 	return cmd.Fingerprint()
 }
