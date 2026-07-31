@@ -311,7 +311,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	batchImageHandler := handler.ProvideBatchImageHandler(batchImagePublicService, batchImageDownloadService, batchImageCleanupService, openAIGatewayHandler)
 	imageCreatorHandler := handler.NewImageCreatorHandler(imageCreatorService)
 	canvasRepository := repository.NewCanvasRepository(db)
-	canvasService := service.ProvideCanvasService(canvasRepository, imageCreatorService, apiKeyService)
+	canvasService := service.ProvideCanvasService(canvasRepository, imageCreatorService, apiKeyService, channelService)
 	canvasHandler := handler.NewCanvasHandler(canvasService)
 	studioBridgeRepository := repository.NewStudioBridgeRepository(db)
 	studioBridgeStore := repository.NewStudioBridgeStore(redisClient)

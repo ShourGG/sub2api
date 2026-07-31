@@ -192,9 +192,10 @@ type CanvasImageTaskCreator interface {
 }
 
 type CanvasService struct {
-	repo         CanvasRepository
-	imageCreator CanvasImageTaskCreator
-	apiKeys      *APIKeyService
+	repo           CanvasRepository
+	imageCreator   CanvasImageTaskCreator
+	apiKeys        *APIKeyService
+	channelService *ChannelService
 }
 
 func NewCanvasService(repo CanvasRepository) *CanvasService {
@@ -207,6 +208,14 @@ func NewCanvasServiceWithDeps(repo CanvasRepository, imageCreator CanvasImageTas
 		svc.apiKeys = apiKeys[0]
 	}
 	return svc
+}
+
+// SetChannelService supplies the live channel catalog used to discover models
+// available through an API Key's primary and multi-route groups.
+func (s *CanvasService) SetChannelService(channelService *ChannelService) {
+	if s != nil {
+		s.channelService = channelService
+	}
 }
 
 func (s *CanvasService) ListCanvases(ctx context.Context, userID int64, filters CanvasListFilters) ([]CanvasListItem, int, error) {
@@ -690,20 +699,52 @@ func (s *CanvasService) canvasModelsForAPIKey(ctx context.Context, key *APIKey) 
 	}
 	models := make([]string, 0)
 	seenModels := make(map[string]struct{})
+	addModel := func(model string) {
+		model = strings.TrimSpace(model)
+		if model == "" {
+			return
+		}
+		if _, ok := seenModels[model]; ok {
+			return
+		}
+		seenModels[model] = struct{}{}
+		models = append(models, model)
+	}
 	for _, group := range groups {
 		if !group.ModelsListConfig.Enabled {
 			continue
 		}
 		for _, model := range group.ModelsListConfig.Models {
-			model = strings.TrimSpace(model)
-			if model == "" {
-				continue
+			addModel(model)
+		}
+	}
+	if s.channelService == nil || len(groups) == 0 {
+		return models
+	}
+	groupIDs := make(map[int64]struct{}, len(groups))
+	for _, group := range groups {
+		groupIDs[group.ID] = struct{}{}
+	}
+	channels, err := s.channelService.ListAvailable(ctx)
+	if err != nil {
+		return models
+	}
+	for _, channel := range channels {
+		if channel.Status != StatusActive {
+			continue
+		}
+		availableToKey := false
+		for _, group := range channel.Groups {
+			if _, ok := groupIDs[group.ID]; ok {
+				availableToKey = true
+				break
 			}
-			if _, ok := seenModels[model]; ok {
-				continue
-			}
-			seenModels[model] = struct{}{}
-			models = append(models, model)
+		}
+		if !availableToKey {
+			continue
+		}
+		for _, model := range channel.SupportedModels {
+			addModel(model.Name)
 		}
 	}
 	return models

@@ -16,7 +16,7 @@
         {{ ipGeoBatchLoading ? t('usage.ipGeo.batchFetching') : t('usage.ipGeo.batchFetch') }}
       </button>
     </div>
-    <div class="overflow-auto">
+    <div class="overflow-x-auto overscroll-x-contain" data-testid="usage-table-scroll">
       <DataTable
         :columns="columns"
         :data="data"
@@ -24,6 +24,7 @@
         :server-side-sort="serverSideSort"
         :default-sort-key="defaultSortKey"
         :default-sort-order="defaultSortOrder"
+        :mobile-horizontal-scroll="mobileHorizontalScroll"
         @sort="(key, order) => $emit('sort', key, order)"
       >
         <template #cell-user="{ row }">
@@ -525,6 +526,8 @@ interface Props {
   showUpstreamEndpoint?: boolean
   /** 嵌入统一卡片内使用：去掉自身卡片外观 */
   flat?: boolean
+  /** 手机端保留完整表格并允许左右滑动。 */
+  mobileHorizontalScroll?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -534,7 +537,8 @@ const props = withDefaults(defineProps<Props>(), {
   defaultSortOrder: 'asc',
   showAccountBilling: true,
   showUpstreamEndpoint: true,
-  flat: false
+  flat: false,
+  mobileHorizontalScroll: false
 })
 const emit = defineEmits<{
   userClick: [userID: number, email?: string]

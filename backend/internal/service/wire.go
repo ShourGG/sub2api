@@ -567,8 +567,10 @@ func ProvideImageCreatorService(
 
 // ProvideCanvasService wires the canvas orchestration service to the image
 // creator so text-to-image / image-to-image nodes enqueue real tasks.
-func ProvideCanvasService(repo CanvasRepository, imageCreator *ImageCreatorService, apiKeyService *APIKeyService) *CanvasService {
-	return NewCanvasServiceWithDeps(repo, imageCreator, apiKeyService)
+func ProvideCanvasService(repo CanvasRepository, imageCreator *ImageCreatorService, apiKeyService *APIKeyService, channelService *ChannelService) *CanvasService {
+	canvasService := NewCanvasServiceWithDeps(repo, imageCreator, apiKeyService)
+	canvasService.SetChannelService(channelService)
+	return canvasService
 }
 
 func ProvideStudioBridgeService(
