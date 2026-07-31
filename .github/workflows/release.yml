@@ -92,7 +92,10 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          # A workflow dispatch is released from the selected branch ref. The
+          # tag input controls the version only; checking it out here would
+          # rebuild the old commit that originally received that version.
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.ref }}
 
       - name: Download VERSION artifact
         uses: actions/download-artifact@v8
@@ -144,6 +147,15 @@ jobs:
         run: |
           # 确保获取完整的 annotated tag 信息
           git fetch --tags --force
+
+      - name: Pin dispatch version to checked-out source
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          # GoReleaser derives its version from a tag at HEAD. Keep this local
+          # to the runner so re-publishing a fixed version still builds the
+          # current main commit instead of the historical tag commit.
+          git tag -f "${{ github.event.inputs.tag }}" HEAD
+          echo "Building ${{ github.event.inputs.tag }} from $(git rev-parse HEAD)"
 
       - name: Get tag message
         id: tag_message
