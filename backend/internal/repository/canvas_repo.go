@@ -263,12 +263,12 @@ func (r *canvasRepository) CancelCanvasRun(ctx context.Context, userID int64, ru
 			canceled_at = COALESCE(canceled_at, NOW()),
 			completed_at = COALESCE(completed_at, NOW()),
 			updated_at = NOW()
-		WHERE id = $1 AND user_id = $2 AND status IN ($4, $5)
+	WHERE id = $1 AND user_id = $2 AND status IN ($4, $5, $6)
 		RETURNING id, user_id, canvas_id, status, trigger_type, api_key_id, model,
 			input, output, error_message, metadata, started_at, completed_at,
 			canceled_at, created_at, updated_at
 	`
-	return scanCanvasRunRow(ctx, r.sql, query, runID, userID, service.CanvasRunStatusCanceled, service.CanvasRunStatusPending, service.CanvasRunStatusRunning)
+	return scanCanvasRunRow(ctx, r.sql, query, runID, userID, service.CanvasRunStatusCanceled, service.CanvasRunStatusPending, service.CanvasRunStatusRunning, service.CanvasRunStatusSucceeded)
 }
 
 func (r *canvasRepository) insertCanvasHeader(ctx context.Context, exec sqlExecutor, userID int64, input service.CanvasSaveInput) (*service.CanvasDocument, error) {

@@ -34,6 +34,10 @@ export default {
     cancelRun: '取消运行',
     runCanceled: '运行已取消',
     cancelRunFailed: '取消运行失败',
+    deleteCanvas: '删除 Canvas',
+    deleteCanvasConfirm: '确定删除「{name}」吗？',
+    deleteCanvasSuccess: 'Canvas 已删除',
+    deleteCanvasFailed: '删除 Canvas 失败',
     latestRun: '最近运行',
     imageTaskSummary: '{count} 个生图任务',
     imageTaskDone: '已生成 {count} 张图片',
@@ -42,7 +46,8 @@ export default {
       pending: '等待中',
       running: '生成中',
       succeeded: '已完成',
-      failed: '失败'
+      failed: '失败',
+      canceled: '已取消'
     },
     nodeInspector: '节点参数',
     nodeTitle: '节点名称',

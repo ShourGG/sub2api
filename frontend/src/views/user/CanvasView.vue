@@ -38,23 +38,29 @@
           </div>
 
           <div class="canvas-list custom-scrollbar" data-testid="canvas-list">
-            <button
+            <div
               v-for="item in canvases"
               :key="item.id"
-              type="button"
               class="canvas-list-item"
               :class="{ 'canvas-list-item-active': item.id === selectedCanvasId }"
-              data-testid="canvas-open-button"
-              @click="openCanvas(item.id)"
             >
-              <span class="min-w-0 flex-1">
+              <button type="button" class="min-w-0 flex-1 text-left" data-testid="canvas-open-button" @click="openCanvas(item.id)">
                 <span class="block truncate text-sm font-semibold">{{ item.name }}</span>
                 <span class="mt-1 block truncate text-xs text-gray-500 dark:text-dark-300">
                   {{ canvasMeta(item) }}
                 </span>
-              </span>
-              <Icon name="chevronRight" size="sm" />
-            </button>
+              </button>
+              <button
+                type="button"
+                class="canvas-icon-button"
+                :title="t('canvas.deleteCanvas')"
+                :disabled="deletingCanvasIds.has(item.id)"
+                data-testid="canvas-delete-button"
+                @click.stop="removeCanvas(item)"
+              >
+                <Icon name="trash" size="sm" />
+              </button>
+            </div>
 
             <div v-if="!loadingCanvases && canvases.length === 0" class="canvas-empty-list">
               <Icon name="inbox" size="lg" />
@@ -116,6 +122,17 @@
             />
           </div>
           <div class="canvas-toolbar-actions">
+            <button
+              v-if="hasActiveCanvasImageTasks"
+              type="button"
+              class="btn btn-secondary btn-sm"
+              :disabled="cancelingActiveTasks"
+              data-testid="canvas-cancel-active-tasks-button"
+              @click="cancelActiveCanvasTasks"
+            >
+              <Icon name="ban" size="sm" />
+              <span>{{ t('canvas.cancelRun') }}</span>
+            </button>
             <button
               type="button"
               class="btn btn-secondary btn-sm"
@@ -671,6 +688,7 @@ import {
   cancelCanvasRun,
   createCanvas,
   createCanvasRun,
+  deleteCanvas,
   getCanvas,
   listCanvasModels,
   listCanvasRuns,
@@ -776,6 +794,8 @@ const selectedNodeId = ref<string | null>(null)
 const selectedEdgeId = ref<string | null>(null)
 const linkSourceNodeId = ref<string | null>(null)
 const cancelingRunIds = ref(new Set<string>())
+const deletingCanvasIds = ref(new Set<string>())
+const cancelingActiveTasks = ref(false)
 const selectedKeyId = ref<number | null>(null)
 const draftName = ref('')
 const draftDescription = ref('')
@@ -964,6 +984,13 @@ const selectedNodeResolvedSize = computed(() => {
 })
 
 const latestRun = computed(() => runs.value[0] ?? null)
+const activeCanvasRun = computed(() => runs.value.find((run) =>
+  canvasImageTaskLinksFromRun(run).some((link) => {
+    const status = canvasTasksById.value[String(link.taskId)]?.status ?? link.taskStatus
+    return !status || taskIsActiveStatus(status)
+  })
+) ?? null)
+const hasActiveCanvasImageTasks = computed(() => activeCanvasRun.value !== null)
 
 const selectedKey = computed(() =>
   imageApiKeys.value.find((key) => key.id === selectedKeyId.value) ?? null
@@ -1325,6 +1352,42 @@ async function cancelRun(run: CanvasRun): Promise<void> {
   }
 }
 
+async function cancelActiveCanvasTasks(): Promise<void> {
+  if (cancelingActiveTasks.value || !activeCanvasRun.value) return
+  cancelingActiveTasks.value = true
+  try {
+    const canceled = await cancelCanvasRun(activeCanvasRun.value.id)
+    upsertRun(canceled)
+    if (selectedCanvasId.value) await loadRuns(selectedCanvasId.value)
+    appStore.showSuccess(t('canvas.runCanceled'))
+  } catch (error: unknown) {
+    appStore.showError(errorMessage(error, t('canvas.cancelRunFailed')))
+  } finally {
+    cancelingActiveTasks.value = false
+  }
+}
+
+async function removeCanvas(item: UserCanvasSummary): Promise<void> {
+  if (deletingCanvasIds.value.has(item.id)) return
+  if (!window.confirm(t('canvas.deleteCanvasConfirm', { name: item.name }))) return
+  deletingCanvasIds.value = new Set(deletingCanvasIds.value).add(item.id)
+  try {
+    await deleteCanvas(item.id)
+    canvases.value = canvases.value.filter((canvas) => canvas.id !== item.id)
+    if (selectedCanvasId.value === item.id) {
+      if (canvases.value[0]) await openCanvas(canvases.value[0].id)
+      else beginNewCanvas()
+    }
+    appStore.showSuccess(t('canvas.deleteCanvasSuccess'))
+  } catch (error: unknown) {
+    appStore.showError(errorMessage(error, t('canvas.deleteCanvasFailed')))
+  } finally {
+    const next = new Set(deletingCanvasIds.value)
+    next.delete(item.id)
+    deletingCanvasIds.value = next
+  }
+}
+
 function upsertRun(run: CanvasRun): void {
   const index = runs.value.findIndex((item) => item.id === run.id)
   if (index >= 0) {
@@ -1599,17 +1662,11 @@ function canvasNodeHasInvalidCustomDimensions(node: CanvasNode): boolean {
 function canvasSizeForResolutionAndRatio(resolution: string, aspectRatio: string): string {
   const [ratioWidth, ratioHeight] = aspectRatio.split(':').map(Number)
   const base = resolution === '4K' ? 3840 : resolution === '2K' ? 2048 : 1024
-  const maxPixels = 8_294_400
   const ratio = ratioWidth > 0 && ratioHeight > 0 ? ratioWidth / ratioHeight : 1
-  let width = ratio >= 1 ? base * ratio : base
-  let height = ratio >= 1 ? base : base / ratio
-  const pixelScale = Math.min(1, 3840 / width, 3840 / height, Math.sqrt(maxPixels / (width * height)))
-  width = Math.max(16, Math.round((width * pixelScale) / 64) * 64)
-  height = Math.max(16, Math.round((height * pixelScale) / 64) * 64)
-  while (width * height > maxPixels) {
-    if (width >= height) width -= 64
-    else height -= 64
-  }
+  let width = ratio >= 1 ? base : Math.round(base * ratio)
+  let height = ratio >= 1 ? Math.round(base / ratio) : base
+  width = Math.max(16, Math.round(width / 16) * 16)
+  height = Math.max(16, Math.round(height / 16) * 16)
   return `${width}x${height}`
 }
 
@@ -2193,7 +2250,7 @@ function canvasTaskOutputForNode(node: CanvasNode): unknown {
 
 function imageTaskToNodeOutput(task: ImageCreatorTask): Record<string, unknown> {
   const images = task.images ?? []
-  if (task.status === 'failed') {
+  if (task.status === 'failed' || task.status === 'canceled') {
     return {
       task_id: task.id,
       status: task.status,
@@ -2214,7 +2271,7 @@ function imageTaskToNodeOutput(task: ImageCreatorTask): Record<string, unknown> 
 
 function canvasNodeStatusFromTaskStatus(status: ImageCreatorTaskStatus): CanvasNodeStatus {
   if (status === 'succeeded') return 'done'
-  if (status === 'failed') return 'failed'
+  if (status === 'failed' || status === 'canceled') return 'failed'
   if (status === 'running') return 'running'
   return 'queued'
 }
@@ -2224,7 +2281,7 @@ function taskIsActiveStatus(status: ImageCreatorTaskStatus | undefined): boolean
 }
 
 function normalizeImageCreatorTaskStatus(status: unknown): ImageCreatorTaskStatus | undefined {
-  return status === 'pending' || status === 'running' || status === 'succeeded' || status === 'failed'
+  return status === 'pending' || status === 'running' || status === 'succeeded' || status === 'failed' || status === 'canceled'
     ? status
     : undefined
 }

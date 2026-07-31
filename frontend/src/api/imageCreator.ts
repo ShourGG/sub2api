@@ -1,7 +1,7 @@
 import { apiClient } from './client'
 
 export type ImageCreatorOutputFormat = 'png' | 'jpeg' | 'webp'
-export type ImageCreatorTaskStatus = 'pending' | 'running' | 'succeeded' | 'failed'
+export type ImageCreatorTaskStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'canceled'
 
 export interface ImageCreatorCreateTaskInput {
   apiKeyId: number

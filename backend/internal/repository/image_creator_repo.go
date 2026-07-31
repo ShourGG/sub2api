@@ -128,6 +128,28 @@ func (r *imageCreatorRepository) GetTaskForUser(ctx context.Context, userID int6
 	return task, nil
 }
 
+func (r *imageCreatorRepository) CancelTasksForUser(ctx context.Context, userID int64, taskIDs []int64) (int, error) {
+	if userID <= 0 || len(taskIDs) == 0 {
+		return 0, nil
+	}
+	result, err := r.sql.ExecContext(ctx, `
+		UPDATE image_creator_tasks
+		SET status = $3,
+			error_message = NULL,
+			completed_at = COALESCE(completed_at, NOW()),
+			updated_at = NOW()
+		WHERE user_id = $1
+			AND id = ANY($2)
+			AND status IN ($4, $5)
+	`, userID, pq.Array(taskIDs), service.ImageCreatorTaskStatusCanceled,
+		service.ImageCreatorTaskStatusPending, service.ImageCreatorTaskStatusRunning)
+	if err != nil {
+		return 0, err
+	}
+	affected, err := result.RowsAffected()
+	return int(affected), err
+}
+
 func (r *imageCreatorRepository) ListTasksForUser(ctx context.Context, userID int64, limit int) ([]service.ImageCreatorTask, error) {
 	if limit <= 0 {
 		limit = 20
@@ -240,9 +262,9 @@ func (r *imageCreatorRepository) MarkTaskSucceeded(ctx context.Context, taskID i
 			error_message = $3,
 			completed_at = NOW(),
 			updated_at = NOW()
-		WHERE id = $1
+	WHERE id = $1 AND status = $4
 	`
-	_, err := r.sql.ExecContext(ctx, query, taskID, service.ImageCreatorTaskStatusSucceeded, nullableString(warning))
+	_, err := r.sql.ExecContext(ctx, query, taskID, service.ImageCreatorTaskStatusSucceeded, nullableString(warning), service.ImageCreatorTaskStatusRunning)
 	return err
 }
 
@@ -253,9 +275,9 @@ func (r *imageCreatorRepository) MarkTaskFailed(ctx context.Context, taskID int6
 			error_message = $3,
 			completed_at = NOW(),
 			updated_at = NOW()
-		WHERE id = $1
+	WHERE id = $1 AND status = $4
 	`
-	_, err := r.sql.ExecContext(ctx, query, taskID, service.ImageCreatorTaskStatusFailed, strings.TrimSpace(message))
+	_, err := r.sql.ExecContext(ctx, query, taskID, service.ImageCreatorTaskStatusFailed, strings.TrimSpace(message), service.ImageCreatorTaskStatusRunning)
 	return err
 }
 

@@ -34,6 +34,10 @@ export default {
     cancelRun: 'Cancel run',
     runCanceled: 'Run canceled',
     cancelRunFailed: 'Failed to cancel run',
+    deleteCanvas: 'Delete canvas',
+    deleteCanvasConfirm: 'Delete "{name}"?',
+    deleteCanvasSuccess: 'Canvas deleted',
+    deleteCanvasFailed: 'Failed to delete canvas',
     latestRun: 'Latest run',
     imageTaskSummary: '{count} image task(s)',
     imageTaskDone: '{count} image(s) generated',
@@ -42,7 +46,8 @@ export default {
       pending: 'Pending',
       running: 'Generating',
       succeeded: 'Succeeded',
-      failed: 'Failed'
+      failed: 'Failed',
+      canceled: 'Canceled'
     },
     nodeInspector: 'Node Parameters',
     nodeTitle: 'Node name',
