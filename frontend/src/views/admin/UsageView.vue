@@ -127,6 +127,7 @@
             :loading="loading"
             :columns="visibleColumns"
             :server-side-sort="true"
+            :mobile-horizontal-scroll="true"
             :default-sort-key="'created_at'"
             :default-sort-order="'desc'"
             @sort="handleSort"
