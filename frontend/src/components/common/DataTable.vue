@@ -862,7 +862,10 @@ const hasSelectColumn = computed(() => {
 const getStickyColumnClass = (column: Column, index: number) => {
   const classes: string[] = []
 
-  if (props.stickyFirstColumn) {
+  // On phones, usage records are a complete horizontally-scrollable table.
+  // Keeping the first column sticky hides the left edge of every following
+  // column while swiping, so disable that desktop affordance there.
+  if (props.stickyFirstColumn && !(props.mobileHorizontalScroll && !isDesktopViewport.value)) {
     // 如果第一列是勾选列，固定前两列（勾选+名称）
     if (hasSelectColumn.value) {
       if (index === 0) {
