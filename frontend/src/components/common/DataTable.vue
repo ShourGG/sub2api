@@ -100,8 +100,8 @@
     }"
   >
     <table
-      class="w-full min-w-max divide-y divide-gray-200 dark:divide-dark-700"
-      :style="horizontalTableStyle"
+      class="min-w-max divide-y divide-gray-200 dark:divide-dark-700"
+      :class="mobileHorizontalScroll ? 'usage-horizontal-table' : 'w-full'"
     >
       <thead class="table-header bg-gray-50 dark:bg-dark-800">
         <tr>
@@ -493,15 +493,6 @@ const props = withDefaults(defineProps<Props>(), {
 const sortKey = ref<string>('')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 const actionsExpanded = ref(false)
-
-// Usage records deliberately retain a wider table on every viewport. Besides
-// preserving the mobile table layout, this keeps a visible horizontal drag area
-// on wide screens where the columns would otherwise fit exactly once.
-const horizontalTableStyle = computed(() =>
-  props.mobileHorizontalScroll
-    ? { width: 'max(1920px, calc(100% + 320px))', minWidth: '1920px' }
-    : undefined
-)
 
 type PersistedSortState = {
   key: string
@@ -976,6 +967,20 @@ defineExpose({
   flex: 1;
   min-height: 0;
   isolation: isolate;
+}
+
+/* Wide screens retain a deliberate drag area; phones use intrinsic column
+   widths so the first visible columns stay compact and readable. */
+.usage-horizontal-table {
+  width: max(1920px, calc(100% + 320px));
+  min-width: 1920px;
+}
+
+@media (max-width: 767px) {
+  .usage-horizontal-table {
+    width: max-content;
+    min-width: max-content;
+  }
 }
 
 /* 表头容器，确保在滚动时覆盖表体内容 */
