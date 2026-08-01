@@ -204,6 +204,26 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 				h.handleStreamingAwareError(c, cls.Status, cls.ErrType, cls.Message, streamStarted)
 				return
 			} else {
+				// A single-account primary group used to stop here after its first
+				// retryable error. Exhausting a group is the point at which the API
+				// Key's multi-group fallback routes must be considered.
+				if switched, switchErr := switchToNextAPIKeyRoute(c, h.apiKeyService, apiKey, routeAttempts, true); switchErr != nil {
+					reqLog.Warn("openai_chat_completions.group_route_switch_after_accounts_exhausted_failed", zap.Error(switchErr))
+				} else if switched {
+					subscription, switchErr = selectedGroupRouteSubscription(c, h.apiKeyService, apiKey)
+					if switchErr == nil {
+						switchErr = checkSelectedGroupRouteEligibility(c, h.billingCacheService, apiKey, subscription)
+					}
+					if switchErr != nil {
+						reqLog.Warn("openai_chat_completions.group_route_subscription_load_failed", zap.Error(switchErr))
+						h.handleFailoverExhausted(c, lastFailoverErr, streamStarted)
+						return
+					}
+					failedAccountIDs = make(map[int64]struct{})
+					sameAccountRetryCount = make(map[int64]int)
+					switchCount = 0
+					continue
+				}
 				if lastFailoverErr != nil {
 					h.handleFailoverExhausted(c, lastFailoverErr, streamStarted)
 				} else {
