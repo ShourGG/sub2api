@@ -99,7 +99,10 @@
       'is-scrollable': isScrollable
     }"
   >
-    <table class="w-full min-w-max divide-y divide-gray-200 dark:divide-dark-700">
+    <table
+      class="w-full min-w-max divide-y divide-gray-200 dark:divide-dark-700"
+      :style="horizontalTableStyle"
+    >
       <thead class="table-header bg-gray-50 dark:bg-dark-800">
         <tr>
           <th
@@ -490,6 +493,15 @@ const props = withDefaults(defineProps<Props>(), {
 const sortKey = ref<string>('')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 const actionsExpanded = ref(false)
+
+// Usage records deliberately retain a wider table on every viewport. Besides
+// preserving the mobile table layout, this keeps a visible horizontal drag area
+// on wide screens where the columns would otherwise fit exactly once.
+const horizontalTableStyle = computed(() =>
+  props.mobileHorizontalScroll
+    ? { width: 'max(1920px, calc(100% + 320px))', minWidth: '1920px' }
+    : undefined
+)
 
 type PersistedSortState = {
   key: string
@@ -960,6 +972,7 @@ defineExpose({
   position: relative;
   overflow-x: auto;
   overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
   flex: 1;
   min-height: 0;
   isolation: isolate;
