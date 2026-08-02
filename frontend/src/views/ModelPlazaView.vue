@@ -5,14 +5,9 @@
   </AppLayout>
 
   <!-- 独立形态:自带导航条(logo/站名 + 登录/回后台) -->
-  <div v-else class="relative min-h-screen bg-gray-50 dark:bg-dark-950 overflow-hidden">
-    <!-- 背景装饰光晕: 模拟极光/氛围感 -->
-    <div class="pointer-events-none absolute -top-48 -left-24 h-[500px] w-[500px] rounded-full bg-primary-500/5 blur-[120px] dark:bg-primary-900/5"></div>
-    <div class="pointer-events-none absolute top-1/4 -right-48 h-[600px] w-[600px] rounded-full bg-purple-500/5 blur-[140px] dark:bg-purple-900/5"></div>
-    <div class="pointer-events-none absolute bottom-0 left-1/4 h-[400px] w-[800px] rounded-full bg-blue-500/5 blur-[100px] dark:bg-blue-900/5"></div>
-
-    <PlazaNavBar class="relative z-10" />
-    <main class="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+  <div v-else class="min-h-screen bg-gray-50 dark:bg-dark-950">
+    <PlazaNavBar />
+    <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <ModelPlazaContent :response="data" :loading="loading" :error="loadFailed" />
     </main>
   </div>

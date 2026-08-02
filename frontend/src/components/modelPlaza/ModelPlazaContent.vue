@@ -1,17 +1,15 @@
 <template>
-  <div class="space-y-8">
+  <div class="space-y-5">
     <!-- 页头(独立形态下展示标题;后台形态 AppHeader 已有页面标题) -->
-    <div v-if="!embedded" class="relative">
-      <h1 class="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-4xl bg-clip-text text-transparent bg-gradient-to-r from-gray-900 via-gray-800 to-gray-500 dark:from-white dark:via-gray-100 dark:to-gray-400">
-        {{ t('modelPlaza.title') }}
-      </h1>
-      <p class="mt-2 text-base text-gray-500 dark:text-dark-400 max-w-2xl">{{ t('modelPlaza.description') }}</p>
+    <div v-if="!embedded">
+      <h1 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-3xl">{{ t('modelPlaza.title') }}</h1>
+      <p class="mt-1.5 text-sm text-gray-500 dark:text-dark-400">{{ t('modelPlaza.description') }}</p>
     </div>
 
     <!-- 全局价格说明(管理员配置,Markdown) -->
     <div
       v-if="descriptionHtml"
-      class="plaza-description relative overflow-hidden rounded-3xl border border-white/40 bg-white/60 px-6 py-5 text-sm shadow-glass backdrop-blur-xl dark:border-dark-700/50 dark:bg-dark-800/60"
+      class="plaza-description rounded-2xl border border-gray-100 bg-white px-5 py-4 text-sm shadow-card dark:border-dark-700/50 dark:bg-dark-800/50"
       v-html="descriptionHtml"
     ></div>
 
