@@ -1,33 +1,33 @@
 <template>
-  <div class="space-y-3">
+  <div class="space-y-5 p-1">
     <!-- 一级:平台 -->
-    <div class="flex flex-wrap items-center gap-2">
-      <span class="w-10 shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-dark-500">
+    <div class="flex flex-wrap items-center gap-3">
+      <span class="w-12 shrink-0 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-dark-500">
         {{ t('modelPlaza.filters.platformLabel') }}
       </span>
       <button
         v-for="p in ['all', ...platforms]"
         :key="`platform-${p}`"
         type="button"
-        class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 disabled:grayscale"
-        :class="p === 'all' ? chipClass(platform === 'all') : platform === p ? 'chip-tinted-active' : 'chip-tinted'"
+        class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-30"
+        :class="p === 'all' ? chipClass(platform === 'all') : platform === p ? 'chip-tinted-active scale-[1.02]' : 'chip-tinted hover:scale-[1.02]'"
         :style="p === 'all' ? undefined : { '--chip-accent': platformAccentColor(p) }"
         :disabled="p !== 'all' && !platformEnabled(p)"
         @click="$emit('update:platform', p)"
       >
-        <PlatformIcon v-if="p !== 'all'" :platform="p as GroupPlatform" size="xs" />
+        <PlatformIcon v-if="p !== 'all'" :platform="p as GroupPlatform" size="xs" class="scale-110" />
         {{ p === 'all' ? t('modelPlaza.filters.all') : p }}
       </button>
     </div>
 
-    <!-- 二级:分组(按所属平台着色,当前组合下无结果的置灰) -->
-    <div class="flex flex-wrap items-center gap-2">
-      <span class="w-10 shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-dark-500">
+    <!-- 二级:分组 -->
+    <div class="flex flex-wrap items-center gap-3">
+      <span class="w-12 shrink-0 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-dark-500">
         {{ t('modelPlaza.filters.groupLabel') }}
       </span>
       <button
         type="button"
-        class="rounded-lg px-3 py-1.5 text-sm font-medium transition"
+        class="rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200"
         :class="chipClass(groupId === 'all')"
         @click="$emit('update:groupId', 'all')"
       >
@@ -37,8 +37,8 @@
         v-for="g in groups"
         :key="`group-${g.id}`"
         type="button"
-        class="rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 disabled:grayscale"
-        :class="groupId === g.id ? 'chip-tinted-active' : 'chip-tinted'"
+        class="rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 disabled:opacity-30"
+        :class="groupId === g.id ? 'chip-tinted-active scale-[1.02]' : 'chip-tinted hover:scale-[1.02]'"
         :style="{ '--chip-accent': platformAccentColor(g.platform) }"
         :disabled="!groupEnabled(g)"
         @click="$emit('update:groupId', g.id)"
@@ -47,14 +47,14 @@
       </button>
     </div>
 
-    <!-- 三级:倍率(当前组合下不存在的置灰) -->
-    <div class="flex flex-wrap items-center gap-2">
-      <span class="w-10 shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-dark-500">
+    <!-- 三级:倍率 -->
+    <div class="flex flex-wrap items-center gap-3">
+      <span class="w-12 shrink-0 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-dark-500">
         {{ t('modelPlaza.filters.rateLabel') }}
       </span>
       <button
         type="button"
-        class="rounded-lg px-3 py-1.5 text-sm font-medium transition"
+        class="rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200"
         :class="chipClass(rate === 'all')"
         @click="$emit('update:rate', 'all')"
       >
@@ -64,7 +64,7 @@
         v-for="r in rates"
         :key="`rate-${r}`"
         type="button"
-        class="rounded-lg px-3 py-1.5 font-mono text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40 disabled:grayscale"
+        class="rounded-xl px-4 py-2 font-mono text-sm font-bold transition-all duration-200 disabled:opacity-30"
         :class="chipClass(rate === r)"
         :disabled="!rateEnabled(r)"
         @click="$emit('update:rate', r)"
@@ -73,22 +73,22 @@
       </button>
     </div>
 
-    <!-- 四级:模型名搜索(纯前端过滤) -->
-    <div class="flex flex-wrap items-center gap-2">
-      <span class="w-10 shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-dark-500">
+    <!-- 四级:搜索 -->
+    <div class="flex flex-wrap items-center gap-3 pt-2">
+      <span class="w-12 shrink-0 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-dark-500">
         {{ t('modelPlaza.filters.modelLabel') }}
       </span>
-      <div class="relative w-full sm:w-72">
+      <div class="relative w-full sm:w-80 group">
         <Icon
           name="search"
           size="sm"
-          class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-dark-500"
+          class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 transition-colors group-focus-within:text-primary-500"
         />
         <input
           :value="search"
           type="text"
           :placeholder="t('modelPlaza.filters.searchPlaceholder')"
-          class="input rounded-lg py-1.5 pl-9 pr-9"
+          class="w-full bg-white/50 dark:bg-dark-800/50 backdrop-blur-sm border border-gray-200 dark:border-dark-700 rounded-2xl py-2.5 pl-11 pr-10 text-sm ring-primary-500/20 transition-all focus:border-primary-500 focus:bg-white dark:focus:bg-dark-800 focus:ring-4 focus:shadow-glow outline-none"
           @input="$emit('update:search', ($event.target as HTMLInputElement).value)"
         />
         <button
