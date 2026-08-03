@@ -1215,6 +1215,7 @@ import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats } from '@/api/usage'
 import { formatDateTime } from '@/utils/format'
 import { maskApiKey } from '@/utils/maskApiKey'
+import { syncPrimaryGroupRoute } from '@/utils/apiKeyGroupRoutes'
 import {
   buildCcSwitchImportDeeplink,
   type CcSwitchClientType
@@ -1700,11 +1701,12 @@ const editKey = (key: ApiKey) => {
   selectedKey.value = key
   const hasIPRestriction = (key.ip_whitelist?.length > 0) || (key.ip_blacklist?.length > 0)
   const hasExpiration = !!key.expires_at
+  const groupRoutes = syncPrimaryGroupRoute(key.group_id, key.group_routes || [])
   formData.value = {
     name: key.name,
     group_id: key.group_id,
-    enable_group_routes: (key.group_routes?.length ?? 0) > 0,
-    group_routes: (key.group_routes || []).map((route) => ({ ...route })),
+    enable_group_routes: groupRoutes.length > 0,
+    group_routes: groupRoutes,
     status: key.status === 'quota_exhausted' || key.status === 'expired' ? 'inactive' : key.status,
     use_custom_key: false,
     custom_key: '',
@@ -1777,9 +1779,16 @@ const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
   if (key.group_id === newGroupId) return
 
   try {
-    await keysAPI.update(key.id, { group_id: newGroupId })
+    const groupRoutes = key.group_routes?.length
+      ? syncPrimaryGroupRoute(newGroupId, key.group_routes)
+      : undefined
+    const updates: UpdateApiKeyRequest = { group_id: newGroupId }
+    if (groupRoutes) updates.group_routes = groupRoutes
+    const updatedKey = await keysAPI.update(key.id, updates)
+    const rowIndex = apiKeys.value.findIndex((item) => item.id === key.id)
+    if (rowIndex >= 0) apiKeys.value[rowIndex] = updatedKey
     appStore.showSuccess(t('keys.groupChangedSuccess'))
-    loadApiKeys()
+    await loadApiKeys()
   } catch (error) {
     appStore.showError(t('keys.failedToChangeGroup'))
   }
