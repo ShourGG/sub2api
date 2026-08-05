@@ -204,6 +204,11 @@ gateway:
   # OpenAI/Codex upstream response header timeout (seconds, 0=disabled)
   # OpenAI/Codex 等待上游响应头超时时间（秒，0=禁用本地响应头超时）
   openai_response_header_timeout: 0
+  # Only retry OpenAI requests when the failure is known to occur before inference (default: false)
+  # Strict mode permits pre-write network failures and explicit rejections such as 401/403/429,
+  # but blocks replay after ambiguous timeouts, EOF/5xx responses, or first-output timeouts.
+  # 仅在确认推理尚未开始时重试；已写请求后的模糊超时、EOF/5xx 和首字超时不会重放。
+  cost_safe_failover: false
   # Native OpenAI HTTP Responses first semantic output timeout (seconds, 0=disabled)
   # Includes response-header wait; does not apply to passthrough or WebSocket transports.
   # A timed-out request may already have incurred upstream usage; account failover can therefore duplicate upstream billing.

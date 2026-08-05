@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -25,6 +26,96 @@ func TestOpenAIForwardMayFailoverOnlyAfterNonSemanticWrite(t *testing.T) {
 		SafeToFailoverAfterWrite: true,
 	}))
 	require.False(t, openAIForwardMayFailover(c, before, &service.UpstreamFailoverError{}))
+}
+
+func TestOpenAIForwardMayFailoverWithCostSafety(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	before := service.OpenAICompactKeepaliveAdjustedWrittenSize(c)
+
+	tests := []struct {
+		name        string
+		strict      bool
+		failoverErr *service.UpstreamFailoverError
+		want        bool
+	}{
+		{
+			name:        "legacy mode preserves ambiguous 502 failover",
+			failoverErr: &service.UpstreamFailoverError{StatusCode: http.StatusBadGateway},
+			want:        true,
+		},
+		{
+			name:        "strict mode allows explicit 403 rejection",
+			strict:      true,
+			failoverErr: &service.UpstreamFailoverError{StatusCode: http.StatusForbidden},
+			want:        true,
+		},
+		{
+			name:        "strict mode allows explicit 429 rejection",
+			strict:      true,
+			failoverErr: &service.UpstreamFailoverError{StatusCode: http.StatusTooManyRequests},
+			want:        true,
+		},
+		{
+			name:   "strict mode allows transport failure before request write",
+			strict: true,
+			failoverErr: &service.UpstreamFailoverError{
+				StatusCode:        http.StatusBadGateway,
+				RequestWriteState: service.UpstreamRequestNotWritten,
+			},
+			want: true,
+		},
+		{
+			name:   "strict mode blocks timeout after request write",
+			strict: true,
+			failoverErr: &service.UpstreamFailoverError{
+				StatusCode:        http.StatusBadGateway,
+				RequestWriteState: service.UpstreamRequestWritten,
+			},
+			want: false,
+		},
+		{
+			name:        "strict mode blocks ambiguous transport failure",
+			strict:      true,
+			failoverErr: &service.UpstreamFailoverError{StatusCode: http.StatusBadGateway},
+			want:        false,
+		},
+		{
+			name:   "strict mode blocks first output timeout",
+			strict: true,
+			failoverErr: &service.UpstreamFailoverError{
+				StatusCode:               http.StatusGatewayTimeout,
+				SafeToFailoverAfterWrite: true,
+				RequestWriteState:        service.UpstreamRequestWritten,
+			},
+			want: false,
+		},
+		{
+			name:   "strict mode allows explicit capacity rejection",
+			strict: true,
+			failoverErr: &service.UpstreamFailoverError{
+				StatusCode:             http.StatusServiceUnavailable,
+				RequestScopedTransient: true,
+			},
+			want: true,
+		},
+		{
+			name:   "strict mode allows account credential failure",
+			strict: true,
+			failoverErr: &service.UpstreamFailoverError{
+				StatusCode: http.StatusBadGateway,
+				Stage:      service.GatewayFailureStageAccountAuth,
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, openAIForwardMayFailoverWithCostSafety(c, before, tt.failoverErr, tt.strict))
+		})
+	}
 }
 
 func TestOpenAIFirstOutputFailoverStopsAfterOneAccountSwitch(t *testing.T) {

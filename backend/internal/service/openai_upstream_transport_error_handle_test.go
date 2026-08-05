@@ -177,6 +177,22 @@ func TestHandleOpenAIUpstreamTransportError_DeadlineExceeded_StillFailsOver(t *t
 	require.True(t, errors.As(err, &fo), "context.DeadlineExceeded must still return *UpstreamFailoverError")
 }
 
+func TestHandleOpenAIUpstreamTransportError_PreservesRequestWriteState(t *testing.T) {
+	svc := &OpenAIGatewayService{accountRepo: &openaiTransportAccountRepoStub{}}
+	account := &Account{ID: 80, Name: "write-state", Platform: PlatformOpenAI}
+	c, _ := newOpenAITransportErrTestContext()
+
+	err := svc.handleOpenAIUpstreamTransportError(context.Background(), c, account,
+		&HTTPUpstreamRequestError{
+			Err:               errors.New("unexpected EOF"),
+			RequestWriteState: UpstreamRequestWritten,
+		}, false)
+
+	var fo *UpstreamFailoverError
+	require.ErrorAs(t, err, &fo)
+	require.Equal(t, UpstreamRequestWritten, fo.RequestWriteState)
+}
+
 func TestForwardAsRawChatCompletions_TransportErrorFailsOver(t *testing.T) {
 	repo := &openaiTransportAccountRepoStub{}
 	upstream := &failingOpenAIHTTPUpstream{
