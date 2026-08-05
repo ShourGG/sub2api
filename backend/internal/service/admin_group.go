@@ -659,8 +659,16 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 		}
 		group.DynamicRateMarkup = *input.DynamicRateMarkup
 	}
-	if err := validateDynamicRateMarkup(group.DynamicRateMarkup); err != nil {
-		return nil, err
+	// Older in-memory/test groups may not populate the new field and therefore
+	// carry the zero value while dynamic pricing is disabled. Keep those
+	// updates compatible; initialize the persisted default when enabling it.
+	if group.DynamicRateEnabled {
+		if group.DynamicRateMarkup == 0 {
+			group.DynamicRateMarkup = DefaultDynamicRateMarkup
+		}
+		if err := validateDynamicRateMarkup(group.DynamicRateMarkup); err != nil {
+			return nil, err
+		}
 	}
 	if input.IsExclusive != nil {
 		group.IsExclusive = *input.IsExclusive
