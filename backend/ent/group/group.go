@@ -28,6 +28,12 @@ const (
 	FieldDescription = "description"
 	// FieldRateMultiplier holds the string denoting the rate_multiplier field in the database.
 	FieldRateMultiplier = "rate_multiplier"
+	// FieldDynamicRateEnabled holds the string denoting the dynamic_rate_enabled field in the database.
+	FieldDynamicRateEnabled = "dynamic_rate_enabled"
+	// FieldDynamicRateMarkup holds the string denoting the dynamic_rate_markup field in the database.
+	FieldDynamicRateMarkup = "dynamic_rate_markup"
+	// FieldDynamicRateSourceMultiplier holds the string denoting the dynamic_rate_source_multiplier field in the database.
+	FieldDynamicRateSourceMultiplier = "dynamic_rate_source_multiplier"
 	// FieldPeakRateEnabled holds the string denoting the peak_rate_enabled field in the database.
 	FieldPeakRateEnabled = "peak_rate_enabled"
 	// FieldPeakStart holds the string denoting the peak_start field in the database.
@@ -207,6 +213,9 @@ var Columns = []string{
 	FieldName,
 	FieldDescription,
 	FieldRateMultiplier,
+	FieldDynamicRateEnabled,
+	FieldDynamicRateMarkup,
+	FieldDynamicRateSourceMultiplier,
 	FieldPeakRateEnabled,
 	FieldPeakStart,
 	FieldPeakEnd,
@@ -295,6 +304,12 @@ var (
 	NameValidator func(string) error
 	// DefaultRateMultiplier holds the default value on creation for the "rate_multiplier" field.
 	DefaultRateMultiplier float64
+	// DefaultDynamicRateEnabled holds the default value on creation for the "dynamic_rate_enabled" field.
+	DefaultDynamicRateEnabled bool
+	// DefaultDynamicRateMarkup holds the default value on creation for the "dynamic_rate_markup" field.
+	DefaultDynamicRateMarkup float64
+	// DefaultDynamicRateSourceMultiplier holds the default value on creation for the "dynamic_rate_source_multiplier" field.
+	DefaultDynamicRateSourceMultiplier float64
 	// DefaultPeakRateEnabled holds the default value on creation for the "peak_rate_enabled" field.
 	DefaultPeakRateEnabled bool
 	// DefaultPeakStart holds the default value on creation for the "peak_start" field.
@@ -419,6 +434,21 @@ func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 // ByRateMultiplier orders the results by the rate_multiplier field.
 func ByRateMultiplier(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRateMultiplier, opts...).ToFunc()
+}
+
+// ByDynamicRateEnabled orders the results by the dynamic_rate_enabled field.
+func ByDynamicRateEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDynamicRateEnabled, opts...).ToFunc()
+}
+
+// ByDynamicRateMarkup orders the results by the dynamic_rate_markup field.
+func ByDynamicRateMarkup(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDynamicRateMarkup, opts...).ToFunc()
+}
+
+// ByDynamicRateSourceMultiplier orders the results by the dynamic_rate_source_multiplier field.
+func ByDynamicRateSourceMultiplier(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDynamicRateSourceMultiplier, opts...).ToFunc()
 }
 
 // ByPeakRateEnabled orders the results by the peak_rate_enabled field.
