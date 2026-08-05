@@ -45,6 +45,16 @@ func (Group) Fields() []ent.Field {
 		field.Float("rate_multiplier").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}).
 			Default(1.0),
+		// Dynamic rate pricing derives the public group multiplier from the
+		// highest upstream-account multiplier currently bound to this group.
+		field.Bool("dynamic_rate_enabled").
+			Default(false),
+		field.Float("dynamic_rate_markup").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}).
+			Default(1.25),
+		field.Float("dynamic_rate_source_multiplier").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}).
+			Default(0),
 		// 高峰时段倍率（added by migration 158）
 		field.Bool("peak_rate_enabled").
 			Default(false).

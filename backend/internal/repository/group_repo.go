@@ -61,6 +61,9 @@ func createGroupRecord(ctx context.Context, client *dbent.Client, groupIn *servi
 		SetDescription(groupIn.Description).
 		SetPlatform(groupIn.Platform).
 		SetRateMultiplier(groupIn.RateMultiplier).
+		SetDynamicRateEnabled(groupIn.DynamicRateEnabled).
+		SetDynamicRateMarkup(groupIn.DynamicRateMarkup).
+		SetDynamicRateSourceMultiplier(groupIn.DynamicRateSourceMultiplier).
 		SetSortOrder(groupIn.SortOrder).
 		SetIsExclusive(groupIn.IsExclusive).
 		SetStatus(groupIn.Status).
@@ -234,6 +237,9 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetDescription(groupIn.Description).
 		SetPlatform(groupIn.Platform).
 		SetRateMultiplier(groupIn.RateMultiplier).
+		SetDynamicRateEnabled(groupIn.DynamicRateEnabled).
+		SetDynamicRateMarkup(groupIn.DynamicRateMarkup).
+		SetDynamicRateSourceMultiplier(groupIn.DynamicRateSourceMultiplier).
 		SetIsExclusive(groupIn.IsExclusive).
 		SetStatus(groupIn.Status).
 		SetSubscriptionType(groupIn.SubscriptionType).

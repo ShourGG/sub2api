@@ -592,10 +592,24 @@
             step="0.001"
             min="0.001"
             required
+            :disabled="createForm.dynamic_rate_enabled"
             class="input"
             data-tour="group-form-multiplier"
           />
           <p class="input-hint">{{ t("admin.groups.rateMultiplierHint") }}</p>
+        </div>
+        <div class="border-t pt-4">
+          <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+            <input v-model="createForm.dynamic_rate_enabled" type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+            <span>{{ t("admin.groups.dynamicRate.enable") }}</span>
+          </label>
+          <p class="mb-3 mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+            {{ createForm.dynamic_rate_enabled ? t("admin.groups.dynamicRate.enabledHint") : t("admin.groups.dynamicRate.disabledHint") }}
+          </p>
+          <div v-if="createForm.dynamic_rate_enabled">
+            <label class="input-label">{{ t("admin.groups.dynamicRate.markup") }}</label>
+            <input v-model.number="createForm.dynamic_rate_markup" type="number" step="0.01" min="0.01" class="input" :title="t('admin.groups.dynamicRate.markupHint')" />
+          </div>
         </div>
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
@@ -2196,9 +2210,27 @@
             step="0.001"
             min="0.001"
             required
+            :disabled="editForm.dynamic_rate_enabled"
             class="input"
             data-tour="group-form-multiplier"
           />
+        </div>
+        <div class="border-t pt-4">
+          <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+            <input v-model="editForm.dynamic_rate_enabled" type="checkbox" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+            <span>{{ t("admin.groups.dynamicRate.enable") }}</span>
+          </label>
+          <p class="mb-3 mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+            {{ editForm.dynamic_rate_enabled ? t("admin.groups.dynamicRate.enabledHint") : t("admin.groups.dynamicRate.disabledHint") }}
+          </p>
+          <div v-if="editForm.dynamic_rate_enabled">
+            <label class="input-label">{{ t("admin.groups.dynamicRate.markup") }}</label>
+            <input v-model.number="editForm.dynamic_rate_markup" type="number" step="0.01" min="0.01" class="input" :title="t('admin.groups.dynamicRate.markupHint')" />
+            <p class="input-hint" v-if="editingGroup">
+              {{ t("admin.groups.dynamicRate.source") }}:
+              {{ (editingGroup.dynamic_rate_source_multiplier ?? 0) > 0 ? `${editingGroup.dynamic_rate_source_multiplier}x` : t("admin.groups.dynamicRate.noSource") }}
+            </p>
+          </div>
         </div>
         <div>
           <label class="input-label">{{ t("admin.groups.form.rpmLimit") }}</label>
@@ -4698,6 +4730,8 @@ const createForm = reactive({
   description: "",
   platform: "anthropic" as GroupPlatform,
   rate_multiplier: 1.0,
+  dynamic_rate_enabled: false,
+  dynamic_rate_markup: 1.25,
   is_exclusive: false,
   subscription_type: "standard" as SubscriptionType,
   daily_limit_usd: null as number | null,
@@ -5051,6 +5085,8 @@ const editForm = reactive({
   description: "",
   platform: "anthropic" as GroupPlatform,
   rate_multiplier: 1.0,
+  dynamic_rate_enabled: false,
+  dynamic_rate_markup: 1.25,
   is_exclusive: false,
   status: "active" as "active" | "inactive",
   subscription_type: "standard" as SubscriptionType,
@@ -5504,6 +5540,8 @@ const closeCreateModal = () => {
   createForm.description = "";
   createForm.platform = "anthropic";
   createForm.rate_multiplier = 1.0;
+  createForm.dynamic_rate_enabled = false;
+  createForm.dynamic_rate_markup = 1.25;
   createForm.is_exclusive = false;
   createForm.subscription_type = "standard";
   createForm.daily_limit_usd = null;
@@ -5712,6 +5750,8 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.description = group.description || "";
   editForm.platform = group.platform;
   editForm.rate_multiplier = group.rate_multiplier;
+  editForm.dynamic_rate_enabled = group.dynamic_rate_enabled ?? false;
+  editForm.dynamic_rate_markup = group.dynamic_rate_markup ?? 1.25;
   editForm.is_exclusive = group.is_exclusive;
   editForm.status = group.status;
   editForm.subscription_type = group.subscription_type || "standard";
