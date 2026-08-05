@@ -56,6 +56,12 @@ func createGroupRecord(ctx context.Context, client *dbent.Client, groupIn *servi
 	if groupIn == nil {
 		return errors.New("group is nil")
 	}
+	// Keep direct repository callers compatible with groups created before the
+	// dynamic-rate fields existed; the database constraint requires a positive
+	// markup even when dynamic pricing is disabled.
+	if groupIn.DynamicRateMarkup == 0 {
+		groupIn.DynamicRateMarkup = service.DefaultDynamicRateMarkup
+	}
 	builder := client.Group.Create().
 		SetName(groupIn.Name).
 		SetDescription(groupIn.Description).
@@ -232,6 +238,9 @@ func (r *groupRepository) GetByIDLite(ctx context.Context, id int64) (*service.G
 }
 
 func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) error {
+	if groupIn != nil && groupIn.DynamicRateMarkup == 0 {
+		groupIn.DynamicRateMarkup = service.DefaultDynamicRateMarkup
+	}
 	builder := r.client.Group.UpdateOneID(groupIn.ID).
 		SetName(groupIn.Name).
 		SetDescription(groupIn.Description).
