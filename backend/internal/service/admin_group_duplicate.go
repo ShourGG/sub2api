@@ -79,11 +79,17 @@ func cloneGroupMessagesDispatchModelConfig(value OpenAIMessagesDispatchModelConf
 }
 
 func cloneGroupForDuplicate(source *Group, operationID string) *Group {
+	dynamicRateMarkup := source.DynamicRateMarkup
+	if dynamicRateMarkup <= 0 {
+		dynamicRateMarkup = DefaultDynamicRateMarkup
+	}
 	return &Group{
 		Name:                            duplicateGroupName(source.Name, 1),
 		Description:                     source.Description,
 		Platform:                        source.Platform,
 		RateMultiplier:                  source.RateMultiplier,
+		DynamicRateEnabled:              source.DynamicRateEnabled,
+		DynamicRateMarkup:               dynamicRateMarkup,
 		PeakRateEnabled:                 source.PeakRateEnabled,
 		PeakStart:                       source.PeakStart,
 		PeakEnd:                         source.PeakEnd,

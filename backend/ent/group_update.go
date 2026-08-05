@@ -117,6 +117,62 @@ func (_u *GroupUpdate) AddRateMultiplier(v float64) *GroupUpdate {
 	return _u
 }
 
+// SetDynamicRateEnabled sets the "dynamic_rate_enabled" field.
+func (_u *GroupUpdate) SetDynamicRateEnabled(v bool) *GroupUpdate {
+	_u.mutation.SetDynamicRateEnabled(v)
+	return _u
+}
+
+// SetNillableDynamicRateEnabled sets the "dynamic_rate_enabled" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableDynamicRateEnabled(v *bool) *GroupUpdate {
+	if v != nil {
+		_u.SetDynamicRateEnabled(*v)
+	}
+	return _u
+}
+
+// SetDynamicRateMarkup sets the "dynamic_rate_markup" field.
+func (_u *GroupUpdate) SetDynamicRateMarkup(v float64) *GroupUpdate {
+	_u.mutation.ResetDynamicRateMarkup()
+	_u.mutation.SetDynamicRateMarkup(v)
+	return _u
+}
+
+// SetNillableDynamicRateMarkup sets the "dynamic_rate_markup" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableDynamicRateMarkup(v *float64) *GroupUpdate {
+	if v != nil {
+		_u.SetDynamicRateMarkup(*v)
+	}
+	return _u
+}
+
+// AddDynamicRateMarkup adds value to the "dynamic_rate_markup" field.
+func (_u *GroupUpdate) AddDynamicRateMarkup(v float64) *GroupUpdate {
+	_u.mutation.AddDynamicRateMarkup(v)
+	return _u
+}
+
+// SetDynamicRateSourceMultiplier sets the "dynamic_rate_source_multiplier" field.
+func (_u *GroupUpdate) SetDynamicRateSourceMultiplier(v float64) *GroupUpdate {
+	_u.mutation.ResetDynamicRateSourceMultiplier()
+	_u.mutation.SetDynamicRateSourceMultiplier(v)
+	return _u
+}
+
+// SetNillableDynamicRateSourceMultiplier sets the "dynamic_rate_source_multiplier" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableDynamicRateSourceMultiplier(v *float64) *GroupUpdate {
+	if v != nil {
+		_u.SetDynamicRateSourceMultiplier(*v)
+	}
+	return _u
+}
+
+// AddDynamicRateSourceMultiplier adds value to the "dynamic_rate_source_multiplier" field.
+func (_u *GroupUpdate) AddDynamicRateSourceMultiplier(v float64) *GroupUpdate {
+	_u.mutation.AddDynamicRateSourceMultiplier(v)
+	return _u
+}
+
 // SetPeakRateEnabled sets the "peak_rate_enabled" field.
 func (_u *GroupUpdate) SetPeakRateEnabled(v bool) *GroupUpdate {
 	_u.mutation.SetPeakRateEnabled(v)
@@ -1353,6 +1409,21 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if value, ok := _u.mutation.AddedRateMultiplier(); ok {
 		_spec.AddField(group.FieldRateMultiplier, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.DynamicRateEnabled(); ok {
+		_spec.SetField(group.FieldDynamicRateEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.DynamicRateMarkup(); ok {
+		_spec.SetField(group.FieldDynamicRateMarkup, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDynamicRateMarkup(); ok {
+		_spec.AddField(group.FieldDynamicRateMarkup, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.DynamicRateSourceMultiplier(); ok {
+		_spec.SetField(group.FieldDynamicRateSourceMultiplier, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDynamicRateSourceMultiplier(); ok {
+		_spec.AddField(group.FieldDynamicRateSourceMultiplier, field.TypeFloat64, value)
+	}
 	if value, ok := _u.mutation.PeakRateEnabled(); ok {
 		_spec.SetField(group.FieldPeakRateEnabled, field.TypeBool, value)
 	}
@@ -2007,6 +2078,62 @@ func (_u *GroupUpdateOne) SetNillableRateMultiplier(v *float64) *GroupUpdateOne 
 // AddRateMultiplier adds value to the "rate_multiplier" field.
 func (_u *GroupUpdateOne) AddRateMultiplier(v float64) *GroupUpdateOne {
 	_u.mutation.AddRateMultiplier(v)
+	return _u
+}
+
+// SetDynamicRateEnabled sets the "dynamic_rate_enabled" field.
+func (_u *GroupUpdateOne) SetDynamicRateEnabled(v bool) *GroupUpdateOne {
+	_u.mutation.SetDynamicRateEnabled(v)
+	return _u
+}
+
+// SetNillableDynamicRateEnabled sets the "dynamic_rate_enabled" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableDynamicRateEnabled(v *bool) *GroupUpdateOne {
+	if v != nil {
+		_u.SetDynamicRateEnabled(*v)
+	}
+	return _u
+}
+
+// SetDynamicRateMarkup sets the "dynamic_rate_markup" field.
+func (_u *GroupUpdateOne) SetDynamicRateMarkup(v float64) *GroupUpdateOne {
+	_u.mutation.ResetDynamicRateMarkup()
+	_u.mutation.SetDynamicRateMarkup(v)
+	return _u
+}
+
+// SetNillableDynamicRateMarkup sets the "dynamic_rate_markup" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableDynamicRateMarkup(v *float64) *GroupUpdateOne {
+	if v != nil {
+		_u.SetDynamicRateMarkup(*v)
+	}
+	return _u
+}
+
+// AddDynamicRateMarkup adds value to the "dynamic_rate_markup" field.
+func (_u *GroupUpdateOne) AddDynamicRateMarkup(v float64) *GroupUpdateOne {
+	_u.mutation.AddDynamicRateMarkup(v)
+	return _u
+}
+
+// SetDynamicRateSourceMultiplier sets the "dynamic_rate_source_multiplier" field.
+func (_u *GroupUpdateOne) SetDynamicRateSourceMultiplier(v float64) *GroupUpdateOne {
+	_u.mutation.ResetDynamicRateSourceMultiplier()
+	_u.mutation.SetDynamicRateSourceMultiplier(v)
+	return _u
+}
+
+// SetNillableDynamicRateSourceMultiplier sets the "dynamic_rate_source_multiplier" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableDynamicRateSourceMultiplier(v *float64) *GroupUpdateOne {
+	if v != nil {
+		_u.SetDynamicRateSourceMultiplier(*v)
+	}
+	return _u
+}
+
+// AddDynamicRateSourceMultiplier adds value to the "dynamic_rate_source_multiplier" field.
+func (_u *GroupUpdateOne) AddDynamicRateSourceMultiplier(v float64) *GroupUpdateOne {
+	_u.mutation.AddDynamicRateSourceMultiplier(v)
 	return _u
 }
 
@@ -3275,6 +3402,21 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if value, ok := _u.mutation.AddedRateMultiplier(); ok {
 		_spec.AddField(group.FieldRateMultiplier, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.DynamicRateEnabled(); ok {
+		_spec.SetField(group.FieldDynamicRateEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.DynamicRateMarkup(); ok {
+		_spec.SetField(group.FieldDynamicRateMarkup, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDynamicRateMarkup(); ok {
+		_spec.AddField(group.FieldDynamicRateMarkup, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.DynamicRateSourceMultiplier(); ok {
+		_spec.SetField(group.FieldDynamicRateSourceMultiplier, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDynamicRateSourceMultiplier(); ok {
+		_spec.AddField(group.FieldDynamicRateSourceMultiplier, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.PeakRateEnabled(); ok {
 		_spec.SetField(group.FieldPeakRateEnabled, field.TypeBool, value)
