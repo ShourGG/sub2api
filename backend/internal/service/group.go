@@ -21,6 +21,12 @@ type Group struct {
 	Description    string
 	Platform       string
 	RateMultiplier float64
+	// DynamicRateEnabled derives RateMultiplier from the highest multiplier of
+	// non-deleted accounts bound to this group. The stored rate is rounded up to
+	// the fixed 0.005 billing step after applying DynamicRateMarkup.
+	DynamicRateEnabled          bool
+	DynamicRateMarkup           float64
+	DynamicRateSourceMultiplier float64
 	// 高峰时段倍率：peak_rate_enabled 为 true 且当前时刻处于 [PeakStart, PeakEnd) 时，
 	// token 计费倍率额外乘以 PeakRateMultiplier。详见 PeakMultiplierAt。
 	PeakRateEnabled    bool
