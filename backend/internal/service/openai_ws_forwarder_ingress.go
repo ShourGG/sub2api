@@ -738,8 +738,9 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			if errors.As(acquireErr, &dialErr) && dialErr != nil && dialErr.StatusCode == http.StatusTooManyRequests {
 				s.persistOpenAIWSRateLimitSignal(ctx, account, dialErr.ResponseHeaders, nil, "rate_limit_exceeded", "rate_limit_error", strings.TrimSpace(acquireErr.Error()))
 				return nil, &UpstreamFailoverError{
-					StatusCode:      http.StatusTooManyRequests,
-					ResponseHeaders: cloneHeader(dialErr.ResponseHeaders),
+					StatusCode:                   http.StatusTooManyRequests,
+					ResponseHeaders:              cloneHeader(dialErr.ResponseHeaders),
+					ExplicitUpstreamHTTPResponse: true,
 				}
 			}
 			if errors.Is(acquireErr, errOpenAIWSPreferredConnUnavailable) {

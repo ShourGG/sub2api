@@ -894,6 +894,8 @@ type GatewayConfig struct {
 	// 0 表示回退到 OpenAIFirstOutputTimeoutSeconds。
 	OpenAIHighEffortFirstOutputTimeoutSeconds int `mapstructure:"openai_high_effort_first_output_timeout_seconds"`
 	// CostSafeFailover: only replay OpenAI requests after failures known not to have entered inference.
+	// Explicit HTTP 4xx/502/503/529 responses are eligible; transport failures and
+	// stream error events after the request write remain blocked.
 	// Disabled by default to preserve existing failover behavior.
 	CostSafeFailover bool `mapstructure:"cost_safe_failover"`
 	// 请求体最大字节数，用于网关请求体大小限制

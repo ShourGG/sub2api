@@ -46,16 +46,31 @@ func TestOpenAIForwardMayFailoverWithCostSafety(t *testing.T) {
 			want:        true,
 		},
 		{
-			name:        "strict mode allows explicit 403 rejection",
-			strict:      true,
-			failoverErr: &service.UpstreamFailoverError{StatusCode: http.StatusForbidden},
-			want:        true,
+			name:   "strict mode allows explicit 403 rejection",
+			strict: true,
+			failoverErr: &service.UpstreamFailoverError{
+				StatusCode:                   http.StatusForbidden,
+				ExplicitUpstreamHTTPResponse: true,
+			},
+			want: true,
 		},
 		{
-			name:        "strict mode allows explicit 429 rejection",
-			strict:      true,
-			failoverErr: &service.UpstreamFailoverError{StatusCode: http.StatusTooManyRequests},
-			want:        true,
+			name:   "strict mode allows explicit 429 rejection",
+			strict: true,
+			failoverErr: &service.UpstreamFailoverError{
+				StatusCode:                   http.StatusTooManyRequests,
+				ExplicitUpstreamHTTPResponse: true,
+			},
+			want: true,
+		},
+		{
+			name:   "strict mode blocks stream 429 after request write",
+			strict: true,
+			failoverErr: &service.UpstreamFailoverError{
+				StatusCode:        http.StatusTooManyRequests,
+				RequestWriteState: service.UpstreamRequestWritten,
+			},
+			want: false,
 		},
 		{
 			name:   "strict mode allows transport failure before request write",
@@ -71,6 +86,35 @@ func TestOpenAIForwardMayFailoverWithCostSafety(t *testing.T) {
 			strict: true,
 			failoverErr: &service.UpstreamFailoverError{
 				StatusCode:        http.StatusBadGateway,
+				RequestWriteState: service.UpstreamRequestWritten,
+			},
+			want: false,
+		},
+		{
+			name:   "strict mode allows explicit 502 response after request write",
+			strict: true,
+			failoverErr: &service.UpstreamFailoverError{
+				StatusCode:                   http.StatusBadGateway,
+				RequestWriteState:            service.UpstreamRequestWritten,
+				ExplicitUpstreamHTTPResponse: true,
+			},
+			want: true,
+		},
+		{
+			name:   "strict mode allows explicit 503 response after request write",
+			strict: true,
+			failoverErr: &service.UpstreamFailoverError{
+				StatusCode:                   http.StatusServiceUnavailable,
+				RequestWriteState:            service.UpstreamRequestWritten,
+				ExplicitUpstreamHTTPResponse: true,
+			},
+			want: true,
+		},
+		{
+			name:   "strict mode blocks transport 503 after request write",
+			strict: true,
+			failoverErr: &service.UpstreamFailoverError{
+				StatusCode:        http.StatusServiceUnavailable,
 				RequestWriteState: service.UpstreamRequestWritten,
 			},
 			want: false,

@@ -117,7 +117,9 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletions(
 	}
 
 	var bridgeUsage OpenAIUsage
+	bridgeAttempted := false
 	if account.Platform == PlatformGrok {
+		bridgeAttempted = shouldBridgeGrokComposerImageInputs(upstreamBody)
 		bridgedBody, usage, bridged, bridgeErr := s.bridgeGrokComposerImageInputs(ctx, c, account, upstreamBody, token)
 		if bridgeErr != nil {
 			var failoverErr *UpstreamFailoverError
@@ -190,10 +192,11 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletions(
 			s.handleGrokAccountUpstreamError(ctx, account, resp.StatusCode, resp.Header, respBody)
 			if s.shouldFailoverGrokUpstreamError(resp.StatusCode, respBody) {
 				return nil, &UpstreamFailoverError{
-					StatusCode:             resp.StatusCode,
-					ResponseBody:           respBody,
-					ResponseHeaders:        resp.Header.Clone(),
-					RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode),
+					StatusCode:                   resp.StatusCode,
+					ResponseBody:                 respBody,
+					ResponseHeaders:              resp.Header.Clone(),
+					RetryableOnSameAccount:       account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode),
+					ExplicitUpstreamHTTPResponse: !bridgeAttempted,
 				}
 			}
 			return s.handleChatCompletionsErrorResponse(resp, c, account, billingModel)

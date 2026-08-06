@@ -241,6 +241,8 @@ func isOpenAIRequestBodyTooLargeError(statusCode int, upstreamMsg string, upstre
 	return statusCode == http.StatusRequestEntityTooLarge && !isOpenAIContextWindowError(upstreamMsg, upstreamBody)
 }
 
+// newOpenAIUpstreamFailoverError does not assume where the status originated.
+// Stream events use this path because a mapped status is not proof of an HTTP rejection.
 func newOpenAIUpstreamFailoverError(
 	statusCode int,
 	responseHeaders http.Header,
@@ -262,6 +264,25 @@ func newOpenAIUpstreamFailoverError(
 		failoverErr.ClientStatusCode = http.StatusRequestEntityTooLarge
 		failoverErr.ClientMessage = OpenAIRequestBodyTooLargeClientMessage
 	}
+	return failoverErr
+}
+
+// newOpenAIHTTPResponseFailoverError is only for a real non-2xx http.Response.
+func newOpenAIHTTPResponseFailoverError(
+	statusCode int,
+	responseHeaders http.Header,
+	responseBody []byte,
+	upstreamMsg string,
+	retryableOnSameAccount bool,
+) *UpstreamFailoverError {
+	failoverErr := newOpenAIUpstreamFailoverError(
+		statusCode,
+		responseHeaders,
+		responseBody,
+		upstreamMsg,
+		retryableOnSameAccount,
+	)
+	failoverErr.ExplicitUpstreamHTTPResponse = true
 	return failoverErr
 }
 
@@ -395,7 +416,7 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 			Detail:             upstreamDetail,
 		})
 		s.handleOpenAIAccountUpstreamError(ctx, account, resp.StatusCode, resp.Header, body, requestedModel...)
-		return nil, newOpenAIUpstreamFailoverError(
+		return nil, newOpenAIHTTPResponseFailoverError(
 			resp.StatusCode,
 			resp.Header,
 			body,
@@ -480,9 +501,10 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 	})
 	if shouldDisable {
 		return nil, &UpstreamFailoverError{
-			StatusCode:             resp.StatusCode,
-			ResponseBody:           body,
-			RetryableOnSameAccount: false,
+			StatusCode:                   resp.StatusCode,
+			ResponseBody:                 body,
+			RetryableOnSameAccount:       false,
+			ExplicitUpstreamHTTPResponse: true,
 		}
 	}
 
@@ -657,9 +679,10 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(
 	})
 	if shouldDisable {
 		return nil, &UpstreamFailoverError{
-			StatusCode:             resp.StatusCode,
-			ResponseBody:           body,
-			RetryableOnSameAccount: false,
+			StatusCode:                   resp.StatusCode,
+			ResponseBody:                 body,
+			RetryableOnSameAccount:       false,
+			ExplicitUpstreamHTTPResponse: true,
 		}
 	}
 
