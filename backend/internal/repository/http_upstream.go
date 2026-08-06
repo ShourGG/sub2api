@@ -185,25 +185,18 @@ func NewHTTPUpstream(cfg *config.Config) service.HTTPUpstream {
 //   - inFlight > 0 的客户端不会被淘汰，确保活跃请求不被中断
 func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID int64, accountConcurrency int) (*http.Response, error) {
 	applyGrokCLIProxyHeaders(req)
+	if err := s.validateRequestHost(req); err != nil {
+		return nil, err
+	}
 	profile := service.HTTPUpstreamProfileDefault
 	if req != nil {
 		profile = service.HTTPUpstreamProfileFromContext(req.Context())
-	}
-	var writeTracker *service.HTTPUpstreamRequestWriteTracker
-	if profile == service.HTTPUpstreamProfileOpenAI {
-		req, writeTracker = service.TrackHTTPUpstreamRequestWrite(req)
-	}
-	wrapRequestErr := func(err error) error {
-		return service.WrapHTTPUpstreamRequestError(err, writeTracker)
-	}
-	if err := s.validateRequestHost(req); err != nil {
-		return nil, wrapRequestErr(err)
 	}
 
 	// 获取或创建对应的客户端，并标记请求占用
 	entry, err := s.acquireClientWithProfile(proxyURL, accountID, accountConcurrency, profile)
 	if err != nil {
-		return nil, wrapRequestErr(err)
+		return nil, err
 	}
 
 	// 执行请求
@@ -215,7 +208,7 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID i
 		// 请求失败，立即减少计数
 		atomic.AddInt64(&entry.inFlight, -1)
 		atomic.StoreInt64(&entry.lastUsed, time.Now().UnixNano())
-		return nil, wrapRequestErr(err)
+		return nil, err
 	}
 	s.recordOpenAIHTTP2Success(profile, entry.protocolMode, entry.proxyKey)
 

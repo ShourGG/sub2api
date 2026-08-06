@@ -134,9 +134,8 @@ func (s *OpenAIGatewayService) handleOpenAIUpstreamTransportError(ctx context.Co
 	}
 
 	return &UpstreamFailoverError{
-		StatusCode:        http.StatusBadGateway,
-		ResponseBody:      openAITransportFailoverBody,
-		RequestWriteState: HTTPUpstreamRequestWriteStateFromError(err),
+		StatusCode:   http.StatusBadGateway,
+		ResponseBody: openAITransportFailoverBody,
 	}
 }
 

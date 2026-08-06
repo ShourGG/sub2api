@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -49,66 +48,6 @@ func TestHTTPUpstreamDoCanDisableRedirectsPerRequest(t *testing.T) {
 	require.Equal(t, http.StatusFound, resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
 	require.Zero(t, redirectedCalls.Load())
-}
-
-func TestHTTPUpstreamOpenAIRequestWriteState(t *testing.T) {
-	t.Run("connection failure before write", func(t *testing.T) {
-		listener, err := net.Listen("tcp", "127.0.0.1:0")
-		require.NoError(t, err)
-		address := listener.Addr().String()
-		require.NoError(t, listener.Close())
-
-		req, err := http.NewRequestWithContext(
-			service.WithHTTPUpstreamProfile(t.Context(), service.HTTPUpstreamProfileOpenAI),
-			http.MethodPost,
-			"http://"+address,
-			strings.NewReader(`{"model":"gpt-test"}`),
-		)
-		require.NoError(t, err)
-
-		_, err = NewHTTPUpstream(nil).Do(req, "", 101, 1)
-		require.Error(t, err)
-		require.Equal(t, service.UpstreamRequestNotWritten, service.HTTPUpstreamRequestWriteStateFromError(err))
-	})
-
-	t.Run("EOF after request write", func(t *testing.T) {
-		listener, err := net.Listen("tcp", "127.0.0.1:0")
-		require.NoError(t, err)
-		t.Cleanup(func() { _ = listener.Close() })
-
-		serverDone := make(chan struct{})
-		go func() {
-			defer close(serverDone)
-			conn, acceptErr := listener.Accept()
-			if acceptErr != nil {
-				return
-			}
-			reader := bufio.NewReader(conn)
-			request, readErr := http.ReadRequest(reader)
-			if readErr == nil && request.Body != nil {
-				_, _ = io.Copy(io.Discard, request.Body)
-				_ = request.Body.Close()
-			}
-			_ = conn.Close()
-		}()
-
-		req, err := http.NewRequestWithContext(
-			service.WithHTTPUpstreamProfile(t.Context(), service.HTTPUpstreamProfileOpenAI),
-			http.MethodPost,
-			"http://"+listener.Addr().String(),
-			strings.NewReader(`{"model":"gpt-test"}`),
-		)
-		require.NoError(t, err)
-
-		_, err = NewHTTPUpstream(nil).Do(req, "", 102, 1)
-		require.Error(t, err)
-		require.Equal(t, service.UpstreamRequestWritten, service.HTTPUpstreamRequestWriteStateFromError(err))
-		select {
-		case <-serverDone:
-		case <-time.After(2 * time.Second):
-			t.Fatal("test server did not finish reading the upstream request")
-		}
-	})
 }
 
 func TestHTTPUpstreamDoWithTLSPlainHTTPUsesConfiguredHTTPProxy(t *testing.T) {
