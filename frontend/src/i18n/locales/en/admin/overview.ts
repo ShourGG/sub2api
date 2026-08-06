@@ -1018,6 +1018,15 @@ export default {
         bufferRangeError: 'Safety buffer must be between 0 and 99.99',
         sumTooHigh: 'Min gross margin plus safety buffer must be less than 100%, otherwise every account would be excluded'
       },
+      dynamicRate: {
+        enable: 'Enable dynamic group rate',
+        enabledHint: 'Uses the highest multiplier among upstream accounts in this group, applies the markup, then rounds up to 0.005. For example, 0.07 × 1.25 becomes 0.09.',
+        disabledHint: 'Use the manually configured group rate when disabled.',
+        markup: 'Upstream markup factor',
+        markupHint: '1.25 adds 25% to the highest upstream multiplier; must be greater than 0.',
+        source: 'Current highest upstream multiplier',
+        noSource: 'No bound upstream multiplier'
+      },
       modelsList: {
         title: 'Custom /v1/models Model List',
         hint: 'Only changes the /v1/models response. Whitelist model calls and account routing are unchanged.',

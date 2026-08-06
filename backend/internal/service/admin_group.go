@@ -299,6 +299,13 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	if input.RateMultiplier <= 0 {
 		return nil, errors.New("rate_multiplier must be > 0")
 	}
+	dynamicRateMarkup := DefaultDynamicRateMarkup
+	if input.DynamicRateMarkup != nil {
+		dynamicRateMarkup = *input.DynamicRateMarkup
+	}
+	if err := validateDynamicRateMarkup(dynamicRateMarkup); err != nil {
+		return nil, err
+	}
 
 	platform := NormalizeGroupPlatform(input.Platform)
 	maxReasoningEffort, err := normalizeMaxReasoningEffortForPlatform(platform, input.MaxReasoningEffort)
@@ -449,6 +456,8 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		Description:                     input.Description,
 		Platform:                        platform,
 		RateMultiplier:                  input.RateMultiplier,
+		DynamicRateEnabled:              input.DynamicRateEnabled,
+		DynamicRateMarkup:               dynamicRateMarkup,
 		IsExclusive:                     input.IsExclusive,
 		Status:                          StatusActive,
 		SubscriptionType:                subscriptionType,
@@ -640,6 +649,26 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 			return nil, errors.New("rate_multiplier must be > 0")
 		}
 		group.RateMultiplier = *input.RateMultiplier
+	}
+	if input.DynamicRateEnabled != nil {
+		group.DynamicRateEnabled = *input.DynamicRateEnabled
+	}
+	if input.DynamicRateMarkup != nil {
+		if err := validateDynamicRateMarkup(*input.DynamicRateMarkup); err != nil {
+			return nil, err
+		}
+		group.DynamicRateMarkup = *input.DynamicRateMarkup
+	}
+	// Older in-memory/test groups may not populate the new field and therefore
+	// carry the zero value while dynamic pricing is disabled. Keep those
+	// updates compatible; initialize the persisted default when enabling it.
+	if group.DynamicRateEnabled {
+		if group.DynamicRateMarkup == 0 {
+			group.DynamicRateMarkup = DefaultDynamicRateMarkup
+		}
+		if err := validateDynamicRateMarkup(group.DynamicRateMarkup); err != nil {
+			return nil, err
+		}
 	}
 	if input.IsExclusive != nil {
 		group.IsExclusive = *input.IsExclusive

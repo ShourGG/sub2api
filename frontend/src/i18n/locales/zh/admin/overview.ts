@@ -1015,6 +1015,15 @@ export default {
         bufferRangeError: '安全缓冲应在 0 到 99.99 之间',
         sumTooHigh: '最低毛利率与安全缓冲之和必须小于 100%，否则将排除全部账号'
       },
+      dynamicRate: {
+        enable: '启用动态分组倍率',
+        enabledHint: '自动取本分组关联上游账号中的最高倍率，乘以加价系数后按 0.005 向上取整。比如最高上游倍率 0.07、加价系数 1.25，分组倍率为 0.09。',
+        disabledHint: '关闭后使用手动设置的分组倍率。',
+        markup: '上游倍率加价系数',
+        markupHint: '1.25 表示在最高上游倍率基础上加价 25%；必须大于 0。',
+        source: '当前最高上游倍率',
+        noSource: '暂无已绑定上游倍率'
+      },
       modelsList: {
         title: '自定义 /v1/models 模型列表',
         hint: '仅影响 /v1/models 展示结果，不影响白名单模型调用和账号调度。',
