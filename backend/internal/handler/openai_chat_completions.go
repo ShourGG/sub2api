@@ -311,7 +311,7 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 						)
 						return
 					}
-					if !openAIForwardMayFailoverWithCostSafety(c, writerSizeBeforeForward, failoverErr, h.costSafeFailoverEnabled()) {
+					if c.Writer.Size() != writerSizeBeforeForward {
 						h.handleFailoverExhausted(c, failoverErr, true)
 						return
 					}

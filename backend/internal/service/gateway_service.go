@@ -635,7 +635,6 @@ type UpstreamFailoverError struct {
 	RetryableOnSameAccount   bool        // 临时性错误（如 Google 间歇性 400、空响应），应在同一账号上重试 N 次再切换
 	RequestScopedTransient   bool        // 故障因素与账号无关（如上游按客户端身份/模型容量降载）：可同账号重试，但不得据此对账号做临时封禁
 	SafeToFailoverAfterWrite bool        // 仅写出 SSE 注释等非语义字节时，仍可在同一客户端流中切换账号
-	RequestWriteState        UpstreamRequestWriteState
 	Stage                    GatewayFailureStage
 	Scope                    GatewayFailureScope
 	Reason                   GatewayFailureReason
@@ -653,22 +652,6 @@ func (e *UpstreamFailoverError) Error() string {
 
 func (e *UpstreamFailoverError) ShouldRetryNextAccount() bool {
 	return e != nil && e.NextAccountAction != NextAccountStop
-}
-
-// CostSafeToFailover reports whether the failure is known to have happened
-// before inference, or is an explicit upstream rejection. Ambiguous transport
-// failures and 5xx responses remain unsafe.
-func (e *UpstreamFailoverError) CostSafeToFailover() bool {
-	if e == nil {
-		return false
-	}
-	if e.RequestWriteState == UpstreamRequestNotWritten || e.IsCredentialFailure() || e.RequestScopedTransient {
-		return true
-	}
-	if e.StatusCode >= http.StatusBadRequest && e.StatusCode < http.StatusInternalServerError && e.StatusCode != http.StatusRequestTimeout {
-		return true
-	}
-	return e.StatusCode == 529
 }
 
 func (e *UpstreamFailoverError) IsCredentialFailure() bool {

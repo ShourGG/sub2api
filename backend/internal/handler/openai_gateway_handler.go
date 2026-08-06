@@ -628,7 +628,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 						)
 						return
 					}
-					if !openAIForwardMayFailoverWithCostSafety(c, writerSizeBeforeForward, failoverErr, h.costSafeFailoverEnabled()) {
+					if !openAIForwardMayFailover(c, writerSizeBeforeForward, failoverErr) {
 						h.handleFailoverExhausted(c, failoverErr, true)
 						return
 					}
@@ -2824,22 +2824,6 @@ func openAIForwardMayFailover(c *gin.Context, writerSizeBeforeForward int, failo
 		return true
 	}
 	return failoverErr != nil && failoverErr.SafeToFailoverAfterWrite
-}
-
-func openAIForwardMayFailoverWithCostSafety(
-	c *gin.Context,
-	writerSizeBeforeForward int,
-	failoverErr *service.UpstreamFailoverError,
-	costSafeFailover bool,
-) bool {
-	if !openAIForwardMayFailover(c, writerSizeBeforeForward, failoverErr) {
-		return false
-	}
-	return !costSafeFailover || failoverErr.CostSafeToFailover()
-}
-
-func (h *OpenAIGatewayHandler) costSafeFailoverEnabled() bool {
-	return h != nil && h.cfg != nil && h.cfg.Gateway.CostSafeFailover
 }
 
 func openAIRequestAllowsFailoverReplay(c *gin.Context) bool {

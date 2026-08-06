@@ -40,23 +40,6 @@ func TestLoadServerTimingConfig(t *testing.T) {
 	})
 }
 
-func TestLoadGatewayCostSafeFailover(t *testing.T) {
-	t.Run("disabled by default", func(t *testing.T) {
-		resetViperWithJWTSecret(t)
-		cfg, err := Load()
-		require.NoError(t, err)
-		require.False(t, cfg.Gateway.CostSafeFailover)
-	})
-
-	t.Run("enabled explicitly", func(t *testing.T) {
-		resetViperWithJWTSecret(t)
-		viper.Set("gateway.cost_safe_failover", true)
-		cfg, err := Load()
-		require.NoError(t, err)
-		require.True(t, cfg.Gateway.CostSafeFailover)
-	})
-}
-
 func TestLoadRedisUsernameFromEnvironment(t *testing.T) {
 	resetViperWithJWTSecret(t)
 	t.Setenv("REDIS_USERNAME", "app-user")
