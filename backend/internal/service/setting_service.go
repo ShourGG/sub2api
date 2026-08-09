@@ -151,7 +151,7 @@ type SettingService struct {
 	openAIQuotaAutoPauseSettingsSF    singleflight.Group
 
 	// studioBridgeDefaultGroupReader 用于验证 studio bridge 兜底分组是否存在且活跃。
-	studioBridgeDefaultGroupReader StudioBridgeGroupReader
+	studioBridgeDefaultGroupReader   StudioBridgeGroupReader
 	channelMonitorRuntimeListenersMu sync.Mutex
 	channelMonitorRuntimeListeners   []func()
 }
