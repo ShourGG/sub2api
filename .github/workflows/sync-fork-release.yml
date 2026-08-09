@@ -1,0 +1,122 @@
+name: Sync Fork Release
+
+on:
+  workflow_run:
+    workflows:
+      - Docker Hub
+    types:
+      - completed
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-fork-release-main
+  cancel-in-progress: false
+
+jobs:
+  sync-release:
+    # Only publish a release after the fork's own main-image build succeeds.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout published source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Read release version
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(tr -d '[:space:]' < backend/cmd/server/VERSION)"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid VERSION: $VERSION" >&2
+            exit 1
+          fi
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Skip an existing release
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG already exists; no duplicate release will be created."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build fork release notes
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          if ! gh api "repos/Wei-Shaw/sub2api/releases/tags/$TAG" --jq .body > upstream-release.md; then
+            printf '> AI API Gateway Platform - 将 AI 订阅配额分发和管理\n' > upstream-release.md
+          fi
+
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          body = Path("upstream-release.md").read_text(encoding="utf-8").strip()
+          for marker in (
+              "\n---\n\n## 📥 Installation",
+              "\n## 📥 Installation",
+              "\n---\n\n## Installation",
+              "\n## Installation",
+          ):
+              index = body.find(marker)
+              if index >= 0:
+                  body = body[:index].rstrip()
+                  break
+
+          version = os.environ["VERSION"]
+          images = f'''## Docker 镜像（ziyue67/sub2api）
+
+```text
+ziyue67/sub2api:latest
+ziyue67/sub2api:{version}
+ghcr.io/ziyue67/sub2api:latest
+ghcr.io/ziyue67/sub2api:{version}
+```
+
+拉取示例：
+
+```bash
+docker pull ziyue67/sub2api:{version}
+docker pull ghcr.io/ziyue67/sub2api:{version}
+```
+
+## 文档
+
+- [GitHub Repository](https://github.com/ziyue67/sub2api)
+- [Deployment Guide](https://github.com/ziyue67/sub2api/tree/main/deploy)
+'''
+          Path("release-notes.md").write_text(
+              f"{body}\n\n---\n\n{images}", encoding="utf-8"
+          )
+          PY
+
+      - name: Create fork release
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.value }}
+          TARGET: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$TARGET" \
+            --title "Sub2API $VERSION" \
+            --notes-file release-notes.md
