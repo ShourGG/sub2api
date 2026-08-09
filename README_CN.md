@@ -265,7 +265,7 @@ docker compose -f docker-compose.local.yml pull sub2api
 docker compose -f docker-compose.local.yml up -d --no-deps sub2api
 ```
 
-生产环境如需固定版本，可将 `latest` 替换为已发布的版本标签或镜像摘要。
+生产环境建议固定版本：可将 `latest` 替换为已发布的版本标签或不可变镜像摘要。
 
 #### 部署版本对比
 
