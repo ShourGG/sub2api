@@ -19,10 +19,6 @@ type smtpMessage struct {
 	data         []byte
 }
 
-func buildSMTPMessage(config *SMTPConfig, to, subject, body string) (smtpMessage, error) {
-	return buildSMTPMessageWithContentType(config, to, subject, body, "text/html; charset=UTF-8")
-}
-
 func buildSMTPMessageWithContentType(config *SMTPConfig, to, subject, body, contentType string) (smtpMessage, error) {
 	if config == nil {
 		return smtpMessage{}, errors.New("missing SMTP configuration")

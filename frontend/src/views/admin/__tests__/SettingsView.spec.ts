@@ -129,6 +129,16 @@ vi.mock("@/stores", () => ({
   }),
 }));
 
+vi.mock("@/stores/app", () => ({
+  useAppStore: () => ({
+    showError,
+    showSuccess,
+    showWarning: vi.fn(),
+    showInfo: vi.fn(),
+    fetchPublicSettings,
+  }),
+}));
+
 vi.mock("@/stores/adminSettings", () => ({
   useAdminSettingsStore: () => ({
     fetch: adminSettingsFetch,
@@ -546,6 +556,8 @@ function mountView() {
         Toggle: ToggleStub,
         Icon: true,
         ConfirmDialog: true,
+        EmailBroadcastDialog: true,
+        TotpStepUpDialog: true,
         PaymentProviderList: true,
         PaymentProviderDialog: true,
         GroupBadge: true,

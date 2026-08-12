@@ -9,27 +9,27 @@ import (
 
 // Re-exported domain constants for service-layer consumers.
 const (
-	EmailBroadcastBodyFormatHTML        = domain.EmailBroadcastBodyFormatHTML
-	EmailBroadcastBodyFormatText        = domain.EmailBroadcastBodyFormatText
-	EmailBroadcastRecipientsModeAll     = domain.EmailBroadcastRecipientsModeAll
+	EmailBroadcastBodyFormatHTML         = domain.EmailBroadcastBodyFormatHTML
+	EmailBroadcastBodyFormatText         = domain.EmailBroadcastBodyFormatText
+	EmailBroadcastRecipientsModeAll      = domain.EmailBroadcastRecipientsModeAll
 	EmailBroadcastRecipientsModeSelected = domain.EmailBroadcastRecipientsModeSelected
-	EmailBroadcastStatusPending         = domain.EmailBroadcastStatusPending
-	EmailBroadcastStatusSending         = domain.EmailBroadcastStatusSending
-	EmailBroadcastStatusCompleted       = domain.EmailBroadcastStatusCompleted
-	EmailBroadcastStatusFailed          = domain.EmailBroadcastStatusFailed
+	EmailBroadcastStatusPending          = domain.EmailBroadcastStatusPending
+	EmailBroadcastStatusSending          = domain.EmailBroadcastStatusSending
+	EmailBroadcastStatusCompleted        = domain.EmailBroadcastStatusCompleted
+	EmailBroadcastStatusFailed           = domain.EmailBroadcastStatusFailed
 )
 
 // Re-exported domain errors.
 var (
 	ErrEmailBroadcastNotFound           = domain.ErrEmailBroadcastNotFound
-	ErrEmailBroadcastSubjectRequired    = domain.ErrEmailBroadcastSubjectRequired
-	ErrEmailBroadcastBodyRequired       = domain.ErrEmailBroadcastBodyRequired
-	ErrEmailBroadcastSubjectTooLong     = domain.ErrEmailBroadcastSubjectTooLong
-	ErrEmailBroadcastBodyTooLong        = domain.ErrEmailBroadcastBodyTooLong
-	ErrEmailBroadcastInvalidBodyFormat  = domain.ErrEmailBroadcastInvalidBodyFormat
-	ErrEmailBroadcastInvalidMode        = domain.ErrEmailBroadcastInvalidMode
-	ErrEmailBroadcastNoRecipients       = domain.ErrEmailBroadcastNoRecipients
-	ErrEmailBroadcastTooManyRecipients  = domain.ErrEmailBroadcastTooManyRecipients
+	ErrEmailBroadcastSubjectRequired     = domain.ErrEmailBroadcastSubjectRequired
+	ErrEmailBroadcastBodyRequired        = domain.ErrEmailBroadcastBodyRequired
+	ErrEmailBroadcastSubjectTooLong      = domain.ErrEmailBroadcastSubjectTooLong
+	ErrEmailBroadcastBodyTooLong         = domain.ErrEmailBroadcastBodyTooLong
+	ErrEmailBroadcastInvalidBodyFormat   = domain.ErrEmailBroadcastInvalidBodyFormat
+	ErrEmailBroadcastInvalidMode         = domain.ErrEmailBroadcastInvalidMode
+	ErrEmailBroadcastNoRecipients        = domain.ErrEmailBroadcastNoRecipients
+	ErrEmailBroadcastTooManyRecipients   = domain.ErrEmailBroadcastTooManyRecipients
 	ErrEmailBroadcastEmailNotConfigured = domain.ErrEmailBroadcastEmailNotConfigured
 	ErrEmailBroadcastDeleteInFlight     = domain.ErrEmailBroadcastDeleteInFlight
 )

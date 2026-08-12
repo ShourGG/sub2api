@@ -205,7 +205,7 @@ func (s *EmailBroadcastService) runBroadcast(id int64) {
 			now := time.Now()
 			msg := fmt.Sprintf("panic: %v", r)
 			_ = s.repo.UpdateStatus(ctx, id, EmailBroadcastStatusUpdate{
-				Status:       ptrStr(EmailBroadcastStatusFailed),
+				Status:       emailBroadcastPtrStr(EmailBroadcastStatusFailed),
 				ErrorMessage: &msg,
 				FinishedAt:   &now,
 			})
@@ -223,7 +223,7 @@ func (s *EmailBroadcastService) runBroadcast(id int64) {
 		now := time.Now()
 		msg := "SMTP config unavailable"
 		_ = s.repo.UpdateStatus(ctx, id, EmailBroadcastStatusUpdate{
-			Status:       ptrStr(EmailBroadcastStatusFailed),
+			Status:       emailBroadcastPtrStr(EmailBroadcastStatusFailed),
 			ErrorMessage: &msg,
 			FinishedAt:   &now,
 		})
@@ -235,7 +235,7 @@ func (s *EmailBroadcastService) runBroadcast(id int64) {
 		now := time.Now()
 		msg := err.Error()
 		_ = s.repo.UpdateStatus(ctx, id, EmailBroadcastStatusUpdate{
-			Status:       ptrStr(EmailBroadcastStatusFailed),
+			Status:       emailBroadcastPtrStr(EmailBroadcastStatusFailed),
 			ErrorMessage: &msg,
 			FinishedAt:   &now,
 		})
@@ -246,7 +246,7 @@ func (s *EmailBroadcastService) runBroadcast(id int64) {
 		msg := "no valid recipients found"
 		zero := 0
 		_ = s.repo.UpdateStatus(ctx, id, EmailBroadcastStatusUpdate{
-			Status:       ptrStr(EmailBroadcastStatusFailed),
+			Status:       emailBroadcastPtrStr(EmailBroadcastStatusFailed),
 			TotalCount:   &zero,
 			ErrorMessage: &msg,
 			FinishedAt:   &now,
@@ -261,7 +261,7 @@ func (s *EmailBroadcastService) runBroadcast(id int64) {
 	total := len(emails)
 	zero := 0
 	_ = s.repo.UpdateStatus(ctx, id, EmailBroadcastStatusUpdate{
-		Status:       ptrStr(EmailBroadcastStatusSending),
+		Status:       emailBroadcastPtrStr(EmailBroadcastStatusSending),
 		TotalCount:   &total,
 		SuccessCount: &zero,
 		FailedCount:  &zero,
@@ -304,7 +304,7 @@ done:
 		finalStatus = EmailBroadcastStatusFailed
 	}
 	_ = s.repo.UpdateStatus(ctx, id, EmailBroadcastStatusUpdate{
-		Status:       ptrStr(finalStatus),
+		Status:       emailBroadcastPtrStr(finalStatus),
 		SuccessCount: &success,
 		FailedCount:  &failed,
 		FinishedAt:   &finished,
@@ -536,7 +536,7 @@ func (s *EmailBroadcastService) isRunning(id int64) bool {
 	return ok
 }
 
-func ptrStr(s string) *string { return &s }
+func emailBroadcastPtrStr(s string) *string { return &s }
 
 func paginationParams(page, pageSize int) pagination.PaginationParams {
 	return pagination.PaginationParams{Page: page, PageSize: pageSize}
