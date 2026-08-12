@@ -8,20 +8,6 @@
           <p class="lb-desc">{{ t('leaderboard.description') }}</p>
         </div>
         <div class="lb-header-actions">
-          <div class="lb-tabs" role="tablist" :aria-label="t('leaderboard.periodLabel')">
-            <button
-              v-for="opt in periodOptions"
-              :key="opt.days"
-              type="button"
-              role="tab"
-              class="lb-tab"
-              :class="{ 'lb-tab--active': days === opt.days }"
-              :aria-selected="days === opt.days"
-              @click="selectDays(opt.days)"
-            >
-              {{ opt.label }}
-            </button>
-          </div>
           <div class="lb-filters" :aria-label="t('leaderboard.filters')">
             <label class="lb-filter">
               <span>{{ t('leaderboard.sortBy') }}</span>
@@ -54,6 +40,20 @@
                 <option value="live">{{ t('leaderboard.request.live') }}</option>
               </select>
             </label>
+          </div>
+          <div class="lb-tabs" role="tablist" :aria-label="t('leaderboard.periodLabel')">
+            <button
+              v-for="opt in periodOptions"
+              :key="opt.days"
+              type="button"
+              role="tab"
+              class="lb-tab"
+              :class="{ 'lb-tab--active': days === opt.days }"
+              :aria-selected="days === opt.days"
+              @click="selectDays(opt.days)"
+            >
+              {{ opt.label }}
+            </button>
           </div>
           <button type="button" class="lb-icon-btn" :title="themeToggleLabel" @click="toggleTheme">
             {{ theme === 'dark' ? '☀️' : '🌙' }}

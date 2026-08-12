@@ -17,17 +17,17 @@ import (
 
 type userUsageRepoCapture struct {
 	service.UsageLogRepository
-	listParams   pagination.PaginationParams
-	listFilters  usagestats.UsageLogFilters
-	statsFilters usagestats.UsageLogFilters
-	trendFilters usagestats.UsageLogFilters
-	groupFilters usagestats.UsageLogFilters
+	listParams       pagination.PaginationParams
+	listFilters      usagestats.UsageLogFilters
+	statsFilters     usagestats.UsageLogFilters
+	trendFilters     usagestats.UsageLogFilters
+	groupFilters     usagestats.UsageLogFilters
 	leaderboardQuery usagestats.TokenLeaderboardQuery
-	listRows     []service.UsageLog
-	stats        *usagestats.UsageStats
-	modelStats   []usagestats.ModelStat
-	groupStats   []usagestats.GroupStat
-	leaderboardRows []usagestats.TokenLeaderboardRow
+	listRows         []service.UsageLog
+	stats            *usagestats.UsageStats
+	modelStats       []usagestats.ModelStat
+	groupStats       []usagestats.GroupStat
+	leaderboardRows  []usagestats.TokenLeaderboardRow
 }
 
 func (s *userUsageRepoCapture) ListWithFilters(ctx context.Context, params pagination.PaginationParams, filters usagestats.UsageLogFilters) ([]service.UsageLog, *pagination.PaginationResult, error) {
@@ -105,13 +105,13 @@ func newUserUsageRequestTypeTestRouter(repo *userUsageRepoCapture) *gin.Engine {
 func TestDashboardLeaderboardFiltersAndSort(t *testing.T) {
 	repo := &userUsageRepoCapture{
 		leaderboardRows: []usagestats.TokenLeaderboardRow{{
-			UserID: 42,
-			Email: "user@example.com",
-			Requests: 3,
-			TotalTokens: 120,
-			Cost: 0.2,
-			ActualCost: 0.1,
-			AccountCost: 0.15,
+			UserID:       42,
+			Email:        "user@example.com",
+			Requests:     3,
+			TotalTokens:  120,
+			Cost:         0.2,
+			ActualCost:   0.1,
+			AccountCost:  0.15,
 			LastActiveAt: time.Date(2026, 8, 12, 1, 2, 3, 0, time.UTC),
 		}},
 	}
