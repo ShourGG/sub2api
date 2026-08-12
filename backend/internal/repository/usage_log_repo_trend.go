@@ -234,6 +234,13 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 // It returns raw emails and RFC3339 last-active timestamps; masking, ranking numbers and
 // "is me" resolution are applied by the caller (handler) so this stays presentation-agnostic.
 func (r *usageLogRepository) GetTokenLeaderboard(ctx context.Context, startTime, endTime time.Time, limit int) (result []TokenLeaderboardRow, err error) {
+	return r.GetTokenLeaderboardWithFilters(ctx, startTime, endTime, limit, usagestats.TokenLeaderboardQuery{SortBy: "tokens"})
+}
+
+// GetTokenLeaderboardWithFilters returns the Token leaderboard within [startTime, endTime).
+// It supports PR #2924's sorting and usage filters while preserving the existing
+// image-output-inclusive token definition used by the public leaderboard.
+func (r *usageLogRepository) GetTokenLeaderboardWithFilters(ctx context.Context, startTime, endTime time.Time, limit int, options usagestats.TokenLeaderboardQuery) (result []TokenLeaderboardRow, err error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -248,16 +255,37 @@ func (r *usageLogRepository) GetTokenLeaderboard(ctx context.Context, startTime,
 			COALESCE(SUM(u.output_tokens), 0) AS output_tokens,
 			COALESCE(SUM(u.cache_creation_tokens + u.cache_read_tokens), 0) AS cache_tokens,
 			COALESCE(SUM(u.image_output_tokens), 0) AS image_output_tokens,
+			COALESCE(SUM(u.total_cost), 0) AS cost,
+			COALESCE(SUM(u.actual_cost), 0) AS actual_cost,
+			COALESCE(SUM(COALESCE(u.account_stats_cost, u.total_cost) * COALESCE(u.account_rate_multiplier, 1)), 0) AS account_cost,
 			MAX(u.created_at) AS last_active_at
 		FROM usage_logs u
 		LEFT JOIN users us ON u.user_id = us.id
 		WHERE u.created_at >= $1 AND u.created_at < $2
-		GROUP BY u.user_id, us.email
-		ORDER BY total_tokens DESC, requests DESC, u.user_id ASC
-		LIMIT $3
 	`
+	args := []any{startTime, endTime}
 
-	rows, err := r.sql.QueryContext(ctx, query, startTime, endTime, limit)
+	if options.RequestType != nil {
+		condition, conditionArgs := buildRequestTypeFilterConditionWithAlias(len(args)+1, *options.RequestType, "u")
+		query += " AND " + condition
+		args = append(args, conditionArgs...)
+	} else if options.Stream != nil {
+		query += fmt.Sprintf(" AND u.stream = $%d", len(args)+1)
+		args = append(args, *options.Stream)
+	}
+	if strings.TrimSpace(options.BillingMode) != "" {
+		conditions, conditionArgs := appendUsageLogBillingModeWhereConditionWithAlias(nil, args, options.BillingMode, "u")
+		for _, condition := range conditions {
+			query += " AND " + condition
+		}
+		args = conditionArgs
+	}
+
+	query += " GROUP BY u.user_id, us.email " + resolveTokenLeaderboardOrderBy(options.SortBy)
+	query += fmt.Sprintf(" LIMIT $%d", len(args)+1)
+	args = append(args, limit)
+
+	rows, err := r.sql.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -280,6 +308,9 @@ func (r *usageLogRepository) GetTokenLeaderboard(ctx context.Context, startTime,
 			&row.OutputTokens,
 			&row.CacheTokens,
 			&row.ImageOutputTokens,
+			&row.Cost,
+			&row.ActualCost,
+			&row.AccountCost,
 			&row.LastActiveAt,
 		); err != nil {
 			return nil, err
@@ -290,6 +321,21 @@ func (r *usageLogRepository) GetTokenLeaderboard(ctx context.Context, startTime,
 		return nil, err
 	}
 	return items, nil
+}
+
+func resolveTokenLeaderboardOrderBy(sortBy string) string {
+	switch strings.ToLower(strings.TrimSpace(sortBy)) {
+	case "requests":
+		return "ORDER BY requests DESC, total_tokens DESC, actual_cost DESC, u.user_id ASC"
+	case "cost":
+		return "ORDER BY cost DESC, total_tokens DESC, requests DESC, u.user_id ASC"
+	case "account_cost":
+		return "ORDER BY account_cost DESC, total_tokens DESC, requests DESC, u.user_id ASC"
+	case "actual_cost":
+		return "ORDER BY actual_cost DESC, total_tokens DESC, requests DESC, u.user_id ASC"
+	default:
+		return "ORDER BY total_tokens DESC, requests DESC, actual_cost DESC, u.user_id ASC"
+	}
 }
 
 // GetUserUsageTrendByUserID 获取指定用户的使用趋势

@@ -1,7 +1,32 @@
 export default {
     title: 'Token 排行榜',
-    description: '按 Input + Output + Cache + Image Output 统计的 Token 消耗排名，仅展示 Top 20。',
+    description: '按 Token、请求数或费用查看全站用量排名，仅展示 Top 20。',
     periodLabel: '排行周期',
+    filters: '排行榜筛选',
+    sortBy: '排序',
+    billingMode: '计费模式',
+    requestType: '请求类型',
+    all: '全部',
+    sort: {
+      tokens: 'Token 总量',
+      requests: '请求数',
+      cost: '标准费用',
+      actualCost: '实际扣费',
+      accountCost: '账号成本'
+    },
+    billing: {
+      token: 'Token',
+      perRequest: '按次',
+      image: '图片',
+      video: '视频'
+    },
+    request: {
+      sync: '同步',
+      stream: '流式',
+      wsV2: 'WebSocket',
+      cyber: '安全拦截',
+      live: 'Live'
+    },
     period: {
       day: '今日',
       week: '近 7 天',
@@ -15,6 +40,9 @@ export default {
     outputTokensShort: '输出',
     cacheTokensShort: '缓存',
     imageOutputShort: '生图输出',
+    cost: '费用',
+    actualCost: '实际扣费',
+    accountCost: '账号成本',
     lastActive: '最近活跃',
     currentUser: '我',
     me: '我',

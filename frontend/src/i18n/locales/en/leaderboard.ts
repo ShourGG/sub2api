@@ -1,7 +1,32 @@
 export default {
     title: 'Token Leaderboard',
-    description: 'Token consumption ranking by Input + Output + Cache + Image Output. Top 20 only.',
+    description: 'View the top 20 users by tokens, requests, or cost.',
     periodLabel: 'Ranking period',
+    filters: 'Leaderboard filters',
+    sortBy: 'Sort by',
+    billingMode: 'Billing mode',
+    requestType: 'Request type',
+    all: 'All',
+    sort: {
+      tokens: 'Total tokens',
+      requests: 'Requests',
+      cost: 'Standard cost',
+      actualCost: 'Actual cost',
+      accountCost: 'Account cost'
+    },
+    billing: {
+      token: 'Token',
+      perRequest: 'Per request',
+      image: 'Image',
+      video: 'Video'
+    },
+    request: {
+      sync: 'Sync',
+      stream: 'Stream',
+      wsV2: 'WebSocket',
+      cyber: 'Blocked',
+      live: 'Live'
+    },
     period: {
       day: 'Today',
       week: 'Last 7 days',
@@ -15,6 +40,9 @@ export default {
     outputTokensShort: 'Output',
     cacheTokensShort: 'Cache',
     imageOutputShort: 'Image Out',
+    cost: 'Cost',
+    actualCost: 'Actual cost',
+    accountCost: 'Account cost',
     lastActive: 'Last active',
     currentUser: 'You',
     me: 'You',

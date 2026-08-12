@@ -22,6 +22,39 @@
               {{ opt.label }}
             </button>
           </div>
+          <div class="lb-filters" :aria-label="t('leaderboard.filters')">
+            <label class="lb-filter">
+              <span>{{ t('leaderboard.sortBy') }}</span>
+              <select v-model="sortBy" class="lb-select" @change="load">
+                <option value="tokens">{{ t('leaderboard.sort.tokens') }}</option>
+                <option value="requests">{{ t('leaderboard.sort.requests') }}</option>
+                <option value="cost">{{ t('leaderboard.sort.cost') }}</option>
+                <option value="actual_cost">{{ t('leaderboard.sort.actualCost') }}</option>
+                <option value="account_cost">{{ t('leaderboard.sort.accountCost') }}</option>
+              </select>
+            </label>
+            <label class="lb-filter">
+              <span>{{ t('leaderboard.billingMode') }}</span>
+              <select v-model="billingMode" class="lb-select" @change="load">
+                <option value="">{{ t('leaderboard.all') }}</option>
+                <option value="token">{{ t('leaderboard.billing.token') }}</option>
+                <option value="per_request">{{ t('leaderboard.billing.perRequest') }}</option>
+                <option value="image">{{ t('leaderboard.billing.image') }}</option>
+                <option value="video">{{ t('leaderboard.billing.video') }}</option>
+              </select>
+            </label>
+            <label class="lb-filter">
+              <span>{{ t('leaderboard.requestType') }}</span>
+              <select v-model="requestType" class="lb-select" @change="load">
+                <option value="">{{ t('leaderboard.all') }}</option>
+                <option value="sync">{{ t('leaderboard.request.sync') }}</option>
+                <option value="stream">{{ t('leaderboard.request.stream') }}</option>
+                <option value="ws_v2">{{ t('leaderboard.request.wsV2') }}</option>
+                <option value="cyber">{{ t('leaderboard.request.cyber') }}</option>
+                <option value="live">{{ t('leaderboard.request.live') }}</option>
+              </select>
+            </label>
+          </div>
           <button type="button" class="lb-icon-btn" :title="themeToggleLabel" @click="toggleTheme">
             {{ theme === 'dark' ? '☀️' : '🌙' }}
           </button>
@@ -76,6 +109,9 @@
                 <th class="lb-col-num lb-hide-sm">{{ t('leaderboard.cacheTokensShort') }}</th>
                 <th class="lb-col-num lb-hide-sm">{{ t('leaderboard.imageOutputShort') }}</th>
                 <th class="lb-col-num">{{ t('leaderboard.requests') }}</th>
+                <th class="lb-col-num lb-hide-sm">{{ t('leaderboard.cost') }}</th>
+                <th class="lb-col-num lb-hide-sm">{{ t('leaderboard.actualCost') }}</th>
+                <th class="lb-col-num lb-hide-sm">{{ t('leaderboard.accountCost') }}</th>
                 <th class="lb-col-time lb-hide-sm">{{ t('leaderboard.lastActive') }}</th>
               </tr>
             </thead>
@@ -102,6 +138,9 @@
                 <td class="lb-col-num lb-hide-sm">{{ formatTokens(item.cache_tokens) }}</td>
                 <td class="lb-col-num lb-hide-sm">{{ formatTokens(item.image_output_tokens) }}</td>
                 <td class="lb-col-num">{{ formatNumber(item.requests) }}</td>
+                <td class="lb-col-num lb-hide-sm">{{ formatCost(item.cost) }}</td>
+                <td class="lb-col-num lb-hide-sm lb-strong">{{ formatCost(item.actual_cost) }}</td>
+                <td class="lb-col-num lb-hide-sm">{{ formatCost(item.account_cost) }}</td>
                 <td class="lb-col-time lb-hide-sm">{{ item.last_active_at || '—' }}</td>
               </tr>
             </tbody>
@@ -120,8 +159,11 @@ import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import {
   usageAPI,
   type TokenLeaderboardResponse,
-  type LeaderboardParams
+  type LeaderboardParams,
+  type LeaderboardSortBy,
+  type LeaderboardBillingMode
 } from '@/api/usage'
+import type { UsageRequestType } from '@/types'
 
 const { t } = useI18n()
 
@@ -133,6 +175,9 @@ const leaderboard = ref<TokenLeaderboardResponse | null>(null)
 const loading = ref(false)
 const error = ref(false)
 const days = ref<DaysWindow>(1)
+const sortBy = ref<LeaderboardSortBy>('tokens')
+const billingMode = ref<LeaderboardBillingMode | ''>('')
+const requestType = ref<UsageRequestType | ''>('')
 const theme = ref<'light' | 'dark'>('light')
 
 let abortController: AbortController | null = null
@@ -210,6 +255,10 @@ function formatTokens(value: number): string {
   return numberFormatter.format(v)
 }
 
+function formatCost(value: number): string {
+  return `$${(value ?? 0).toFixed(4)}`
+}
+
 async function load() {
   loading.value = true
   error.value = false
@@ -219,7 +268,12 @@ async function load() {
   }
   abortController = new AbortController()
 
-  const params: LeaderboardParams = { days: days.value }
+  const params: LeaderboardParams = {
+    days: days.value,
+    sort_by: sortBy.value
+  }
+  if (billingMode.value) params.billing_mode = billingMode.value
+  if (requestType.value) params.request_type = requestType.value
   if (browserTimezone) {
     params.timezone = browserTimezone
   }
@@ -339,6 +393,31 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.lb-filters {
+  display: flex;
+  align-items: end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.lb-filter {
+  display: grid;
+  gap: 0.2rem;
+  color: var(--lb-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.lb-select {
+  min-width: 8rem;
+  border: 1px solid var(--lb-border);
+  border-radius: 8px;
+  background: var(--lb-bg);
+  color: var(--lb-fg);
+  padding: 0.4rem 0.5rem;
+  font-size: 0.8rem;
 }
 
 .lb-tabs {
@@ -526,6 +605,18 @@ onBeforeUnmount(() => {
 @media (max-width: 640px) {
   .lb-hide-sm {
     display: none;
+  }
+
+  .lb-filters {
+    width: 100%;
+  }
+
+  .lb-filter {
+    flex: 1 1 8rem;
+  }
+
+  .lb-select {
+    width: 100%;
   }
 }
 </style>

@@ -480,8 +480,40 @@ func parseLeaderboardDays(raw string) int {
 	}
 }
 
+func parseLeaderboardSortBy(raw string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "tokens", "total_tokens":
+		return "tokens", true
+	case "requests":
+		return "requests", true
+	case "cost":
+		return "cost", true
+	case "actual_cost":
+		return "actual_cost", true
+	case "account_cost":
+		return "account_cost", true
+	default:
+		return "", false
+	}
+}
+
+func parseLeaderboardRequestType(raw string) (int16, error) {
+	if parsed, err := service.ParseUsageRequestType(raw); err == nil {
+		return int16(parsed), nil
+	}
+	value, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("invalid request_type, allowed values: 0-5, unknown, sync, stream, ws_v2, cyber, live")
+	}
+	requestType := service.RequestType(value)
+	if !requestType.IsValid() {
+		return 0, fmt.Errorf("invalid request_type, allowed values: 0-5, unknown, sync, stream, ws_v2, cyber, live")
+	}
+	return int16(requestType), nil
+}
+
 // DashboardLeaderboard returns the Token consumption leaderboard.
-// GET /api/v1/usage/dashboard/leaderboard?days=1|7|30&limit=20&timezone=Asia/Shanghai
+// GET /api/v1/usage/dashboard/leaderboard?days=1|7|30&limit=20&timezone=Asia/Shanghai&sort_by=tokens|requests|cost|actual_cost|account_cost&billing_mode=token|per_request|image|video&request_type=0|1|2|3|4|5|sync|stream|ws_v2|cyber|live
 //
 // Ranking key is total_tokens = input + output + cache + image_output.
 // Regular users only ever see Top 1-20 with emails masked; the current user's
@@ -495,6 +527,35 @@ func (h *UsageHandler) DashboardLeaderboard(c *gin.Context) {
 
 	userTZ := c.Query("timezone")
 	days := parseLeaderboardDays(c.DefaultQuery("days", "1"))
+	sortBy, valid := parseLeaderboardSortBy(c.Query("sort_by"))
+	if !valid {
+		response.BadRequest(c, "Invalid sort_by, use tokens/requests/cost/actual_cost/account_cost")
+		return
+	}
+
+	billingMode := strings.TrimSpace(c.Query("billing_mode"))
+	if billingMode != "" && !service.BillingMode(billingMode).IsValidUsageFilter() {
+		response.BadRequest(c, "Invalid billing_mode")
+		return
+	}
+
+	var requestType *int16
+	var stream *bool
+	if rawRequestType := strings.TrimSpace(c.Query("request_type")); rawRequestType != "" {
+		parsed, err := parseLeaderboardRequestType(rawRequestType)
+		if err != nil {
+			response.BadRequest(c, err.Error())
+			return
+		}
+		requestType = &parsed
+	} else if rawStream := strings.TrimSpace(c.Query("stream")); rawStream != "" {
+		parsed, err := strconv.ParseBool(rawStream)
+		if err != nil {
+			response.BadRequest(c, "Invalid stream value, use true or false")
+			return
+		}
+		stream = &parsed
+	}
 	// Top 1-20 only; ignore any larger client-supplied limit for regular users.
 	limit := 20
 
@@ -502,7 +563,12 @@ func (h *UsageHandler) DashboardLeaderboard(c *gin.Context) {
 	endTime := timezone.StartOfDayInUserLocation(now.AddDate(0, 0, 1), userTZ)
 	startTime := timezone.StartOfDayInUserLocation(now.AddDate(0, 0, -(days-1)), userTZ)
 
-	rows, err := h.usageService.GetTokenLeaderboard(c.Request.Context(), startTime, endTime, limit)
+	rows, err := h.usageService.GetTokenLeaderboardWithFilters(c.Request.Context(), startTime, endTime, limit, usagestats.TokenLeaderboardQuery{
+		RequestType: requestType,
+		Stream:      stream,
+		BillingMode: billingMode,
+		SortBy:      sortBy,
+	})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -530,19 +596,25 @@ func (h *UsageHandler) DashboardLeaderboard(c *gin.Context) {
 			OutputTokens:      row.OutputTokens,
 			CacheTokens:       row.CacheTokens,
 			ImageOutputTokens: row.ImageOutputTokens,
+			Cost:              row.Cost,
+			ActualCost:        row.ActualCost,
+			AccountCost:       row.AccountCost,
 			LastActiveAt:      lastActive,
 			IsMe:              isMe,
 		})
 	}
 
 	response.Success(c, usagestats.TokenLeaderboardResponse{
-		Days:     days,
-		Label:    leaderboardPeriodLabel(days),
-		Timezone: loc.String(),
-		Start:    startTime.Format(time.RFC3339),
-		End:      now.Format(time.RFC3339),
-		Limit:    limit,
-		Items:    items,
+		Days:        days,
+		Label:       leaderboardPeriodLabel(days),
+		Timezone:    loc.String(),
+		Start:       startTime.Format(time.RFC3339),
+		End:         now.Format(time.RFC3339),
+		Limit:       limit,
+		SortBy:      sortBy,
+		BillingMode: billingMode,
+		RequestType: requestType,
+		Items:       items,
 	})
 }
 

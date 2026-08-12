@@ -22,10 +22,12 @@ type userUsageRepoCapture struct {
 	statsFilters usagestats.UsageLogFilters
 	trendFilters usagestats.UsageLogFilters
 	groupFilters usagestats.UsageLogFilters
+	leaderboardQuery usagestats.TokenLeaderboardQuery
 	listRows     []service.UsageLog
 	stats        *usagestats.UsageStats
 	modelStats   []usagestats.ModelStat
 	groupStats   []usagestats.GroupStat
+	leaderboardRows []usagestats.TokenLeaderboardRow
 }
 
 func (s *userUsageRepoCapture) ListWithFilters(ctx context.Context, params pagination.PaginationParams, filters usagestats.UsageLogFilters) ([]service.UsageLog, *pagination.PaginationResult, error) {
@@ -78,6 +80,11 @@ func (s *userUsageRepoCapture) GetGroupStatsWithFilters(ctx context.Context, sta
 	return s.groupStats, nil
 }
 
+func (s *userUsageRepoCapture) GetTokenLeaderboardWithFilters(_ context.Context, _ time.Time, _ time.Time, _ int, query usagestats.TokenLeaderboardQuery) ([]usagestats.TokenLeaderboardRow, error) {
+	s.leaderboardQuery = query
+	return s.leaderboardRows, nil
+}
+
 func newUserUsageRequestTypeTestRouter(repo *userUsageRepoCapture) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	usageSvc := service.NewUsageService(repo, nil, nil, nil)
@@ -91,7 +98,45 @@ func newUserUsageRequestTypeTestRouter(repo *userUsageRepoCapture) *gin.Engine {
 	router.GET("/usage/stats", handler.Stats)
 	router.GET("/usage/dashboard/models", handler.DashboardModels)
 	router.GET("/usage/dashboard/snapshot-v2", handler.DashboardSnapshotV2)
+	router.GET("/usage/dashboard/leaderboard", handler.DashboardLeaderboard)
 	return router
+}
+
+func TestDashboardLeaderboardFiltersAndSort(t *testing.T) {
+	repo := &userUsageRepoCapture{
+		leaderboardRows: []usagestats.TokenLeaderboardRow{{
+			UserID: 42,
+			Email: "user@example.com",
+			Requests: 3,
+			TotalTokens: 120,
+			Cost: 0.2,
+			ActualCost: 0.1,
+			AccountCost: 0.15,
+			LastActiveAt: time.Date(2026, 8, 12, 1, 2, 3, 0, time.UTC),
+		}},
+	}
+	router := newUserUsageRequestTypeTestRouter(repo)
+
+	req := httptest.NewRequest(http.MethodGet, "/usage/dashboard/leaderboard?days=7&sort_by=cost&billing_mode=image&request_type=2&timezone=UTC", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "cost", repo.leaderboardQuery.SortBy)
+	require.Equal(t, "image", repo.leaderboardQuery.BillingMode)
+	require.NotNil(t, repo.leaderboardQuery.RequestType)
+	require.Equal(t, int16(service.RequestTypeStream), *repo.leaderboardQuery.RequestType)
+	require.Contains(t, rec.Body.String(), `"actual_cost":0.1`)
+	require.Contains(t, rec.Body.String(), `"account_cost":0.15`)
+}
+
+func TestDashboardLeaderboardRejectsInvalidSort(t *testing.T) {
+	router := newUserUsageRequestTypeTestRouter(&userUsageRepoCapture{})
+	req := httptest.NewRequest(http.MethodGet, "/usage/dashboard/leaderboard?sort_by=not_allowed", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestUserUsageListRequestTypePriority(t *testing.T) {

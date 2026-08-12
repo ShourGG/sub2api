@@ -166,18 +166,21 @@ type UserSpendingRankingResponse struct {
 // TokenLeaderboardItem represents one row in the Token consumption leaderboard.
 // Ranking key is total_tokens = input + output + cache + image_output.
 type TokenLeaderboardItem struct {
-	Rank              int    `json:"rank"`
-	UserID            int64  `json:"user_id"`
-	Email             string `json:"-"` // raw email, never serialized; masked into User
-	User              string `json:"user"`
-	Requests          int64  `json:"requests"`
-	TotalTokens       int64  `json:"total_tokens"`
-	InputTokens       int64  `json:"input_tokens"`
-	OutputTokens      int64  `json:"output_tokens"`
-	CacheTokens       int64  `json:"cache_tokens"`
-	ImageOutputTokens int64  `json:"image_output_tokens"`
-	LastActiveAt      string `json:"last_active_at"`
-	IsMe              bool   `json:"is_me"`
+	Rank              int     `json:"rank"`
+	UserID            int64   `json:"user_id"`
+	Email             string  `json:"-"` // raw email, never serialized; masked into User
+	User              string  `json:"user"`
+	Requests          int64   `json:"requests"`
+	TotalTokens       int64   `json:"total_tokens"`
+	InputTokens       int64   `json:"input_tokens"`
+	OutputTokens      int64   `json:"output_tokens"`
+	CacheTokens       int64   `json:"cache_tokens"`
+	ImageOutputTokens int64   `json:"image_output_tokens"`
+	Cost              float64 `json:"cost"`
+	ActualCost        float64 `json:"actual_cost"`
+	AccountCost       float64 `json:"account_cost"`
+	LastActiveAt      string  `json:"last_active_at"`
+	IsMe              bool    `json:"is_me"`
 }
 
 // TokenLeaderboardRow is the raw aggregation row returned by the repository.
@@ -192,18 +195,33 @@ type TokenLeaderboardRow struct {
 	OutputTokens      int64
 	CacheTokens       int64
 	ImageOutputTokens int64
+	Cost              float64
+	ActualCost        float64
+	AccountCost       float64
 	LastActiveAt      time.Time
+}
+
+// TokenLeaderboardQuery contains the optional filters and sort for the user-facing leaderboard.
+// SortBy is allowlisted by the handler and repository; empty defaults to tokens.
+type TokenLeaderboardQuery struct {
+	RequestType *int16
+	Stream      *bool
+	BillingMode string
+	SortBy      string
 }
 
 // TokenLeaderboardResponse is the payload returned to the Token leaderboard page.
 type TokenLeaderboardResponse struct {
-	Days     int                    `json:"days"`
-	Label    string                 `json:"label"`
-	Timezone string                 `json:"timezone"`
-	Start    string                 `json:"start"`
-	End      string                 `json:"end"`
-	Limit    int                    `json:"limit"`
-	Items    []TokenLeaderboardItem `json:"items"`
+	Days        int                    `json:"days"`
+	Label       string                 `json:"label"`
+	Timezone    string                 `json:"timezone"`
+	Start       string                 `json:"start"`
+	End         string                 `json:"end"`
+	Limit       int                    `json:"limit"`
+	SortBy      string                 `json:"sort_by"`
+	BillingMode string                 `json:"billing_mode,omitempty"`
+	RequestType *int16                 `json:"request_type,omitempty"`
+	Items       []TokenLeaderboardItem `json:"items"`
 }
 
 // UserBreakdownItem represents per-user usage breakdown within a dimension (group, model, endpoint).
