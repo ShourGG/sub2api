@@ -84,7 +84,7 @@
           </label>
 
           <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-700">
-            <label class="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-900 dark:text-white">
+            <label v-if="!props.singleRecipientMode" class="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-900 dark:text-white">
               <input v-model="sendToAll" type="checkbox" class="form-checkbox" />
               <span>{{ t('admin.emailBroadcast.form.sendToAll') }}</span>
               <span class="text-xs font-normal text-gray-500 dark:text-gray-400">
@@ -92,7 +92,13 @@
               </span>
             </label>
 
-            <div v-if="!sendToAll" class="mt-4 space-y-3">
+            <div v-if="props.singleRecipientMode && props.initialRecipient" class="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+              <div class="font-medium">{{ t('admin.emailBroadcast.form.selectedRecipient') }}</div>
+              <div>{{ props.initialRecipient.email }}<span v-if="props.initialRecipient.username"> · {{ props.initialRecipient.username }}</span></div>
+              <div class="mt-1 text-xs opacity-80">{{ t('admin.emailBroadcast.form.singleRecipientHint') }}</div>
+            </div>
+
+            <div v-if="!sendToAll && !props.singleRecipientMode" class="mt-4 space-y-3">
               <div class="relative">
                 <input
                   v-model="recipientSearch"
@@ -389,6 +395,8 @@ import type {
 
 interface Props {
   show: boolean
+  initialRecipient?: EmailBroadcastRecipientCandidate | null
+  singleRecipientMode?: boolean
 }
 
 interface Emits {
@@ -520,7 +528,7 @@ function resetForm() {
   form.value.body = ''
   form.value.body_format = 'html'
   sendToAll.value = false
-  selectedRecipients.value = []
+  selectedRecipients.value = props.initialRecipient ? [props.initialRecipient] : []
   recipientSearch.value = ''
   recipientCandidates.value = []
   errorMessage.value = ''
@@ -532,6 +540,17 @@ function resetForm() {
   historyDetailError.value = ''
   deleteConfirm.value = { show: false, message: '', target: null }
 }
+
+watch(
+  () => [props.show, props.initialRecipient, props.singleRecipientMode],
+  () => {
+    if (props.show && props.singleRecipientMode) {
+      sendToAll.value = false
+      selectedRecipients.value = props.initialRecipient ? [props.initialRecipient] : []
+    }
+  },
+  { deep: true }
+)
 
 function handleClose() {
   emit('close')

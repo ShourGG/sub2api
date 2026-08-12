@@ -3,7 +3,7 @@ name: Sync Fork Release
 on:
   workflow_run:
     workflows:
-      - Docker Hub
+      - GitHub Container Registry
     types:
       - completed
 

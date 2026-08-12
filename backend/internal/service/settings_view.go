@@ -61,6 +61,7 @@ type SystemSettings struct {
 	AliyunCaptchaRegion                    string
 	APIKeyACLTrustForwardedIP              bool
 	ForwardedClientIPHeaders               []string
+	IPBlacklist                            []string
 
 	// LinuxDo Connect OAuth 登录
 	LinuxDoConnectEnabled                bool

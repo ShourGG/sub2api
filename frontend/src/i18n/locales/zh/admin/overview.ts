@@ -456,6 +456,7 @@ export default {
         failed: '批量更新用户限制失败'
       },
       editUser: '编辑用户',
+	  sendEmail: '发邮件',
       deleteUser: '删除用户',
       deleteConfirmMessage: "确定要删除用户 '{email}' 吗？此操作无法撤销。",
       searchPlaceholder: '邮箱/用户名/备注/API Key 模糊搜索...',

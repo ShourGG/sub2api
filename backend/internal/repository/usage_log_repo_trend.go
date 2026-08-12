@@ -737,6 +737,13 @@ func (r *usageLogRepository) GetUserBreakdownStats(ctx context.Context, startTim
 		query += fmt.Sprintf(" AND ul.billing_type = $%d", len(args)+1)
 		args = append(args, *dim.BillingType)
 	}
+	if dim.BillingMode != "" {
+		var conditions []string
+		conditions, args = appendUsageLogBillingModeWhereConditionWithAlias(conditions, args, dim.BillingMode, "ul")
+		for _, condition := range conditions {
+			query += " AND " + condition
+		}
+	}
 
 	// ORDER BY 列来自固定 allowlist(非用户原样字符串),避免 SQL 注入。
 	orderBy := "actual_cost"
@@ -744,7 +751,7 @@ func (r *usageLogRepository) GetUserBreakdownStats(ctx context.Context, startTim
 	case "total_tokens", "input_tokens", "output_tokens", "cache_tokens", "requests", "cost", "actual_cost":
 		orderBy = dim.SortBy
 	}
-	query += " GROUP BY ul.user_id, u.email ORDER BY " + orderBy + " DESC"
+	query += " GROUP BY ul.user_id, u.email ORDER BY " + orderBy + " DESC, total_tokens DESC, requests DESC, user_id ASC"
 	if limit > 0 {
 		query += fmt.Sprintf(" LIMIT %d", limit)
 	}

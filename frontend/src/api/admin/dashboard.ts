@@ -179,6 +179,7 @@ export interface UserBreakdownParams {
   request_type?: UsageRequestType
   stream?: boolean
   billing_type?: number | null
+  billing_mode?: string | null
 }
 
 export interface UserBreakdownResponse {

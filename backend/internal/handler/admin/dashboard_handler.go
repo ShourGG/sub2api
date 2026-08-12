@@ -520,6 +520,19 @@ func parseRankingLimit(raw string) int {
 	return limit
 }
 
+func parseUserBreakdownSortBy(raw string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "actual_cost":
+		return "actual_cost", true
+	case "tokens", "total_tokens":
+		return "total_tokens", true
+	case "input_tokens", "output_tokens", "cache_tokens", "requests", "cost":
+		return strings.ToLower(strings.TrimSpace(raw)), true
+	default:
+		return "", false
+	}
+}
+
 // GetUserSpendingRanking handles getting user spending ranking data.
 // GET /api/v1/admin/dashboard/users-ranking
 func (h *DashboardHandler) GetUserSpendingRanking(c *gin.Context) {
@@ -670,6 +683,14 @@ func (h *DashboardHandler) GetUserBreakdown(c *gin.Context) {
 	dim.ModelType = rawModelSource
 	dim.Endpoint = c.Query("endpoint")
 	dim.EndpointType = c.DefaultQuery("endpoint_type", "inbound")
+	if rawSortBy := strings.TrimSpace(c.Query("sort_by")); rawSortBy != "" {
+		sortBy, ok := parseUserBreakdownSortBy(rawSortBy)
+		if !ok {
+			response.BadRequest(c, "Invalid sort_by, use actual_cost/total_tokens/input_tokens/output_tokens/cache_tokens/requests/cost")
+			return
+		}
+		dim.SortBy = sortBy
+	}
 
 	// Additional filter conditions
 	if v := c.Query("user_id"); v != "" {
@@ -707,9 +728,7 @@ func (h *DashboardHandler) GetUserBreakdown(c *gin.Context) {
 			dim.BillingType = &btVal
 		}
 	}
-
-	// sort_by 由 repo 层 allowlist 校验;非法值静默回退默认排序(actual_cost)。
-	dim.SortBy = strings.TrimSpace(c.Query("sort_by"))
+	dim.BillingMode = strings.TrimSpace(c.Query("billing_mode"))
 
 	limit := 50
 	if v := c.Query("limit"); v != "" {

@@ -1735,6 +1735,21 @@
                 v-if="form.api_key_acl_trust_forwarded_ip"
                 class="border-t border-gray-100 pt-4 dark:border-dark-700"
               >
+                <div class="mb-4">
+                  <label class="font-medium text-gray-900 dark:text-white">
+                    {{ t("admin.settings.apiKeyAcl.ipBlacklist") }}
+                  </label>
+                  <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.apiKeyAcl.ipBlacklistHint") }}
+                  </p>
+                  <textarea
+                    :value="form.ip_blacklist.join(String.fromCharCode(10))"
+                    rows="3"
+                    class="mt-2 w-full rounded border border-gray-300 bg-white p-2 font-mono text-sm dark:border-dark-500 dark:bg-dark-700"
+                    placeholder="203.0.113.10&#10;198.51.100.0/24"
+                    @input="handleIpBlacklistInput"
+                  />
+                </div>
                 <label
                   for="forwarded-client-ip-headers"
                   class="font-medium text-gray-900 dark:text-white"
@@ -8436,6 +8451,18 @@
 
           <EmailTemplateEditor />
 
+          <div v-if="form.email_verify_enabled" class="card">
+            <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t("admin.emailBroadcast.title") }}</h2>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("admin.emailBroadcast.description") }}</p>
+            </div>
+            <div class="p-6">
+              <button type="button" class="btn btn-primary" :disabled="loadFailed" @click="emailBroadcastDialogOpen = true">
+                {{ t("admin.emailBroadcast.openComposer") }}
+              </button>
+            </div>
+          </div>
+
           <!-- Balance Low Notification -->
           <div class="card">
             <div
@@ -8648,6 +8675,7 @@
       />
       <!-- 关闭 step-up 开关等敏感保存操作触发的 TOTP 二次验证 -->
       <TotpStepUpDialog :controller="settingsStepUp" />
+      <EmailBroadcastDialog :show="emailBroadcastDialogOpen" @close="emailBroadcastDialogOpen = false" @sent="emailBroadcastDialogOpen = false" />
     </div>
   </AppLayout>
 </template>
@@ -8702,6 +8730,7 @@ import ProxySelector from "@/components/common/ProxySelector.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
+import EmailBroadcastDialog from "@/components/admin/email-broadcasts/EmailBroadcastDialog.vue";
 import OpenAIFastPolicyUserSelector from "@/views/admin/settings/OpenAIFastPolicyUserSelector.vue";
 import { useClipboard } from "@/composables/useClipboard";
 import {
@@ -8834,6 +8863,7 @@ const testingSmtp = ref(false);
 const sendingTestEmail = ref(false);
 const smtpPasswordManuallyEdited = ref(false);
 const testEmailAddress = ref("");
+const emailBroadcastDialogOpen = ref(false);
 const registrationEmailSuffixWhitelistTags = ref<string[]>([]);
 const registrationEmailSuffixWhitelistDraft = ref("");
 const forwardedClientIpHeaderDraft = ref("");
@@ -9530,6 +9560,7 @@ const form = reactive<SettingsForm>({
   aliyun_captcha_region: "cn",
   api_key_acl_trust_forwarded_ip: true,
   forwarded_client_ip_headers: [],
+  ip_blacklist: [],
   // LinuxDo Connect OAuth 登录
   linuxdo_connect_enabled: false,
   linuxdo_connect_client_id: "",
@@ -10220,6 +10251,14 @@ function normalizeForwardedClientIpHeaders(value: unknown): string[] {
   return headers;
 }
 
+function handleIpBlacklistInput(event: Event) {
+  const value = (event.currentTarget as HTMLTextAreaElement).value;
+  form.ip_blacklist = value
+    .split(/[,，;\r\n]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function removeForwardedClientIpHeader(header: string) {
   form.forwarded_client_ip_headers = form.forwarded_client_ip_headers.filter(
     (item) => item !== header,
@@ -10712,6 +10751,9 @@ async function loadSettings() {
     form.forwarded_client_ip_headers = normalizeForwardedClientIpHeaders(
       settings.forwarded_client_ip_headers,
     );
+    form.ip_blacklist = Array.isArray(settings.ip_blacklist)
+      ? [...settings.ip_blacklist]
+      : [];
     forwardedClientIpHeaderDraft.value = "";
     tablePageSizeOptionsInput.value = formatTablePageSizeOptions(
       Array.isArray(settings.table_page_size_options)
@@ -11115,6 +11157,7 @@ async function saveSettings() {
       aliyun_captcha_region: form.aliyun_captcha_region,
       api_key_acl_trust_forwarded_ip: form.api_key_acl_trust_forwarded_ip,
       forwarded_client_ip_headers: form.forwarded_client_ip_headers,
+      ip_blacklist: form.ip_blacklist,
       linuxdo_connect_enabled: form.linuxdo_connect_enabled,
       linuxdo_connect_client_id: form.linuxdo_connect_client_id,
       linuxdo_connect_client_secret:
@@ -11406,6 +11449,9 @@ async function saveSettings() {
     form.forwarded_client_ip_headers = normalizeForwardedClientIpHeaders(
       updated.forwarded_client_ip_headers,
     );
+    form.ip_blacklist = Array.isArray(updated.ip_blacklist)
+      ? [...updated.ip_blacklist]
+      : [];
     forwardedClientIpHeaderDraft.value = "";
     tablePageSizeOptionsInput.value = formatTablePageSizeOptions(
       Array.isArray(updated.table_page_size_options)

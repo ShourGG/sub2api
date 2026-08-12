@@ -14,6 +14,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 )
@@ -66,6 +67,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyLoginAgreementDocuments:                   loginAgreementDocumentsJSON,
 		SettingKeyAPIKeyACLTrustForwardedIP:                 "true",
 		SettingKeyForwardedClientIPHeaders:                  string(forwardedClientIPHeadersJSON),
+		SettingKeyIPBlacklist:                               "[]",
 		settingKeyForwardedClientIPModeV2:                   "true",
 		SettingKeySiteName:                                  "Sub2API",
 		SettingKeySiteLogo:                                  "",
@@ -279,6 +281,26 @@ func parseForwardedClientIPHeadersSetting(value string) ([]string, error) {
 	return normalized, nil
 }
 
+func parseIPBlacklistSetting(value string) ([]string, error) {
+	var patterns []string
+	if err := json.Unmarshal([]byte(value), &patterns); err != nil {
+		return nil, fmt.Errorf("parse ip_blacklist: %w", err)
+	}
+	if patterns == nil {
+		return nil, fmt.Errorf("parse ip_blacklist: value must be a JSON array")
+	}
+	normalized := make([]string, 0, len(patterns))
+	for _, pattern := range patterns {
+		if pattern = strings.TrimSpace(pattern); pattern != "" {
+			normalized = append(normalized, pattern)
+		}
+	}
+	if invalid := ip.ValidateIPPatterns(normalized); len(invalid) > 0 {
+		return nil, fmt.Errorf("parse ip_blacklist: invalid IP/CIDR pattern %q", invalid[0])
+	}
+	return normalized, nil
+}
+
 // parseSettings 解析设置到结构体
 func (s *SettingService) parseSettings(settings map[string]string) *SystemSettings {
 	emailVerifyEnabled := settings[SettingKeyEmailVerifyEnabled] == "true"
@@ -289,6 +311,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	}
 	apiKeyACLTrustForwardedIP := false
 	forwardedClientIPHeaders := []string{}
+	ipBlacklist := []string{}
 	if s != nil && s.cfg != nil {
 		runtimeSettings := s.cfg.ForwardedClientIPSettings()
 		apiKeyACLTrustForwardedIP = runtimeSettings.TrustForwardedIP
@@ -305,6 +328,14 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 			forwardedClientIPHeaders = []string{}
 		} else {
 			forwardedClientIPHeaders = parsed
+		}
+	}
+	if value, ok := settings[SettingKeyIPBlacklist]; ok {
+		parsed, err := parseIPBlacklistSetting(value)
+		if err != nil {
+			slog.Error("invalid persisted global IP blacklist; disabling blacklist", "error", err)
+		} else {
+			ipBlacklist = parsed
 		}
 	}
 	result := &SystemSettings{
@@ -348,6 +379,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		AliyunCaptchaRegion:                    normalizeAliyunCaptchaRegion(settings[SettingKeyAliyunCaptchaRegion]),
 		APIKeyACLTrustForwardedIP:              apiKeyACLTrustForwardedIP,
 		ForwardedClientIPHeaders:               forwardedClientIPHeaders,
+		IPBlacklist:                            ipBlacklist,
 		SiteName:                               s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"),
 		SiteLogo:                               settings[SettingKeySiteLogo],
 		SiteSubtitle:                           s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),

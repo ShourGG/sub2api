@@ -20,8 +20,16 @@ type smtpMessage struct {
 }
 
 func buildSMTPMessage(config *SMTPConfig, to, subject, body string) (smtpMessage, error) {
+	return buildSMTPMessageWithContentType(config, to, subject, body, "text/html; charset=UTF-8")
+}
+
+func buildSMTPMessageWithContentType(config *SMTPConfig, to, subject, body, contentType string) (smtpMessage, error) {
 	if config == nil {
 		return smtpMessage{}, errors.New("missing SMTP configuration")
+	}
+	contentType = sanitizeEmailHeader(strings.TrimSpace(contentType))
+	if contentType == "" {
+		contentType = "text/html; charset=UTF-8"
 	}
 
 	fromAddress, err := parseSMTPAddress(config.From, "from")
@@ -58,7 +66,7 @@ func buildSMTPMessage(config *SMTPConfig, to, subject, body string) (smtpMessage
 	fmt.Fprintf(&message, "Message-ID: %s\r\n", messageID)
 	fmt.Fprintf(&message, "Subject: %s\r\n", subjectHeader)
 	fmt.Fprint(&message, "MIME-Version: 1.0\r\n"+
-		"Content-Type: text/html; charset=UTF-8\r\n"+
+		"Content-Type: "+contentType+"\r\n"+
 		"Content-Transfer-Encoding: quoted-printable\r\n\r\n")
 
 	bodyWriter := quotedprintable.NewWriter(&message)

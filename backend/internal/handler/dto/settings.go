@@ -74,6 +74,7 @@ type SystemSettings struct {
 	AliyunCaptchaRegion                    string   `json:"aliyun_captcha_region"`
 	APIKeyACLTrustForwardedIP              bool     `json:"api_key_acl_trust_forwarded_ip"`
 	ForwardedClientIPHeaders               []string `json:"forwarded_client_ip_headers"`
+	IPBlacklist                            []string `json:"ip_blacklist"`
 
 	LinuxDoConnectEnabled                bool   `json:"linuxdo_connect_enabled"`
 	LinuxDoConnectClientID               string `json:"linuxdo_connect_client_id"`

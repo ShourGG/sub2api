@@ -112,6 +112,7 @@ export default {
         schedulable: '调度',
         todayStats: '今日统计',
         groups: '分组',
+        sendEmail: '发邮件',
         usageWindows: '用量窗口',
         proxy: '代理',
         lastUsed: '最近使用',

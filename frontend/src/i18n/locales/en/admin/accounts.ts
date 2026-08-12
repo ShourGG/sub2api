@@ -164,6 +164,7 @@ export default {
         schedulable: 'Schedulable',
         todayStats: 'Today Stats',
         groups: 'Groups',
+        sendEmail: 'Send email',
         usageWindows: 'Usage Windows',
         proxy: 'Proxy',
         lastUsed: 'Last Used',

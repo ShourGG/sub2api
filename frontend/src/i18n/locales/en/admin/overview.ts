@@ -456,6 +456,7 @@ export default {
         failed: 'Failed to update user limits'
       },
       editUser: 'Edit User',
+	  sendEmail: 'Send email',
       deleteUser: 'Delete User',
       deleteConfirmMessage: "Are you sure you want to delete user '{email}'? This action cannot be undone.",
       searchPlaceholder: 'Search by email, username, notes, or API key...',

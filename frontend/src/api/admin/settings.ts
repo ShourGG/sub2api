@@ -506,6 +506,7 @@ export interface SystemSettings {
   aliyun_captcha_region: string;
   api_key_acl_trust_forwarded_ip: boolean;
   forwarded_client_ip_headers: string[];
+  ip_blacklist: string[];
 
   // LinuxDo Connect OAuth settings
   linuxdo_connect_enabled: boolean;
@@ -841,6 +842,7 @@ export interface UpdateSettingsRequest {
   aliyun_captcha_region?: string;
   api_key_acl_trust_forwarded_ip?: boolean;
   forwarded_client_ip_headers?: string[];
+  ip_blacklist?: string[];
   linuxdo_connect_enabled?: boolean;
   linuxdo_connect_client_id?: string;
   linuxdo_connect_client_secret?: string;
