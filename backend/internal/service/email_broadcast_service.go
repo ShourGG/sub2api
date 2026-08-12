@@ -407,11 +407,11 @@ func (s *EmailBroadcastService) composeHTMLBody(subject, body, format, senderNam
 }
 
 // resolveSenderName 读取邮件落款使用的"发件人名称":
-//   1. 优先使用 SMTP 配置里的 \"发件人名称\"(smtp_from_name)。这与收件人收件箱中看到的
-//      发件人显示名一致(SendEmailWithConfig 在 From 头里就用这个字段),邮件正文头
-//      与签名也跟着保持一致。
-//   2. 回退到站点名(site_name)。
-//   3. 仍然为空时回退到 \"Sub2API\"。
+//  1. 优先使用 SMTP 配置里的 \"发件人名称\"(smtp_from_name)。这与收件人收件箱中看到的
+//     发件人显示名一致(SendEmailWithConfig 在 From 头里就用这个字段),邮件正文头
+//     与签名也跟着保持一致。
+//  2. 回退到站点名(site_name)。
+//  3. 仍然为空时回退到 \"Sub2API\"。
 //
 // resolveSenderName chooses the display name used in the email header banner and
 // system footer. It prefers the SMTP From-Name (the same name the inbox shows as
@@ -436,6 +436,7 @@ func (s *EmailBroadcastService) resolveSenderName(ctx context.Context) string {
 //   - HTML-escape 防 XSS
 //   - 连续两个换行 -> 段落分隔 (<p>)
 //   - 单个换行    -> 行内换行 (<br>)
+//
 // renderPlainTextAsHTML converts a plain-text body into HTML by escaping it,
 // splitting on blank lines into paragraphs and turning single line breaks into <br>.
 func renderPlainTextAsHTML(body string) string {

@@ -22,14 +22,14 @@ const (
 // Re-exported domain errors.
 var (
 	ErrEmailBroadcastNotFound           = domain.ErrEmailBroadcastNotFound
-	ErrEmailBroadcastSubjectRequired     = domain.ErrEmailBroadcastSubjectRequired
-	ErrEmailBroadcastBodyRequired        = domain.ErrEmailBroadcastBodyRequired
-	ErrEmailBroadcastSubjectTooLong      = domain.ErrEmailBroadcastSubjectTooLong
-	ErrEmailBroadcastBodyTooLong         = domain.ErrEmailBroadcastBodyTooLong
-	ErrEmailBroadcastInvalidBodyFormat   = domain.ErrEmailBroadcastInvalidBodyFormat
-	ErrEmailBroadcastInvalidMode         = domain.ErrEmailBroadcastInvalidMode
-	ErrEmailBroadcastNoRecipients        = domain.ErrEmailBroadcastNoRecipients
-	ErrEmailBroadcastTooManyRecipients   = domain.ErrEmailBroadcastTooManyRecipients
+	ErrEmailBroadcastSubjectRequired    = domain.ErrEmailBroadcastSubjectRequired
+	ErrEmailBroadcastBodyRequired       = domain.ErrEmailBroadcastBodyRequired
+	ErrEmailBroadcastSubjectTooLong     = domain.ErrEmailBroadcastSubjectTooLong
+	ErrEmailBroadcastBodyTooLong        = domain.ErrEmailBroadcastBodyTooLong
+	ErrEmailBroadcastInvalidBodyFormat  = domain.ErrEmailBroadcastInvalidBodyFormat
+	ErrEmailBroadcastInvalidMode        = domain.ErrEmailBroadcastInvalidMode
+	ErrEmailBroadcastNoRecipients       = domain.ErrEmailBroadcastNoRecipients
+	ErrEmailBroadcastTooManyRecipients  = domain.ErrEmailBroadcastTooManyRecipients
 	ErrEmailBroadcastEmailNotConfigured = domain.ErrEmailBroadcastEmailNotConfigured
 	ErrEmailBroadcastDeleteInFlight     = domain.ErrEmailBroadcastDeleteInFlight
 )

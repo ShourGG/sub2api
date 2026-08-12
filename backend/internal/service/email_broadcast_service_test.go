@@ -95,9 +95,9 @@ func newTestEmailBroadcastService() (*EmailBroadcastService, *emailBroadcastRepo
 func TestEmailBroadcastSend_RejectsEmptySubject(t *testing.T) {
 	svc, _ := newTestEmailBroadcastService()
 	_, err := svc.Send(context.Background(), EmailBroadcastSendInput{
-		Subject:        "  ",
-		Body:           "hello",
-		RecipientsMode: EmailBroadcastRecipientsModeSelected,
+		Subject:          "  ",
+		Body:             "hello",
+		RecipientsMode:   EmailBroadcastRecipientsModeSelected,
 		RecipientUserIDs: []int64{1},
 	})
 	require.ErrorIs(t, err, ErrEmailBroadcastSubjectRequired)
