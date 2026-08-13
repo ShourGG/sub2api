@@ -1,5 +1,6 @@
 export default {
     title: 'Token 排行榜',
+    adminTitle: '后台管理员总排行榜',
     description: '按 Token、请求数或费用查看全站用量排名，支持多维筛选与 Top N。',
     periodLabel: '排行周期',
     limit: '数量',
