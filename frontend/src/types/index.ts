@@ -582,6 +582,7 @@ export interface Group {
   audio_realtime_price_per_min: number | null
   audio_tts_price_per_million_chars: number | null
   audio_stt_price_per_hour: number | null
+  long_context_pricing_enabled: boolean
   // 高峰时段倍率配置
   peak_rate_enabled: boolean
   peak_start: string
@@ -604,6 +605,7 @@ export interface Group {
 }
 
 export interface AdminGroup extends Group {
+  model_pricing: import('@/api/admin/channels').ChannelModelPricing[]
 	// Dynamic pricing is admin-only because it exposes upstream cost data.
 	dynamic_rate_enabled?: boolean
 	dynamic_rate_markup?: number
@@ -783,6 +785,8 @@ export interface CreateGroupRequest {
   daily_limit_usd?: number | null
   weekly_limit_usd?: number | null
   monthly_limit_usd?: number | null
+  long_context_pricing_enabled?: boolean
+  model_pricing?: import('@/api/admin/channels').ChannelModelPricing[]
   allow_image_generation?: boolean
   allow_batch_image_generation?: boolean
   image_rate_independent?: boolean
@@ -1916,10 +1920,12 @@ export interface UserBreakdownItem {
   input_tokens: number
   output_tokens: number
   cache_tokens: number
+  image_output_tokens: number
   total_tokens: number
   cost: number
   actual_cost: number
   account_cost: number
+  last_active_at: string
 }
 
 export interface UserUsageTrendPoint {

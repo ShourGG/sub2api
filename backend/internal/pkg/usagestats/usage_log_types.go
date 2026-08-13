@@ -204,13 +204,18 @@ type TokenLeaderboardRow struct {
 // TokenLeaderboardQuery contains the optional filters and sort for the user-facing leaderboard.
 // SortBy is allowlisted by the handler and repository; empty defaults to tokens.
 type TokenLeaderboardQuery struct {
-	RequestType *int16
-	Stream      *bool
-	BillingMode string
-	SortBy      string
+	RequestType  *int16
+	Stream       *bool
+	BillingMode  string
+	SortBy       string
+	BillingType  *int16
+	Model        string
+	GroupID      int64
+	UserID       int64
+	AccountName  string
+	AccountEmail string
 }
 
-// TokenLeaderboardResponse is the payload returned to the Token leaderboard page.
 type TokenLeaderboardResponse struct {
 	Days        int                    `json:"days"`
 	Label       string                 `json:"label"`
@@ -226,16 +231,18 @@ type TokenLeaderboardResponse struct {
 
 // UserBreakdownItem represents per-user usage breakdown within a dimension (group, model, endpoint).
 type UserBreakdownItem struct {
-	UserID       int64   `json:"user_id"`
-	Email        string  `json:"email"`
-	Requests     int64   `json:"requests"`
-	InputTokens  int64   `json:"input_tokens"`  // 输入 token 累计
-	OutputTokens int64   `json:"output_tokens"` // 输出 token 累计
-	CacheTokens  int64   `json:"cache_tokens"`  // 缓存创建 + 读取 token 累计
-	TotalTokens  int64   `json:"total_tokens"`  // 输入+输出+缓存 token 累计
-	Cost         float64 `json:"cost"`          // 标准计费
-	ActualCost   float64 `json:"actual_cost"`   // 实际扣除
-	AccountCost  float64 `json:"account_cost"`  // 账号成本
+	UserID            int64     `json:"user_id"`
+	Email             string    `json:"email"`
+	Requests          int64     `json:"requests"`
+	InputTokens       int64     `json:"input_tokens"`        // 输入 token 累计
+	OutputTokens      int64     `json:"output_tokens"`       // 输出 token 累计
+	CacheTokens       int64     `json:"cache_tokens"`        // 缓存创建 + 读取 token 累计
+	ImageOutputTokens int64     `json:"image_output_tokens"` // 生图输出 token 累计
+	TotalTokens       int64     `json:"total_tokens"`        // 输入+输出+缓存+生图 token 累计
+	Cost              float64   `json:"cost"`                // 标准计费
+	ActualCost        float64   `json:"actual_cost"`         // 实际扣除
+	AccountCost       float64   `json:"account_cost"`        // 账号成本
+	LastActiveAt      time.Time `json:"last_active_at"`      // 最近活跃时间
 }
 
 // UserBreakdownDimension specifies the dimension to filter for user breakdown.

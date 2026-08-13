@@ -261,6 +261,7 @@ func (r *usageLogRepository) GetTokenLeaderboardWithFilters(ctx context.Context,
 			MAX(u.created_at) AS last_active_at
 		FROM usage_logs u
 		LEFT JOIN users us ON u.user_id = us.id
+		LEFT JOIN accounts a ON u.account_id = a.id
 		WHERE u.created_at >= $1 AND u.created_at < $2
 	`
 	args := []any{startTime, endTime}
@@ -279,6 +280,31 @@ func (r *usageLogRepository) GetTokenLeaderboardWithFilters(ctx context.Context,
 			query += " AND " + condition
 		}
 		args = conditionArgs
+	}
+
+	if options.BillingType != nil {
+		query += fmt.Sprintf(" AND u.billing_type = $%d", len(args)+1)
+		args = append(args, *options.BillingType)
+	}
+	if strings.TrimSpace(options.Model) != "" {
+		query += fmt.Sprintf(" AND u.model = $%d", len(args)+1)
+		args = append(args, options.Model)
+	}
+	if options.GroupID > 0 {
+		query += fmt.Sprintf(" AND u.group_id = $%d", len(args)+1)
+		args = append(args, options.GroupID)
+	}
+	if options.UserID > 0 {
+		query += fmt.Sprintf(" AND u.user_id = $%d", len(args)+1)
+		args = append(args, options.UserID)
+	}
+	if accountName := strings.TrimSpace(options.AccountName); accountName != "" {
+		query += fmt.Sprintf(" AND a.name ILIKE $%d", len(args)+1)
+		args = append(args, "%"+accountName+"%")
+	}
+	if accountEmail := strings.TrimSpace(options.AccountEmail); accountEmail != "" {
+		query += fmt.Sprintf(" AND COALESCE(a.credentials->>'email', a.extra->>'email', a.extra->>'email_address', '') ILIKE $%d", len(args)+1)
+		args = append(args, "%"+accountEmail+"%")
 	}
 
 	query += " GROUP BY u.user_id, us.email " + resolveTokenLeaderboardOrderBy(options.SortBy)
@@ -735,10 +761,12 @@ func (r *usageLogRepository) GetUserBreakdownStats(ctx context.Context, startTim
 			COALESCE(SUM(ul.input_tokens), 0) as input_tokens,
 			COALESCE(SUM(ul.output_tokens), 0) as output_tokens,
 			COALESCE(SUM(ul.cache_creation_tokens + ul.cache_read_tokens), 0) as cache_tokens,
-			COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens), 0) as total_tokens,
+			COALESCE(SUM(ul.image_output_tokens), 0) as image_output_tokens,
+			COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens + ul.image_output_tokens), 0) as total_tokens,
 			COALESCE(SUM(ul.total_cost), 0) as cost,
 			COALESCE(SUM(ul.actual_cost), 0) as actual_cost,
-			COALESCE(SUM(COALESCE(ul.account_stats_cost, ul.total_cost) * COALESCE(ul.account_rate_multiplier, 1)), 0) as account_cost
+			COALESCE(SUM(COALESCE(ul.account_stats_cost, ul.total_cost) * COALESCE(ul.account_rate_multiplier, 1)), 0) as account_cost,
+			MAX(ul.created_at) as last_active_at
 		FROM usage_logs ul
 		LEFT JOIN users u ON u.id = ul.user_id
 		WHERE ul.created_at >= $1 AND ul.created_at < $2
@@ -794,7 +822,7 @@ func (r *usageLogRepository) GetUserBreakdownStats(ctx context.Context, startTim
 	// ORDER BY 列来自固定 allowlist(非用户原样字符串),避免 SQL 注入。
 	orderBy := "actual_cost"
 	switch dim.SortBy {
-	case "total_tokens", "input_tokens", "output_tokens", "cache_tokens", "requests", "cost", "actual_cost":
+	case "total_tokens", "input_tokens", "output_tokens", "cache_tokens", "image_output_tokens", "requests", "cost", "actual_cost", "account_cost":
 		orderBy = dim.SortBy
 	}
 	query += " GROUP BY ul.user_id, u.email ORDER BY " + orderBy + " DESC, total_tokens DESC, requests DESC, user_id ASC"
@@ -823,10 +851,12 @@ func (r *usageLogRepository) GetUserBreakdownStats(ctx context.Context, startTim
 			&row.InputTokens,
 			&row.OutputTokens,
 			&row.CacheTokens,
+			&row.ImageOutputTokens,
 			&row.TotalTokens,
 			&row.Cost,
 			&row.ActualCost,
 			&row.AccountCost,
+			&row.LastActiveAt,
 		); err != nil {
 			return nil, err
 		}
