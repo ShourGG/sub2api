@@ -249,6 +249,7 @@ func (r *usageLogRepository) GetTokenLeaderboardWithFilters(ctx context.Context,
 		SELECT
 			u.user_id,
 			COALESCE(us.email, '') AS email,
+			COALESCE(us.username, '') AS username,
 			COUNT(*) AS requests,
 			COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens + u.image_output_tokens), 0) AS total_tokens,
 			COALESCE(SUM(u.input_tokens), 0) AS input_tokens,
@@ -262,6 +263,7 @@ func (r *usageLogRepository) GetTokenLeaderboardWithFilters(ctx context.Context,
 		FROM usage_logs u
 		LEFT JOIN users us ON u.user_id = us.id
 		LEFT JOIN accounts a ON u.account_id = a.id
+		LEFT JOIN accounts parent_a ON a.parent_account_id = parent_a.id
 		WHERE u.created_at >= $1 AND u.created_at < $2
 	`
 	args := []any{startTime, endTime}
@@ -299,15 +301,23 @@ func (r *usageLogRepository) GetTokenLeaderboardWithFilters(ctx context.Context,
 		args = append(args, options.UserID)
 	}
 	if accountName := strings.TrimSpace(options.AccountName); accountName != "" {
-		query += fmt.Sprintf(" AND a.name ILIKE $%d", len(args)+1)
+		query += fmt.Sprintf(" AND (a.name ILIKE $%d OR parent_a.name ILIKE $%d OR us.username ILIKE $%d)", len(args)+1, len(args)+1, len(args)+1)
 		args = append(args, "%"+accountName+"%")
 	}
 	if accountEmail := strings.TrimSpace(options.AccountEmail); accountEmail != "" {
-		query += fmt.Sprintf(" AND COALESCE(a.credentials->>'email', a.extra->>'email', a.extra->>'email_address', '') ILIKE $%d", len(args)+1)
+		query += fmt.Sprintf(` AND (
+			us.email ILIKE $%d OR
+			a.extra->>'email_address' ILIKE $%d OR
+			a.extra->>'email' ILIKE $%d OR
+			a.credentials->>'email' ILIKE $%d OR
+			parent_a.extra->>'email_address' ILIKE $%d OR
+			parent_a.extra->>'email' ILIKE $%d OR
+			parent_a.credentials->>'email' ILIKE $%d
+		)`, len(args)+1, len(args)+1, len(args)+1, len(args)+1, len(args)+1, len(args)+1, len(args)+1)
 		args = append(args, "%"+accountEmail+"%")
 	}
 
-	query += " GROUP BY u.user_id, us.email " + resolveTokenLeaderboardOrderBy(options.SortBy)
+	query += " GROUP BY u.user_id, us.email, us.username " + resolveTokenLeaderboardOrderBy(options.SortBy)
 	query += fmt.Sprintf(" LIMIT $%d", len(args)+1)
 	args = append(args, limit)
 
@@ -328,6 +338,7 @@ func (r *usageLogRepository) GetTokenLeaderboardWithFilters(ctx context.Context,
 		if err = rows.Scan(
 			&row.UserID,
 			&row.Email,
+			&row.Username,
 			&row.Requests,
 			&row.TotalTokens,
 			&row.InputTokens,

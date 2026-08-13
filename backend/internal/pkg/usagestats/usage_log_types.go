@@ -189,6 +189,7 @@ type TokenLeaderboardItem struct {
 type TokenLeaderboardRow struct {
 	UserID            int64
 	Email             string
+	Username          string
 	Requests          int64
 	TotalTokens       int64
 	InputTokens       int64

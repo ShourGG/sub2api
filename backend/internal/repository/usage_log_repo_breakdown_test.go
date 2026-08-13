@@ -91,9 +91,9 @@ func TestGetTokenLeaderboardWithFiltersUsesAllowlistedOrderAndLegacyRequestType(
 	mock.ExpectQuery(queryPattern).
 		WithArgs(start, end, requestType, "video", 20).
 		WillReturnRows(sqlmock.NewRows([]string{
-			"user_id", "email", "requests", "total_tokens", "input_tokens", "output_tokens",
+			"user_id", "email", "username", "requests", "total_tokens", "input_tokens", "output_tokens",
 			"cache_tokens", "image_output_tokens", "cost", "actual_cost", "account_cost", "last_active_at",
-		}).AddRow(42, "user@example.com", 3, 120, 20, 30, 40, 30, 0.3, 0.2, 0.25, end))
+		}).AddRow(42, "user@example.com", "user-name", 3, 120, 20, 30, 40, 30, 0.3, 0.2, 0.25, end))
 
 	rows, err := repo.GetTokenLeaderboardWithFilters(context.Background(), start, end, 20, usagestats.TokenLeaderboardQuery{
 		RequestType: &requestType,
@@ -114,11 +114,11 @@ func TestGetTokenLeaderboardWithFiltersUsesAccountNameAndEmailSearch(t *testing.
 	start := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
 	end := start.Add(24 * time.Hour)
 
-	queryPattern := `(?s)LEFT JOIN accounts a ON u\.account_id = a\.id.*a\.name ILIKE \$3.*COALESCE\(a\.credentials->>'email', a\.extra->>'email', a\.extra->>'email_address', ''\) ILIKE \$4.*LIMIT \$5`
+	queryPattern := `(?s)LEFT JOIN accounts a ON u\.account_id = a\.id.*LEFT JOIN accounts parent_a ON a\.parent_account_id = parent_a\.id.*\(a\.name ILIKE \$3 OR parent_a\.name ILIKE \$3 OR us\.username ILIKE \$3\).*\(\s*us\.email ILIKE \$4 OR.*parent_a\.credentials->>'email' ILIKE \$4\s*\).*LIMIT \$5`
 	mock.ExpectQuery(queryPattern).
 		WithArgs(start, end, "%Codex%", "%admin@example.com%", 20).
 		WillReturnRows(sqlmock.NewRows([]string{
-			"user_id", "email", "requests", "total_tokens", "input_tokens", "output_tokens",
+			"user_id", "email", "username", "requests", "total_tokens", "input_tokens", "output_tokens",
 			"cache_tokens", "image_output_tokens", "cost", "actual_cost", "account_cost", "last_active_at",
 		}))
 
