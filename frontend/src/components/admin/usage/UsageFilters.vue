@@ -4,55 +4,14 @@
     <div class="flex flex-wrap items-end justify-between gap-4">
       <!-- Left: filters (allowed to wrap to multiple rows) -->
       <div class="flex flex-1 flex-wrap items-end gap-4">
-        <!-- User Search -->
-        <div ref="userSearchRef" class="usage-filter-dropdown relative w-full sm:w-auto sm:min-w-[240px]">
-          <label class="input-label">{{ t('admin.usage.userFilter') }}</label>
-          <input
-            v-model="userKeyword"
-            type="text"
-            class="input pr-8"
-            :placeholder="t('admin.usage.searchUserPlaceholder')"
-            @input="debounceUserSearch"
-            @focus="showUserDropdown = true"
-          />
-          <button
-            v-if="filters.user_id"
-            type="button"
-            @click="clearUser"
-            class="absolute right-2 top-9 text-gray-400"
-            aria-label="Clear user filter"
-          >
-            ✕
-          </button>
-          <div
-            v-if="showUserDropdown && (userResults.length > 0 || userKeyword)"
-            class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border bg-white shadow-lg dark:bg-dark-800"
-          >
-            <button
-              v-for="u in userResults"
-              :key="u.id"
-              type="button"
-              data-testid="usage-user-result"
-              @click="selectUser(u)"
-              class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-dark-700"
-            >
-              <span>{{ userLabel(u) }}<span v-if="u.deleted" class="ml-1 text-xs text-gray-400">（{{ t('admin.usage.userDeletedBadge') }}）</span></span>
-              <span v-if="u.username && u.email && u.username !== u.email" class="ml-2 text-xs text-gray-400">{{ u.email }}</span>
-              <span class="ml-2 text-xs text-gray-400">#{{ u.id }}</span>
-            </button>
-          </div>
-        </div>
-
         <!-- API Key Search -->
         <div ref="apiKeySearchRef" class="usage-filter-dropdown relative w-full sm:w-auto sm:min-w-[240px]">
           <label class="input-label">{{ t('usage.apiKeyFilter') }}</label>
           <input
             v-model="apiKeyKeyword"
             type="text"
-            class="input pr-8 disabled:cursor-not-allowed disabled:opacity-60"
+            class="input pr-8"
             :placeholder="t('admin.usage.searchApiKeyPlaceholder')"
-            :disabled="!filters.user_id"
-            :title="!filters.user_id ? t('admin.usage.selectUserBeforeApiKey') : undefined"
             @input="debounceApiKeySearch"
             @focus="onApiKeyFocus"
           />
@@ -73,7 +32,6 @@
               v-for="k in apiKeyResults"
               :key="k.id"
               type="button"
-              data-testid="usage-api-key-result"
               @click="selectApiKey(k)"
               class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-dark-700"
             >
@@ -203,7 +161,7 @@ import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
 import { COMMON_ERROR_STATUS_CODES } from '@/utils/errorBadges'
-import type { SimpleApiKey, SimpleUser } from '@/api/admin/usage'
+import type { SimpleApiKey } from '@/api/admin/usage'
 
 type ModelValue = Record<string, any>
 
@@ -243,15 +201,8 @@ const emit = defineEmits([
 const { t } = useI18n()
 const filters = toRef(props, 'modelValue')
 
-const userSearchRef = ref<HTMLElement | null>(null)
 const apiKeySearchRef = ref<HTMLElement | null>(null)
 const accountSearchRef = ref<HTMLElement | null>(null)
-
-const userKeyword = ref('')
-const userResults = ref<SimpleUser[]>([])
-const showUserDropdown = ref(false)
-let userSearchTimeout: ReturnType<typeof setTimeout> | null = null
-let userSearchSequence = 0
 
 const apiKeyKeyword = ref('')
 const apiKeyResults = ref<SimpleApiKey[]>([])
@@ -328,47 +279,9 @@ const upstreamModelMismatchOptions = ref<SelectOption[]>([
 
 const emitChange = () => emit('change')
 
-const userLabel = (user: SimpleUser) => user.username || user.email || `#${user.id}`
-
-const clearPendingUserSearch = () => {
-  if (userSearchTimeout) {
-    clearTimeout(userSearchTimeout)
-    userSearchTimeout = null
-  }
-  userSearchSequence += 1
-}
-
-const debounceUserSearch = () => {
-  clearPendingUserSearch()
-  const query = userKeyword.value.trim()
-  if (!query) {
-    userResults.value = []
-    return
-  }
-
-  const sequence = userSearchSequence
-  userSearchTimeout = setTimeout(async () => {
-    userSearchTimeout = null
-    try {
-      const results = await adminAPI.usage.searchUsers(query)
-      if (sequence === userSearchSequence) {
-        userResults.value = results.sort((a, b) => Number(a.deleted) - Number(b.deleted))
-      }
-    } catch {
-      if (sequence === userSearchSequence) {
-        userResults.value = []
-      }
-    }
-  }, 300)
-}
 
 const debounceApiKeySearch = () => {
   if (apiKeySearchTimeout) clearTimeout(apiKeySearchTimeout)
-  if (!filters.value.user_id) {
-    apiKeyResults.value = []
-    showApiKeyDropdown.value = false
-    return
-  }
   apiKeySearchTimeout = setTimeout(async () => {
     try {
       apiKeyResults.value = await adminAPI.usage.searchApiKeys(
@@ -381,25 +294,6 @@ const debounceApiKeySearch = () => {
   }, 300)
 }
 
-const selectUser = async (u: SimpleUser) => {
-  clearPendingUserSearch()
-  userKeyword.value = userLabel(u)
-  showUserDropdown.value = false
-  filters.value.user_id = u.id
-  clearApiKey()
-
-  emitChange()
-}
-
-const clearUser = () => {
-  clearPendingUserSearch()
-  userKeyword.value = ''
-  userResults.value = []
-  showUserDropdown.value = false
-  filters.value.user_id = undefined
-  clearApiKey()
-  emitChange()
-}
 
 const selectApiKey = (k: SimpleApiKey) => {
   apiKeyKeyword.value = k.name || String(k.id)
@@ -418,13 +312,6 @@ const clearApiKey = () => {
 const onClearApiKey = () => {
   clearApiKey()
   emitChange()
-}
-
-const clearPendingApiKeySearch = () => {
-  if (apiKeySearchTimeout) {
-    clearTimeout(apiKeySearchTimeout)
-    apiKeySearchTimeout = null
-  }
 }
 
 const debounceAccountSearch = () => {
@@ -459,7 +346,6 @@ const clearAccount = () => {
 }
 
 const onApiKeyFocus = () => {
-  if (!filters.value.user_id) return
   showApiKeyDropdown.value = true
   // Trigger search if no results yet
   if (apiKeyResults.value.length === 0) {
@@ -471,11 +357,9 @@ const onDocumentClick = (e: MouseEvent) => {
   const target = e.target as Node | null
   if (!target) return
 
-  const clickedInsideUser = userSearchRef.value?.contains(target) ?? false
   const clickedInsideApiKey = apiKeySearchRef.value?.contains(target) ?? false
   const clickedInsideAccount = accountSearchRef.value?.contains(target) ?? false
 
-  if (!clickedInsideUser) showUserDropdown.value = false
   if (!clickedInsideApiKey) showApiKeyDropdown.value = false
   if (!clickedInsideAccount) showAccountDropdown.value = false
 }
@@ -496,18 +380,6 @@ watch(
   { immediate: true }
 )
 
-watch(
-  () => filters.value.user_id,
-  (userId) => {
-    if (!userId) {
-      clearPendingUserSearch()
-      userKeyword.value = ''
-      userResults.value = []
-      clearPendingApiKeySearch()
-      clearApiKey()
-    }
-  }
-)
 
 watch(
   () => filters.value.api_key_id,
@@ -540,20 +412,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  clearPendingUserSearch()
-  clearPendingApiKeySearch()
   document.removeEventListener('click', onDocumentClick)
 })
 
-// 供外部(如用户排行下钻)在程序化设置 user_id 后回显选中的用户邮箱
-const setUserKeyword = (email: string) => {
-  clearPendingUserSearch()
-  userKeyword.value = email
-  userResults.value = []
-  showUserDropdown.value = false
-}
-
-const getUserSearchRevision = () => userSearchSequence
-
-defineExpose({ getUserSearchRevision, setUserKeyword })
 </script>

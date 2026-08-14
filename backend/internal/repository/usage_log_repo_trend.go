@@ -249,7 +249,6 @@ func (r *usageLogRepository) GetTokenLeaderboardWithFilters(ctx context.Context,
 		SELECT
 			u.user_id,
 			COALESCE(us.email, '') AS email,
-			COALESCE(us.username, '') AS username,
 			COUNT(*) AS requests,
 			COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens + u.image_output_tokens), 0) AS total_tokens,
 			COALESCE(SUM(u.input_tokens), 0) AS input_tokens,
@@ -300,24 +299,8 @@ func (r *usageLogRepository) GetTokenLeaderboardWithFilters(ctx context.Context,
 		query += fmt.Sprintf(" AND u.user_id = $%d", len(args)+1)
 		args = append(args, options.UserID)
 	}
-	if accountName := strings.TrimSpace(options.AccountName); accountName != "" {
-		query += fmt.Sprintf(" AND (a.name ILIKE $%d OR parent_a.name ILIKE $%d OR us.username ILIKE $%d)", len(args)+1, len(args)+1, len(args)+1)
-		args = append(args, "%"+accountName+"%")
-	}
-	if accountEmail := strings.TrimSpace(options.AccountEmail); accountEmail != "" {
-		query += fmt.Sprintf(` AND (
-			us.email ILIKE $%d OR
-			a.extra->>'email_address' ILIKE $%d OR
-			a.extra->>'email' ILIKE $%d OR
-			a.credentials->>'email' ILIKE $%d OR
-			parent_a.extra->>'email_address' ILIKE $%d OR
-			parent_a.extra->>'email' ILIKE $%d OR
-			parent_a.credentials->>'email' ILIKE $%d
-		)`, len(args)+1, len(args)+1, len(args)+1, len(args)+1, len(args)+1, len(args)+1, len(args)+1)
-		args = append(args, "%"+accountEmail+"%")
-	}
 
-	query += " GROUP BY u.user_id, us.email, us.username " + resolveTokenLeaderboardOrderBy(options.SortBy)
+	query += " GROUP BY u.user_id, us.email " + resolveTokenLeaderboardOrderBy(options.SortBy)
 	query += fmt.Sprintf(" LIMIT $%d", len(args)+1)
 	args = append(args, limit)
 
@@ -338,7 +321,6 @@ func (r *usageLogRepository) GetTokenLeaderboardWithFilters(ctx context.Context,
 		if err = rows.Scan(
 			&row.UserID,
 			&row.Email,
-			&row.Username,
 			&row.Requests,
 			&row.TotalTokens,
 			&row.InputTokens,
