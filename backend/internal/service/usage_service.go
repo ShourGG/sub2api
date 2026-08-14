@@ -357,6 +357,29 @@ func (s *UsageService) GetTokenLeaderboard(ctx context.Context, startTime, endTi
 	return rows, nil
 }
 
+// GetTokenLeaderboardWithFilters returns the user-facing leaderboard with optional
+// sorting and usage filters. Repositories that predate the filtered method fall
+// back to the original token-only query.
+func (s *UsageService) GetTokenLeaderboardWithFilters(ctx context.Context, startTime, endTime time.Time, limit int, query usagestats.TokenLeaderboardQuery) ([]usagestats.TokenLeaderboardRow, error) {
+	type filteredLeaderboardRepo interface {
+		GetTokenLeaderboardWithFilters(context.Context, time.Time, time.Time, int, usagestats.TokenLeaderboardQuery) ([]usagestats.TokenLeaderboardRow, error)
+	}
+
+	if repo, ok := s.usageRepo.(filteredLeaderboardRepo); ok {
+		rows, err := repo.GetTokenLeaderboardWithFilters(ctx, startTime, endTime, limit, query)
+		if err != nil {
+			return nil, fmt.Errorf("get token leaderboard with filters: %w", err)
+		}
+		return rows, nil
+	}
+
+	rows, err := s.GetTokenLeaderboard(ctx, startTime, endTime, limit)
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
 // GetModelStatsWithFiltersBySource returns model stats using the shared usage filter shape.
 func (s *UsageService) GetModelStatsWithFiltersBySource(ctx context.Context, startTime, endTime time.Time, filters usagestats.UsageLogFilters, modelSource string) ([]usagestats.ModelStat, error) {
 	normalizedSource := usagestats.NormalizeModelSource(modelSource)

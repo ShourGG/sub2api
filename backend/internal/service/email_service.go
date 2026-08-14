@@ -188,7 +188,12 @@ const smtpIOTimeout = 20 * time.Second
 
 // SendEmailWithConfig 使用指定配置发送邮件
 func (s *EmailService) SendEmailWithConfig(config *SMTPConfig, to, subject, body string) error {
-	message, err := buildSMTPMessage(config, to, subject, body)
+	return s.SendEmailWithConfigAndContentType(config, to, subject, body, "text/html; charset=UTF-8")
+}
+
+// SendEmailWithConfigAndContentType sends an email with an explicit MIME content type.
+func (s *EmailService) SendEmailWithConfigAndContentType(config *SMTPConfig, to, subject, body, contentType string) error {
+	message, err := buildSMTPMessageWithContentType(config, to, subject, body, contentType)
 	if err != nil {
 		return err
 	}
