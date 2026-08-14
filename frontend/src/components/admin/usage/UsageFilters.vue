@@ -32,10 +32,11 @@
               v-for="u in userResults"
               :key="u.id"
               type="button"
+              data-testid="usage-user-result"
               @click="selectUser(u)"
               class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-dark-700"
             >
-              <span>{{ u.email }}<span v-if="u.deleted" class="ml-1 text-xs text-gray-400">（{{ t('admin.usage.userDeletedBadge') }}）</span></span>
+              <span>{{ u.email || `#${u.id}` }}<span v-if="u.deleted" class="ml-1 text-xs text-gray-400">（{{ t('admin.usage.userDeletedBadge') }}）</span></span>
               <span class="ml-2 text-xs text-gray-400">#{{ u.id }}</span>
             </button>
           </div>
@@ -47,8 +48,10 @@
           <input
             v-model="apiKeyKeyword"
             type="text"
-            class="input pr-8"
+            class="input pr-8 disabled:cursor-not-allowed disabled:opacity-60"
             :placeholder="t('admin.usage.searchApiKeyPlaceholder')"
+            :disabled="!filters.user_id"
+            :title="!filters.user_id ? t('admin.usage.selectUserBeforeApiKey') : undefined"
             @input="debounceApiKeySearch"
             @focus="onApiKeyFocus"
           />
@@ -69,6 +72,7 @@
               v-for="k in apiKeyResults"
               :key="k.id"
               type="button"
+              data-testid="usage-api-key-result"
               @click="selectApiKey(k)"
               class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-dark-700"
             >
@@ -81,44 +85,7 @@
         <!-- Model Filter -->
         <div class="w-full sm:w-auto sm:min-w-[220px]">
           <label class="input-label">{{ t('usage.model') }}</label>
-          <Select v-model="filters.model" :options="modelOptions" searchable @change="emitChange" />
-        </div>
-
-        <!-- Account Filter -->
-        <div ref="accountSearchRef" class="usage-filter-dropdown relative w-full sm:w-auto sm:min-w-[220px]">
-          <label class="input-label">{{ t('admin.usage.account') }}</label>
-          <input
-            v-model="accountKeyword"
-            type="text"
-            class="input pr-8"
-            :placeholder="t('admin.usage.searchAccountPlaceholder')"
-            @input="debounceAccountSearch"
-            @focus="showAccountDropdown = true"
-          />
-          <button
-            v-if="filters.account_id"
-            type="button"
-            @click="clearAccount"
-            class="absolute right-2 top-9 text-gray-400"
-            aria-label="Clear account filter"
-          >
-            ✕
-          </button>
-          <div
-            v-if="showAccountDropdown && (accountResults.length > 0 || accountKeyword)"
-            class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border bg-white shadow-lg dark:bg-dark-800"
-          >
-            <button
-              v-for="a in accountResults"
-              :key="a.id"
-              type="button"
-              @click="selectAccount(a)"
-              class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-dark-700"
-            >
-              <span class="truncate">{{ a.name }}</span>
-              <span class="ml-2 text-xs text-gray-400">#{{ a.id }}</span>
-            </button>
-          </div>
+          <Select v-model="filters.model" :options="modelOptions" searchable :creatable="modelCreatable" @change="emitChange" />
         </div>
 
         <!-- Request Type Filter (usage only) -->
@@ -137,6 +104,11 @@
         <div v-if="mode === 'usage'" class="w-full sm:w-auto sm:min-w-[200px]">
           <label class="input-label">{{ t('admin.usage.billingMode') }}</label>
           <Select v-model="filters.billing_mode" :options="billingModeOptions" @change="emitChange" />
+        </div>
+
+        <div v-if="mode === 'usage'" class="w-full sm:w-auto sm:min-w-[220px]">
+          <label class="input-label">{{ t('admin.usage.upstreamModelAudit') }}</label>
+          <Select v-model="filters.upstream_model_mismatch" :options="upstreamModelMismatchOptions" @change="emitChange" />
         </div>
 
         <!-- Error Phase Filter (errors only) -->
@@ -163,6 +135,7 @@
           <Select v-model="filters.group_id" :options="groupOptions" searchable @change="emitChange" />
         </div>
 
+        <slot name="after-filters" />
       </div>
 
       <!-- Right: actions -->
@@ -206,17 +179,20 @@ interface Props {
   modelOptions?: string[]
   /**
    * errors 模式:隐藏用量专属字段/按钮,显示错误类型+状态码(错误请求 tab 用)
-   * ranking 模式:同 usage 但隐藏计费模式筛选与清理/导出按钮(用户排行 tab 用)
+   * ranking 模式:隐藏计费模式筛选与清理/导出按钮
    */
   mode?: 'usage' | 'errors' | 'ranking'
   /** 嵌入统一卡片内使用：去掉自身卡片外观 */
   flat?: boolean
+  /** 模型筛选是否允许输入任意值（creatable） */
+  modelCreatable?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showActions: true,
   mode: 'usage',
-  flat: false
+  flat: false,
+  modelCreatable: false
 })
 const emit = defineEmits([
   'update:modelValue',
@@ -232,7 +208,6 @@ const filters = toRef(props, 'modelValue')
 
 const userSearchRef = ref<HTMLElement | null>(null)
 const apiKeySearchRef = ref<HTMLElement | null>(null)
-const accountSearchRef = ref<HTMLElement | null>(null)
 
 const userKeyword = ref('')
 const userResults = ref<SimpleUser[]>([])
@@ -245,14 +220,6 @@ const apiKeyResults = ref<SimpleApiKey[]>([])
 const showApiKeyDropdown = ref(false)
 let apiKeySearchTimeout: ReturnType<typeof setTimeout> | null = null
 
-interface SimpleAccount {
-  id: number
-  name: string
-}
-const accountKeyword = ref('')
-const accountResults = ref<SimpleAccount[]>([])
-const showAccountDropdown = ref(false)
-let accountSearchTimeout: ReturnType<typeof setTimeout> | null = null
 
 const modelOptions = computed<SelectOption[]>(() => [
   { value: null, label: t('admin.usage.allModels') },
@@ -307,6 +274,12 @@ const billingModeOptions = ref<SelectOption[]>([
   { value: 'video', label: t('admin.usage.billingModeVideo') }
 ])
 
+const upstreamModelMismatchOptions = ref<SelectOption[]>([
+  { value: null, label: t('admin.usage.allUpstreamModelAudit') },
+  { value: true, label: t('admin.usage.upstreamModelMismatchOnly') },
+  { value: false, label: t('admin.usage.upstreamModelMatchedOnly') }
+])
+
 const emitChange = () => emit('change')
 
 const clearPendingUserSearch = () => {
@@ -343,6 +316,11 @@ const debounceUserSearch = () => {
 
 const debounceApiKeySearch = () => {
   if (apiKeySearchTimeout) clearTimeout(apiKeySearchTimeout)
+  if (!filters.value.user_id) {
+    apiKeyResults.value = []
+    showApiKeyDropdown.value = false
+    return
+  }
   apiKeySearchTimeout = setTimeout(async () => {
     try {
       apiKeyResults.value = await adminAPI.usage.searchApiKeys(
@@ -357,17 +335,10 @@ const debounceApiKeySearch = () => {
 
 const selectUser = async (u: SimpleUser) => {
   clearPendingUserSearch()
-  userKeyword.value = u.email
+  userKeyword.value = u.email || String(u.id)
   showUserDropdown.value = false
   filters.value.user_id = u.id
   clearApiKey()
-
-  // Auto-load API keys for this user
-  try {
-    apiKeyResults.value = await adminAPI.usage.searchApiKeys(u.id, '')
-  } catch {
-    apiKeyResults.value = []
-  }
 
   emitChange()
 }
@@ -401,38 +372,16 @@ const onClearApiKey = () => {
   emitChange()
 }
 
-const debounceAccountSearch = () => {
-  if (accountSearchTimeout) clearTimeout(accountSearchTimeout)
-  accountSearchTimeout = setTimeout(async () => {
-    if (!accountKeyword.value) {
-      accountResults.value = []
-      return
-    }
-    try {
-      const res = await adminAPI.accounts.list(1, 20, { search: accountKeyword.value })
-      accountResults.value = res.items.map((a) => ({ id: a.id, name: a.name }))
-    } catch {
-      accountResults.value = []
-    }
-  }, 300)
+const clearPendingApiKeySearch = () => {
+  if (apiKeySearchTimeout) {
+    clearTimeout(apiKeySearchTimeout)
+    apiKeySearchTimeout = null
+  }
 }
 
-const selectAccount = (a: SimpleAccount) => {
-  accountKeyword.value = a.name
-  showAccountDropdown.value = false
-  filters.value.account_id = a.id
-  emitChange()
-}
-
-const clearAccount = () => {
-  accountKeyword.value = ''
-  accountResults.value = []
-  showAccountDropdown.value = false
-  filters.value.account_id = undefined
-  emitChange()
-}
 
 const onApiKeyFocus = () => {
+  if (!filters.value.user_id) return
   showApiKeyDropdown.value = true
   // Trigger search if no results yet
   if (apiKeyResults.value.length === 0) {
@@ -446,11 +395,9 @@ const onDocumentClick = (e: MouseEvent) => {
 
   const clickedInsideUser = userSearchRef.value?.contains(target) ?? false
   const clickedInsideApiKey = apiKeySearchRef.value?.contains(target) ?? false
-  const clickedInsideAccount = accountSearchRef.value?.contains(target) ?? false
 
   if (!clickedInsideUser) showUserDropdown.value = false
   if (!clickedInsideApiKey) showApiKeyDropdown.value = false
-  if (!clickedInsideAccount) showAccountDropdown.value = false
 }
 
 watch(
@@ -476,6 +423,8 @@ watch(
       clearPendingUserSearch()
       userKeyword.value = ''
       userResults.value = []
+      clearPendingApiKeySearch()
+      clearApiKey()
     }
   }
 )
@@ -490,15 +439,6 @@ watch(
   }
 )
 
-watch(
-  () => filters.value.account_id,
-  (accountId) => {
-    if (!accountId) {
-      accountKeyword.value = ''
-      accountResults.value = []
-    }
-  }
-)
 
 onMounted(async () => {
   document.addEventListener('click', onDocumentClick)
@@ -512,6 +452,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   clearPendingUserSearch()
+  clearPendingApiKeySearch()
   document.removeEventListener('click', onDocumentClick)
 })
 
