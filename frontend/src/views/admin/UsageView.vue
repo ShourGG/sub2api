@@ -150,7 +150,6 @@
             @update:pageSize="onErrPageSize"
             @ipGeoBatchFailed="handleIpGeoBatchFailed" />
         </div>
-        <!-- 懒挂载：首次切到该 tab 才请求排行数据，之后随筛选自动刷新 -->
       </div>
       <OpsErrorDetailModal v-model:show="showErrorModal" :error-id="selectedErrorId" :error-type="'request'" />
     </div>
@@ -227,11 +226,11 @@ const cleanupDialogVisible = ref(false)
 const showBalanceHistoryModal = ref(false)
 const balanceHistoryUser = ref<AdminUser | null>(null)
 
+
 const breakdownFilters = computed(() => {
   const f: Record<string, any> = {}
   if (filters.value.user_id) f.user_id = filters.value.user_id
   if (filters.value.api_key_id) f.api_key_id = filters.value.api_key_id
-  if (filters.value.account_id) f.account_id = filters.value.account_id
   if (filters.value.group_id) f.group_id = filters.value.group_id
   if (filters.value.request_type != null) f.request_type = filters.value.request_type
   if (filters.value.billing_type != null) f.billing_type = filters.value.billing_type
@@ -251,6 +250,7 @@ const handleUserClick = async (userId: number) => {
     appStore.showError(t('admin.usage.failedToLoadUser'))
   }
 }
+
 
 const granularityOptions = computed(() => [{ value: 'day', label: t('admin.dashboard.day') }, { value: 'hour', label: t('admin.dashboard.hour') }])
 // Use local timezone to avoid UTC timezone issues
@@ -317,22 +317,20 @@ const applyRouteQueryFilters = () => {
 }
 
 const loadRouteUserFilterLabel = async () => {
-  const requestedUserId = filters.value.user_id
-  if (!requestedUserId) return
-  const userSearchRevision = usageFiltersRef.value?.getUserSearchRevision?.()
+  const requestedUserID = filters.value.user_id
+  if (!requestedUserID) return
+  const searchRevision = usageFiltersRef.value?.getUserSearchRevision?.()
 
-  const routeUserFilterIsCurrent = () => (
-    filters.value.user_id === requestedUserId
-    && usageFiltersRef.value?.getUserSearchRevision?.() === userSearchRevision
+  const isCurrent = () => (
+    filters.value.user_id === requestedUserID
+    && usageFiltersRef.value?.getUserSearchRevision?.() === searchRevision
   )
 
   try {
-    const user = await adminAPI.users.getById(requestedUserId, true)
-    if (!routeUserFilterIsCurrent()) return
-    usageFiltersRef.value?.setUserKeyword?.(user.email || String(requestedUserId))
+    const user = await adminAPI.users.getById(requestedUserID, true)
+    if (isCurrent()) usageFiltersRef.value?.setUserKeyword?.(user.email || String(requestedUserID))
   } catch {
-    if (!routeUserFilterIsCurrent()) return
-    usageFiltersRef.value?.setUserKeyword?.(String(requestedUserId))
+    if (isCurrent()) usageFiltersRef.value?.setUserKeyword?.(String(requestedUserID))
   }
 }
 

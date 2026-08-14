@@ -13,8 +13,6 @@ const messages: Record<string, string> = {
   'admin.usage.searchApiKeyPlaceholder': 'Search API key...',
   'usage.model': 'Model',
   'admin.usage.allModels': 'All Models',
-  'admin.usage.account': 'Account',
-  'admin.usage.searchAccountPlaceholder': 'Search account...',
   'usage.type': 'Type',
   'admin.usage.allTypes': 'All Types',
   'usage.ws': 'WS',
@@ -57,7 +55,6 @@ const mockSearchUsers = vi.fn()
 const mockSearchApiKeys = vi.fn().mockResolvedValue([])
 const mockGroupsList = vi.fn().mockResolvedValue({ items: [] })
 const mockGetModelStats = vi.fn().mockResolvedValue({ models: [] })
-const mockAccountsList = vi.fn().mockResolvedValue({ items: [] })
 
 vi.mock('@/api/admin', () => ({
   adminAPI: {
@@ -67,7 +64,6 @@ vi.mock('@/api/admin', () => ({
     },
     groups: { list: (...args: any[]) => mockGroupsList(...args) },
     dashboard: { getModelStats: (...args: any[]) => mockGetModelStats(...args) },
-    accounts: { list: (...args: any[]) => mockAccountsList(...args) },
   },
 }))
 
@@ -263,6 +259,29 @@ describe('UsageFilters — user search dropdown', () => {
     vi.advanceTimersByTime(300)
     await flushPromises()
     expect(mockSearchApiKeys).toHaveBeenCalledWith(8, 'selected')
+  })
+})
+
+
+describe('UsageFilters — ranking filters', () => {
+  it('keeps email and API-key search but removes the account search', async () => {
+    const wrapper = mount(UsageFilters, {
+      props: {
+        modelValue: defaultFilters(),
+        exporting: false,
+        startDate: '2026-05-01',
+        endDate: '2026-05-28',
+        showActions: false,
+        modelOptions: [],
+        mode: 'ranking',
+      },
+      global: { stubs: { Select: true, Teleport: true } },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('input[placeholder="Search user..."]').exists()).toBe(true)
+    expect(wrapper.find('input[placeholder="Search API key..."]').exists()).toBe(true)
+    expect(wrapper.find('input[placeholder="Search account..."]').exists()).toBe(false)
   })
 })
 

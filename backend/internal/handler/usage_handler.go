@@ -546,12 +546,11 @@ func parseLeaderboardRequestType(raw string) (int16, error) {
 }
 
 // DashboardLeaderboard returns the Token consumption leaderboard.
-// GET /api/v1/usage/dashboard/leaderboard?days=1|3|7|14|30&limit=20&timezone=Asia/Shanghai&sort_by=tokens|requests|cost|actual_cost|account_cost&billing_mode=token|per_request|image|video&request_type=0|1|2|3|4|5|sync|stream|ws_v2|cyber|live&billing_type=0|1&model=...&group_id=...&user_id=...&account_name=...&account_email=...
+// GET /api/v1/usage/dashboard/leaderboard?days=1|3|7|14|30&limit=20&timezone=Asia/Shanghai&sort_by=tokens|requests|cost|actual_cost|account_cost&billing_mode=token|per_request|image|video&request_type=0|1|2|3|4|5|sync|stream|ws_v2|cyber|live&billing_type=0|1&model=...&group_id=...&user_id=...
 //
 // Ranking key is total_tokens = input + output + cache + image_output.
-// Matching supports upstream account metadata and the user's own username/email.
-// Returned identities are always masked; the current user's own row is labeled
-// "我" and flagged is_me so the frontend can highlight it.
+// Regular users only ever see Top 1-20 with emails masked; the current user's
+// own row is labeled "我" and flagged is_me so the frontend can highlight it.
 func (h *UsageHandler) DashboardLeaderboard(c *gin.Context) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
@@ -630,9 +629,6 @@ func (h *UsageHandler) DashboardLeaderboard(c *gin.Context) {
 		query.UserID = userID
 	}
 
-	query.AccountName = strings.TrimSpace(c.Query("account_name"))
-	query.AccountEmail = strings.TrimSpace(c.Query("account_email"))
-
 	now := timezone.NowInUserLocation(userTZ)
 	endTime := timezone.StartOfDayInUserLocation(now.AddDate(0, 0, 1), userTZ)
 	startTime := timezone.StartOfDayInUserLocation(now.AddDate(0, 0, -(days-1)), userTZ)
@@ -647,7 +643,7 @@ func (h *UsageHandler) DashboardLeaderboard(c *gin.Context) {
 	items := make([]usagestats.TokenLeaderboardItem, 0, len(rows))
 	for i, row := range rows {
 		isMe := row.UserID == subject.UserID
-		displayUser := service.MaskLeaderboardIdentity(row.Username, row.Email)
+		displayUser := service.MaskEmail(row.Email)
 		if isMe {
 			displayUser = "我"
 		}
