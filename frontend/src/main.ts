@@ -4,7 +4,7 @@ import App from './App.vue'
 import router from './router'
 import i18n, { initI18n } from './i18n'
 import { useAppStore } from '@/stores/app'
-import { resolveDisplaySiteName, updateFavicon } from '@/utils/branding'
+import { updateFavicon } from '@/utils/branding'
 import { isIOSDevice } from '@/utils/device'
 import './style.css'
 
@@ -25,7 +25,8 @@ function initIOSViewportZoomFix() {
 function initThemeClass() {
   const savedTheme = localStorage.getItem('theme')
   const shouldUseDark =
-    savedTheme === 'dark'
+    savedTheme === 'dark' ||
+    (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
   document.documentElement.classList.toggle('dark', shouldUseDark)
 }
 
@@ -44,7 +45,9 @@ async function bootstrap() {
   appStore.initFromInjectedConfig()
 
   // Set document title immediately after config is loaded
-  document.title = `${resolveDisplaySiteName(appStore.siteName)} - AI API Gateway`
+  if (appStore.siteName && appStore.siteName !== 'Sub2API') {
+    document.title = `${appStore.siteName} - AI API Gateway`
+  }
   updateFavicon(appStore.siteLogo)
 
   await initI18n()

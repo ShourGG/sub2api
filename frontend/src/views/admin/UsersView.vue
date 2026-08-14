@@ -681,15 +681,6 @@
                 {{ t('admin.users.apiKeys') }}
               </button>
 
-              <!-- Send Email -->
-              <button
-                @click="handleSendEmail(user); closeActionMenu()"
-                class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
-              >
-                <Icon name="mail" size="sm" class="text-gray-400" :stroke-width="2" />
-                {{ t('admin.users.sendEmail') }}
-              </button>
-
               <!-- Allowed Groups -->
               <button
                 @click="handleAllowedGroups(user); closeActionMenu()"
@@ -777,7 +768,6 @@
     <UserBalanceHistoryModal :show="showBalanceHistoryModal" :user="balanceHistoryUser" @close="closeBalanceHistoryModal" @deposit="handleDepositFromHistory" @withdraw="handleWithdrawFromHistory" />
     <GroupReplaceModal :show="showGroupReplaceModal" :user="groupReplaceUser" :old-group="groupReplaceOldGroup" :all-groups="allGroups" @close="closeGroupReplaceModal" @success="loadUsers" />
     <UserAttributesConfigModal :show="showAttributesModal" @close="handleAttributesModalClose" />
-    <EmailBroadcastDialog :show="showEmailDialog" :initial-recipient="emailRecipient" single-recipient-mode @close="closeEmailDialog" />
   </AppLayout>
 </template>
 
@@ -820,8 +810,6 @@ import UserAllowedGroupsModal from '@/components/admin/user/UserAllowedGroupsMod
 import UserBalanceModal from '@/components/admin/user/UserBalanceModal.vue'
 import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryModal.vue'
 import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
-import EmailBroadcastDialog from '@/components/admin/email-broadcasts/EmailBroadcastDialog.vue'
-import type { EmailBroadcastRecipientCandidate } from '@/api/admin/emailBroadcasts'
 
 const appStore = useAppStore()
 
@@ -1337,12 +1325,10 @@ const showDeleteDialog = ref(false)
 const showApiKeysModal = ref(false)
 const showAttributesModal = ref(false)
 const showPlatformQuotaModal = ref(false)
-const showEmailDialog = ref(false)
 const editingUser = ref<AdminUser | null>(null)
 const deletingUser = ref<AdminUser | null>(null)
 const viewingUser = ref<AdminUser | null>(null)
 const platformQuotaUser = ref<AdminUser | null>(null)
-const emailRecipient = ref<EmailBroadcastRecipientCandidate | null>(null)
 
 const handlePlatformQuota = (user: AdminUser) => {
   platformQuotaUser.value = user
@@ -1755,16 +1741,6 @@ const handleViewApiKeys = (user: AdminUser) => {
 const closeApiKeysModal = () => {
   showApiKeysModal.value = false
   viewingUser.value = null
-}
-
-const handleSendEmail = (user: AdminUser) => {
-  emailRecipient.value = { id: user.id, email: user.email, username: user.username }
-  showEmailDialog.value = true
-}
-
-const closeEmailDialog = () => {
-  showEmailDialog.value = false
-  emailRecipient.value = null
 }
 
 const handleAllowedGroups = (user: AdminUser) => {

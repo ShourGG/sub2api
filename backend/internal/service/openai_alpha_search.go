@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 )
@@ -247,7 +246,7 @@ func (s *OpenAIGatewayService) buildOpenAIAlphaSearchResponsesWebSearchRequest(c
 	if originator := openAIAlphaSearchInboundHeader(c, "Originator"); originator != "" {
 		req.Header.Set("Originator", originator)
 	} else {
-		req.Header.Set("Originator", openai.CodexDefaultOriginator)
+		req.Header.Set("Originator", "codex_cli_rs")
 	}
 	if customUA := account.GetOpenAIUserAgent(); customUA != "" {
 		req.Header.Set("User-Agent", customUA)
@@ -390,7 +389,7 @@ func (s *OpenAIGatewayService) buildOpenAIAlphaSearchRequest(ctx context.Context
 		if originator := openAIAlphaSearchInboundHeader(c, "Originator"); originator != "" {
 			req.Header.Set("Originator", originator)
 		} else {
-			req.Header.Set("Originator", openai.CodexDefaultOriginator)
+			req.Header.Set("Originator", "codex_cli_rs")
 		}
 		if customUA := account.GetOpenAIUserAgent(); customUA != "" {
 			req.Header.Set("User-Agent", customUA)

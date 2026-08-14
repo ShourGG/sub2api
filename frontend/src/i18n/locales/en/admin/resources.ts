@@ -544,10 +544,6 @@ export default {
       billingModeImage: 'Image',
       billingModeVideo: 'Video',
       allBillingModes: 'All Billing Modes',
-	  upstreamModelAudit: 'Upstream model audit',
-	  allUpstreamModelAudit: 'All response model states',
-	  upstreamModelMismatchOnly: 'Mismatched only',
-	  upstreamModelMatchedOnly: 'Matched only',
       ipAddress: 'IP',
       clickToViewBalance: 'Click to view balance history',
       failedToLoadUser: 'Failed to load user info',
@@ -563,11 +559,7 @@ export default {
           outputTokens: 'Output Tokens',
           cacheTokens: 'Cache Tokens',
           totalTokens: 'Total Tokens',
-          imageOutputTokens: 'Image Output',
-          cost: 'Cost',
-          actualCost: 'Actual Cost',
-          accountCost: 'Account Cost',
-          lastActive: 'Last Active'
+          cost: 'Cost'
         }
       },
       cleanup: {

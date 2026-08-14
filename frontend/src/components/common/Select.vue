@@ -14,8 +14,7 @@
         'select-trigger',
         isOpen && 'select-trigger-open',
         error && 'select-trigger-error',
-        disabled && 'select-trigger-disabled',
-        theme === 'dark' && 'select-theme-dark'
+        disabled && 'select-trigger-disabled'
       ]"
       @keydown.down.prevent="onTriggerKeyDown"
       @keydown.up.prevent="onTriggerKeyDown"
@@ -53,7 +52,7 @@
           v-if="isOpen"
           ref="dropdownRef"
           class="select-dropdown-portal"
-          :class="[instanceId, theme === 'dark' && 'select-theme-dark']"
+          :class="[instanceId]"
           :style="dropdownStyle"
           role="listbox"
           @click.stop
@@ -155,8 +154,6 @@ interface Props {
   id?: string
   ariaLabel?: string
   ariaDescribedby?: string
-  /** Visual theme for an individual Select instance; defaults to the app theme. */
-  theme?: 'light' | 'dark'
 }
 
 interface Emits {
@@ -172,8 +169,7 @@ const props = withDefaults(defineProps<Props>(), {
   creatablePrefix: '',
   clearable: false,
   valueKey: 'value',
-  labelKey: 'label',
-  theme: 'light'
+  labelKey: 'label'
 })
 
 const emit = defineEmits<Emits>()
@@ -487,23 +483,6 @@ onUnmounted(() => {
   @apply cursor-pointer;
 }
 
-/* Per-instance dark styling. This does not depend on html.dark so pages can opt in independently. */
-.select-trigger.select-theme-dark {
-  @apply bg-dark-800 border-dark-600 text-gray-100;
-}
-
-.select-trigger.select-theme-dark:hover {
-  @apply border-dark-500;
-}
-
-.select-trigger.select-theme-dark .select-icon {
-  @apply text-dark-400;
-}
-
-.select-trigger.select-theme-dark.select-trigger-disabled {
-  @apply bg-dark-900;
-}
-
 .select-trigger-open {
   @apply border-primary-500 ring-2 ring-primary-500/30;
 }
@@ -540,40 +519,6 @@ onUnmounted(() => {
   @apply shadow-lg shadow-black/10 dark:shadow-black/30;
   @apply overflow-hidden;
   pointer-events: auto !important;
-}
-
-.select-dropdown-portal.select-theme-dark {
-  @apply bg-dark-800 border-dark-700 shadow-black/30;
-}
-
-.select-dropdown-portal.select-theme-dark .select-search {
-  @apply border-dark-700;
-}
-
-.select-dropdown-portal.select-theme-dark .select-search-input {
-  @apply text-gray-100 placeholder:text-dark-400;
-}
-
-.select-dropdown-portal.select-theme-dark .select-option {
-  @apply text-gray-300;
-}
-
-.select-dropdown-portal.select-theme-dark .select-option:hover,
-.select-dropdown-portal.select-theme-dark .select-option-focused {
-  @apply bg-dark-700;
-}
-
-.select-dropdown-portal.select-theme-dark .select-option-selected {
-  @apply bg-primary-900/20 text-primary-300;
-}
-
-.select-dropdown-portal.select-theme-dark .select-option-group,
-.select-dropdown-portal.select-theme-dark .select-option-group:hover {
-  @apply bg-dark-900 text-gray-400;
-}
-
-.select-dropdown-portal.select-theme-dark .select-empty {
-  @apply text-dark-400;
 }
 
 .select-dropdown-portal .select-search {

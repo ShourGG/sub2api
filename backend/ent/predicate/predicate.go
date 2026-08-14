@@ -51,9 +51,6 @@ type ChannelMonitorRequestTemplate func(*sql.Selector)
 // CompositeModelRoute is the predicate function for compositemodelroute builders.
 type CompositeModelRoute func(*sql.Selector)
 
-// EmailBroadcast is the predicate function for emailbroadcast builders.
-type EmailBroadcast func(*sql.Selector)
-
 // ErrorPassthroughRule is the predicate function for errorpassthroughrule builders.
 type ErrorPassthroughRule func(*sql.Selector)
 

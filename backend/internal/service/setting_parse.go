@@ -14,9 +14,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/antigravity"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 )
 
 // InitializeDefaultSettings 初始化默认设置
@@ -59,7 +57,6 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyRegistrationEnabled:                       "true",
 		SettingKeyEmailVerifyEnabled:                        "false",
 		SettingKeyRegistrationEmailSuffixWhitelist:          "[]",
-		SettingKeyRegistrationEmailDomainQuotaEnabled:       "false",
 		SettingKeyPromoCodeEnabled:                          "true", // 默认启用优惠码功能
 		SettingKeyLoginAgreementEnabled:                     "false",
 		SettingKeyLoginAgreementMode:                        defaultLoginAgreementMode,
@@ -67,7 +64,6 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyLoginAgreementDocuments:                   loginAgreementDocumentsJSON,
 		SettingKeyAPIKeyACLTrustForwardedIP:                 "true",
 		SettingKeyForwardedClientIPHeaders:                  string(forwardedClientIPHeadersJSON),
-		SettingKeyIPBlacklist:                               "[]",
 		settingKeyForwardedClientIPModeV2:                   "true",
 		SettingKeySiteName:                                  "Sub2API",
 		SettingKeySiteLogo:                                  "",
@@ -189,14 +185,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 
 		// Channel monitor defaults (enabled, 60s)
 		SettingKeyChannelMonitorEnabled:                "true",
-		SettingKeyChannelMonitorMode:                   ChannelMonitorModeV1,
 		SettingKeyChannelMonitorDefaultIntervalSeconds: "60",
-		SettingKeyChannelMonitorHideThroughput:         "true",
-
-		// Grok: safe defaults — no cross-vendor model rewrite unless operators enable it.
-		SettingKeyGrokDefaultTextModel:           "grok-4.5",
-		SettingKeyGrokCrossClientModelMapEnabled: "true",
-		SettingKeyGrokDefaultBaseURLMode:         GrokDefaultBaseURLModeCLI,
 
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
@@ -281,26 +270,6 @@ func parseForwardedClientIPHeadersSetting(value string) ([]string, error) {
 	return normalized, nil
 }
 
-func parseIPBlacklistSetting(value string) ([]string, error) {
-	var patterns []string
-	if err := json.Unmarshal([]byte(value), &patterns); err != nil {
-		return nil, fmt.Errorf("parse ip_blacklist: %w", err)
-	}
-	if patterns == nil {
-		return nil, fmt.Errorf("parse ip_blacklist: value must be a JSON array")
-	}
-	normalized := make([]string, 0, len(patterns))
-	for _, pattern := range patterns {
-		if pattern = strings.TrimSpace(pattern); pattern != "" {
-			normalized = append(normalized, pattern)
-		}
-	}
-	if invalid := ip.ValidateIPPatterns(normalized); len(invalid) > 0 {
-		return nil, fmt.Errorf("parse ip_blacklist: invalid IP/CIDR pattern %q", invalid[0])
-	}
-	return normalized, nil
-}
-
 // parseSettings 解析设置到结构体
 func (s *SettingService) parseSettings(settings map[string]string) *SystemSettings {
 	emailVerifyEnabled := settings[SettingKeyEmailVerifyEnabled] == "true"
@@ -311,7 +280,6 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	}
 	apiKeyACLTrustForwardedIP := false
 	forwardedClientIPHeaders := []string{}
-	ipBlacklist := []string{}
 	if s != nil && s.cfg != nil {
 		runtimeSettings := s.cfg.ForwardedClientIPSettings()
 		apiKeyACLTrustForwardedIP = runtimeSettings.TrustForwardedIP
@@ -330,19 +298,10 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 			forwardedClientIPHeaders = parsed
 		}
 	}
-	if value, ok := settings[SettingKeyIPBlacklist]; ok {
-		parsed, err := parseIPBlacklistSetting(value)
-		if err != nil {
-			slog.Error("invalid persisted global IP blacklist; disabling blacklist", "error", err)
-		} else {
-			ipBlacklist = parsed
-		}
-	}
 	result := &SystemSettings{
 		RegistrationEnabled:                    settings[SettingKeyRegistrationEnabled] == "true",
 		EmailVerifyEnabled:                     emailVerifyEnabled,
 		RegistrationEmailSuffixWhitelist:       ParseRegistrationEmailSuffixWhitelist(settings[SettingKeyRegistrationEmailSuffixWhitelist]),
-		RegistrationEmailDomainQuotaEnabled:    settings[SettingKeyRegistrationEmailDomainQuotaEnabled] == "true",
 		PromoCodeEnabled:                       settings[SettingKeyPromoCodeEnabled] != "false", // 默认启用
 		PasswordResetEnabled:                   emailVerifyEnabled && settings[SettingKeyPasswordResetEnabled] == "true",
 		FrontendURL:                            settings[SettingKeyFrontendURL],
@@ -370,7 +329,6 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		TencentCaptchaAppSecretKeyConfigured:   settings[SettingKeyTencentCaptchaAppSecretKey] != "",
 		TencentCaptchaCloudSecretIDConfigured:  settings[SettingKeyTencentCaptchaCloudSecretID] != "",
 		TencentCaptchaCloudSecretKeyConfigured: settings[SettingKeyTencentCaptchaCloudSecretKey] != "",
-		TencentCaptchaRegion:                   normalizeTencentCaptchaRegion(settings[SettingKeyTencentCaptchaRegion]),
 		AliyunCaptchaEnabled:                   settings[SettingKeyAliyunCaptchaEnabled] == "true",
 		AliyunCaptchaAccessKeyID:               settings[SettingKeyAliyunCaptchaAccessKeyID],
 		AliyunCaptchaAccessKeySecretConfigured: settings[SettingKeyAliyunCaptchaAccessKeySecret] != "",
@@ -379,7 +337,6 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		AliyunCaptchaRegion:                    normalizeAliyunCaptchaRegion(settings[SettingKeyAliyunCaptchaRegion]),
 		APIKeyACLTrustForwardedIP:              apiKeyACLTrustForwardedIP,
 		ForwardedClientIPHeaders:               forwardedClientIPHeaders,
-		IPBlacklist:                            ipBlacklist,
 		SiteName:                               s.getStringOrDefault(settings, SettingKeySiteName, "Sub2API"),
 		SiteLogo:                               settings[SettingKeySiteLogo],
 		SiteSubtitle:                           s.getStringOrDefault(settings, SettingKeySiteSubtitle, "Subscription to API Conversion Platform"),
@@ -823,23 +780,9 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// Channel monitor feature (default: enabled, 60s)
 	result.ChannelMonitorEnabled = !isFalseSettingValue(settings[SettingKeyChannelMonitorEnabled])
-	result.ChannelMonitorMode = normalizeChannelMonitorMode(settings[SettingKeyChannelMonitorMode])
 	result.ChannelMonitorDefaultIntervalSeconds = parseChannelMonitorInterval(
 		settings[SettingKeyChannelMonitorDefaultIntervalSeconds],
 	)
-	// 默认隐藏吞吐（迁移 206 的隐私默认）：未配置时必须与 setting_public.go 的
-	// 公开读取路径给出同一个值，否则管理端看到“未隐藏”而用户端实际已隐藏。
-	result.ChannelMonitorHideThroughput = !isFalseSettingValue(settings[SettingKeyChannelMonitorHideThroughput])
-
-	// Grok default mapping policy
-	result.GrokDefaultTextModel = strings.TrimSpace(settings[SettingKeyGrokDefaultTextModel])
-	if result.GrokDefaultTextModel == "" {
-		result.GrokDefaultTextModel = "grok-4.5"
-	}
-	// Default true (missing/empty → enabled) so Claude/Codex→Grok mapping keeps working.
-	// Operators can set false to disable silent cross-client rewrite.
-	result.GrokCrossClientModelMapEnabled = !isFalseSettingValue(settings[SettingKeyGrokCrossClientModelMapEnabled])
-	result.GrokDefaultBaseURLMode = normalizeGrokDefaultBaseURLMode(settings[SettingKeyGrokDefaultBaseURLMode])
 
 	// Available channels feature (default: disabled; strict true)
 	result.AvailableChannelsEnabled = settings[SettingKeyAvailableChannelsEnabled] == "true"
@@ -985,22 +928,8 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 			result.DefaultPlatformQuotas = parsed
 		}
 	}
-	result.AccountSchedulingThresholds = defaultAccountSchedulingThresholds()
-	if raw := strings.TrimSpace(settings[SettingKeyAccountSchedulingThresholds]); raw != "" {
-		if thresholds, err := parseAccountSchedulingThresholdsSetting(raw); err != nil {
-			slog.Warn("[Setting] parseSettings: unmarshal account_scheduling_thresholds failed", "error", err)
-		} else {
-			result.AccountSchedulingThresholds = thresholds
-		}
-	}
 
 	result.AllowUserViewErrorRequests = settings[SettingKeyAllowUserViewErrorRequests] == "true" // default false
-
-	// Publish Grok default model_mapping options for accounts with empty mapping.
-	xai.SetRuntimeModelMappingOptions(xai.ModelMappingOptions{
-		DefaultText:          result.GrokDefaultTextModel,
-		EnableCrossClientMap: result.GrokCrossClientModelMapEnabled,
-	})
 
 	return result
 }

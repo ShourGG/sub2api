@@ -11,7 +11,6 @@
     v-else-if="tencentEnabled && tencentAppId"
     ref="tencentRef"
     :app-id="tencentAppId"
-    :region="tencentRegion"
   />
   <AliyunCaptchaWidget
     v-else-if="aliyunEnabled && aliyunSceneId && aliyunPrefix"
@@ -44,7 +43,6 @@ const props = defineProps<{
   turnstileSiteKey: string
   tencentEnabled: boolean
   tencentAppId: string
-  tencentRegion?: string
   aliyunEnabled?: boolean
   aliyunSceneId?: string
   aliyunPrefix?: string

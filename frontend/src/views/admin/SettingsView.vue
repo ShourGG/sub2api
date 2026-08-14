@@ -1486,23 +1486,6 @@
                 </p>
               </div>
 
-              <!-- Email Domain Quota -->
-              <div
-                class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
-              >
-                <div>
-                  <label class="font-medium text-gray-900 dark:text-white">{{
-                    t("admin.settings.registration.emailDomainQuota")
-                  }}</label>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">
-                    {{ t("admin.settings.registration.emailDomainQuotaHint") }}
-                  </p>
-                </div>
-                <Toggle
-                  v-model="form.registration_email_domain_quota_enabled"
-                />
-              </div>
-
               <!-- Promo Code -->
               <div
                 class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
@@ -1735,21 +1718,6 @@
                 v-if="form.api_key_acl_trust_forwarded_ip"
                 class="border-t border-gray-100 pt-4 dark:border-dark-700"
               >
-                <div class="mb-4">
-                  <label class="font-medium text-gray-900 dark:text-white">
-                    {{ t("admin.settings.apiKeyAcl.ipBlacklist") }}
-                  </label>
-                  <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    {{ t("admin.settings.apiKeyAcl.ipBlacklistHint") }}
-                  </p>
-                  <textarea
-                    :value="form.ip_blacklist.join(String.fromCharCode(10))"
-                    rows="3"
-                    class="mt-2 w-full rounded border border-gray-300 bg-white p-2 font-mono text-sm dark:border-dark-500 dark:bg-dark-700"
-                    placeholder="203.0.113.10&#10;198.51.100.0/24"
-                    @input="handleIpBlacklistInput"
-                  />
-                </div>
                 <label
                   for="forwarded-client-ip-headers"
                   class="font-medium text-gray-900 dark:text-white"
@@ -2140,42 +2108,6 @@
 
                 <!-- Tencent Captcha fields -->
                 <div v-else-if="captchaProviderSelection === 'tencent'">
-                  <div class="mb-6 max-w-sm">
-                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t("admin.settings.tencentCaptcha.region") }}
-                    </label>
-                    <div class="grid grid-cols-2 gap-2 rounded-lg bg-gray-100 p-1 dark:bg-dark-700">
-                      <button
-                        type="button"
-                        data-testid="tencent-captcha-region-cn"
-                        class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium transition"
-                        :class="
-                          form.tencent_captcha_region !== 'intl'
-                            ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
-                            : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
-                        "
-                        @click="form.tencent_captcha_region = 'cn'"
-                      >
-                        {{ t("admin.settings.tencentCaptcha.regionCn") }}
-                      </button>
-                      <button
-                        type="button"
-                        data-testid="tencent-captcha-region-intl"
-                        class="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm font-medium transition"
-                        :class="
-                          form.tencent_captcha_region === 'intl'
-                            ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
-                            : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
-                        "
-                        @click="form.tencent_captcha_region = 'intl'"
-                      >
-                        {{ t("admin.settings.tencentCaptcha.regionIntl") }}
-                      </button>
-                    </div>
-                    <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                      {{ t("admin.settings.tencentCaptcha.regionHint") }}
-                    </p>
-                  </div>
                   <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                     <div class="md:col-span-2">
                       <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
@@ -2259,7 +2191,7 @@
                   </p>
                   <div class="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
                     <a
-                      :href="tencentCaptchaLinks.console"
+                      href="https://console.cloud.tencent.com/captcha"
                       target="_blank"
                       rel="noopener noreferrer"
                       class="text-primary-600 hover:text-primary-500"
@@ -2267,7 +2199,7 @@
                       {{ t("admin.settings.tencentCaptcha.openCaptchaConsole") }}
                     </a>
                     <a
-                      :href="tencentCaptchaLinks.cloudKeys"
+                      href="https://console.cloud.tencent.com/cam/capi"
                       target="_blank"
                       rel="noopener noreferrer"
                       class="text-primary-600 hover:text-primary-500"
@@ -2275,7 +2207,7 @@
                       {{ t("admin.settings.tencentCaptcha.createCloudKeys") }}
                     </a>
                     <a
-                      :href="tencentCaptchaLinks.webDocs"
+                      href="https://cloud.tencent.com/document/product/1110/36841"
                       target="_blank"
                       rel="noopener noreferrer"
                       class="text-primary-600 hover:text-primary-500"
@@ -4903,78 +4835,6 @@
                 <Toggle v-model="form.allow_ungrouped_key_scheduling" />
               </div>
 
-              <div class="border-t border-gray-100 pt-4 dark:border-dark-700">
-                <div class="mb-3">
-                  <label class="font-medium text-gray-900 dark:text-white">
-                    {{
-                      t(
-                        "admin.settings.scheduling.accountSchedulingThresholdsTitle",
-                      )
-                    }}
-                  </label>
-                  <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    {{
-                      t(
-                        "admin.settings.scheduling.accountSchedulingThresholdsDescription",
-                      )
-                    }}
-                  </p>
-                  <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                    {{
-                      t(
-                        "admin.settings.scheduling.accountSchedulingThresholdsGlobalHint",
-                      )
-                    }}
-                  </p>
-                  <p class="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
-                    {{
-                      t(
-                        "admin.settings.scheduling.accountSchedulingThresholdsDisabledHint",
-                      )
-                    }}
-                  </p>
-                </div>
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  <div
-                    v-for="platform in schedulingThresholdPlatforms"
-                    :key="platform"
-                    class="rounded-lg border border-gray-200 p-4 dark:border-dark-700"
-                  >
-                    <div class="flex items-start justify-between gap-3">
-                      <div>
-                        <label
-                          class="font-mono text-sm font-medium text-gray-900 dark:text-white"
-                        >
-                          {{ platform }}
-                        </label>
-                        <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                          {{
-                            t(
-                              "admin.settings.scheduling.accountSchedulingThresholdsRangeHint",
-                            )
-                          }}
-                        </p>
-                      </div>
-                      <span
-                        class="rounded bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-dark-700 dark:text-gray-300"
-                      >
-                        %
-                      </span>
-                    </div>
-                    <input
-                      v-model.number="form.account_scheduling_thresholds[platform]"
-                      type="number"
-                      min="1"
-                      max="100"
-                      step="1"
-                      class="input mt-3"
-                      :data-testid="`account-scheduling-threshold-${platform}`"
-                      placeholder="100"
-                    />
-                  </div>
-                </div>
-              </div>
-
               <div
                 v-if="!form.openai_advanced_scheduler_enabled"
                 class="flex items-center justify-between border-t border-gray-100 pt-5 dark:border-dark-700"
@@ -5170,71 +5030,6 @@
               </p>
             </div>
             <div class="space-y-5 p-6">
-              <div class="grid gap-5 border-b border-gray-100 pb-5 dark:border-dark-700 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-                <div>
-                  <label
-                    for="grok-default-text-model"
-                    class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    {{ t("admin.settings.gatewayForwarding.grokDefaultTextModel") }}
-                  </label>
-                  <input
-                    id="grok-default-text-model"
-                    v-model.trim="form.grok_default_text_model"
-                    type="text"
-                    class="input mt-2 w-full"
-                    list="grok-default-text-model-options"
-                    data-testid="grok-default-text-model"
-                    placeholder="grok-4.5"
-                  />
-                  <datalist id="grok-default-text-model-options">
-                    <option value="grok-4.5" />
-                    <option value="grok-4.1-fast" />
-                    <option value="grok-4" />
-                  </datalist>
-                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    {{ t("admin.settings.gatewayForwarding.grokDefaultTextModelHint") }}
-                  </p>
-                </div>
-                <div class="flex items-center justify-between gap-5 md:min-w-72">
-                  <div>
-                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {{ t("admin.settings.gatewayForwarding.grokCrossClientMap") }}
-                    </label>
-                    <p class="mt-0.5 max-w-sm text-xs text-gray-500 dark:text-gray-400">
-                      {{ t("admin.settings.gatewayForwarding.grokCrossClientMapHint") }}
-                    </p>
-                  </div>
-                  <Toggle
-                    v-model="form.grok_cross_client_model_map_enabled"
-                    data-testid="grok-cross-client-model-map-toggle"
-                  />
-                </div>
-                </div>
-                <div class="md:col-span-2">
-                  <label
-                    for="grok-default-base-url-mode"
-                    class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >
-                    {{ t("admin.settings.gatewayForwarding.grokDefaultBaseURLMode") }}
-                  </label>
-                  <select
-                    id="grok-default-base-url-mode"
-                    v-model="form.grok_default_base_url_mode"
-                    class="input mt-2 w-full"
-                    data-testid="grok-default-base-url-mode"
-                  >
-                    <option value="cli">{{ t("admin.settings.gatewayForwarding.grokBaseURLModeCLI") }}</option>
-                    <option value="api">{{ t("admin.settings.gatewayForwarding.grokBaseURLModeAPI") }}</option>
-                    <option value="us-east-1">{{ t("admin.settings.gatewayForwarding.grokBaseURLModeUSEast1") }}</option>
-                    <option value="us-west-2">{{ t("admin.settings.gatewayForwarding.grokBaseURLModeUSWest2") }}</option>
-                    <option value="eu-west-1">{{ t("admin.settings.gatewayForwarding.grokBaseURLModeEUWest1") }}</option>
-                  </select>
-                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                    {{ t("admin.settings.gatewayForwarding.grokDefaultBaseURLModeHint") }}
-                  </p>
-                </div>
-
               <!-- Fingerprint Unification -->
               <div class="flex items-center justify-between">
                 <div>
@@ -6985,77 +6780,21 @@
               <Toggle v-model="form.channel_monitor_enabled" />
             </div>
 
-            <div v-if="form.channel_monitor_enabled" class="space-y-5">
-              <div>
-                <label class="input-label">
-                  {{ t('admin.settings.features.channelMonitor.mode') }}
-                </label>
-                <div class="mt-1.5 inline-flex w-full max-w-md rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-dark-600 dark:bg-dark-900/40">
-                  <button
-                    type="button"
-                    class="inline-flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition"
-                    :class="
-                      form.channel_monitor_mode === 'v2'
-                        ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
-                        : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
-                    "
-                    @click="form.channel_monitor_mode = 'v2'"
-                  >
-                    {{ t('admin.settings.features.channelMonitor.modeV2') }}
-                  </button>
-                  <button
-                    type="button"
-                    class="inline-flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition"
-                    :class="
-                      form.channel_monitor_mode === 'v1'
-                        ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300'
-                        : 'text-gray-600 hover:text-gray-900 dark:text-dark-300 dark:hover:text-white'
-                    "
-                    @click="form.channel_monitor_mode = 'v1'"
-                  >
-                    {{ t('admin.settings.features.channelMonitor.modeV1') }}
-                  </button>
-                </div>
-                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  {{
-                    form.channel_monitor_mode === 'v1'
-                      ? t('admin.settings.features.channelMonitor.modeV1Hint')
-                      : t('admin.settings.features.channelMonitor.modeV2Hint')
-                  }}
-                </p>
-                <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                  {{ t('admin.settings.features.channelMonitor.modeHint') }}
-                </p>
-              </div>
-
-              <div v-if="form.channel_monitor_mode === 'v1'">
-                <label class="input-label">
-                  {{ t('admin.settings.features.channelMonitor.defaultInterval') }}
-                  <span class="text-red-500">*</span>
-                </label>
-                <input
-                  v-model.number="form.channel_monitor_default_interval_seconds"
-                  type="number"
-                  min="15"
-                  max="3600"
-                  class="input"
-                />
-                <p class="mt-1 text-xs text-gray-400">
-                  {{ t('admin.settings.features.channelMonitor.defaultIntervalHint') }}
-                </p>
-              </div>
-
-              <div v-if="form.channel_monitor_mode === 'v2'" class="flex items-start justify-between gap-4">
-                <div class="min-w-0">
-                  <p class="text-sm font-medium text-gray-900 dark:text-white">
-                    {{ t('admin.settings.features.channelMonitor.hideThroughput') }}
-                  </p>
-                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {{ t('admin.settings.features.channelMonitor.hideThroughputHint') }}
-                  </p>
-                </div>
-                <Toggle v-model="form.channel_monitor_hide_throughput" />
-              </div>
+            <div v-if="form.channel_monitor_enabled">
+              <label class="input-label">
+                {{ t('admin.settings.features.channelMonitor.defaultInterval') }}
+                <span class="text-red-500">*</span>
+              </label>
+              <input
+                v-model.number="form.channel_monitor_default_interval_seconds"
+                type="number"
+                min="15"
+                max="3600"
+                class="input"
+              />
+              <p class="mt-1 text-xs text-gray-400">
+                {{ t('admin.settings.features.channelMonitor.defaultIntervalHint') }}
+              </p>
             </div>
           </div>
         </div>
@@ -8451,18 +8190,6 @@
 
           <EmailTemplateEditor />
 
-          <div v-if="form.email_verify_enabled" class="card">
-            <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
-              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t("admin.emailBroadcast.title") }}</h2>
-              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t("admin.emailBroadcast.description") }}</p>
-            </div>
-            <div class="p-6">
-              <button type="button" class="btn btn-primary" :disabled="loadFailed" @click="emailBroadcastDialogOpen = true">
-                {{ t("admin.emailBroadcast.openComposer") }}
-              </button>
-            </div>
-          </div>
-
           <!-- Balance Low Notification -->
           <div class="card">
             <div
@@ -8675,7 +8402,6 @@
       />
       <!-- 关闭 step-up 开关等敏感保存操作触发的 TOTP 二次验证 -->
       <TotpStepUpDialog :controller="settingsStepUp" />
-      <EmailBroadcastDialog :show="emailBroadcastDialogOpen" @close="emailBroadcastDialogOpen = false" @sent="emailBroadcastDialogOpen = false" />
     </div>
   </AppLayout>
 </template>
@@ -8687,11 +8413,8 @@ import { adminAPI } from "@/api";
 import {
   appendAuthSourceDefaultsToUpdateRequest,
   buildAuthSourceDefaultsState,
-  normalizeAccountSchedulingThresholdsMap,
   normalizePlatformQuotasMap,
-  sanitizeAccountSchedulingThresholdsMap,
   sanitizePlatformQuotasMap,
-  SCHEDULING_THRESHOLD_PLATFORMS,
   defaultWeChatConnectScopesForMode,
   deriveWeChatConnectStoredMode,
   normalizeDefaultSubscriptionSettings,
@@ -8730,7 +8453,6 @@ import ProxySelector from "@/components/common/ProxySelector.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
-import EmailBroadcastDialog from "@/components/admin/email-broadcasts/EmailBroadcastDialog.vue";
 import OpenAIFastPolicyUserSelector from "@/views/admin/settings/OpenAIFastPolicyUserSelector.vue";
 import { useClipboard } from "@/composables/useClipboard";
 import {
@@ -8863,7 +8585,6 @@ const testingSmtp = ref(false);
 const sendingTestEmail = ref(false);
 const smtpPasswordManuallyEdited = ref(false);
 const testEmailAddress = ref("");
-const emailBroadcastDialogOpen = ref(false);
 const registrationEmailSuffixWhitelistTags = ref<string[]>([]);
 const registrationEmailSuffixWhitelistDraft = ref("");
 const forwardedClientIpHeaderDraft = ref("");
@@ -9400,8 +9121,6 @@ type SettingsForm = Omit<
   | "wechat_connect_mp_enabled"
   | "wechat_connect_mobile_enabled"
 > & {
-  /** Form always binds a concrete boolean (SystemSettings marks this optional). */
-  channel_monitor_hide_throughput: boolean;
   smtp_password: string;
   turnstile_secret_key: string;
   tencent_captcha_app_secret_key: string;
@@ -9439,16 +9158,12 @@ type SettingsForm = Omit<
   openai_advanced_scheduler_weight_session_sticky: string;
   // 系统全局平台限额 map；form 内始终归一化为全 4 平台对象（模板非空绑定依赖此不变量）
   default_platform_quotas: DefaultPlatformQuotasMap;
-  account_scheduling_thresholds: ReturnType<typeof normalizeAccountSchedulingThresholdsMap>;
 };
-
-const schedulingThresholdPlatforms = SCHEDULING_THRESHOLD_PLATFORMS;
 
 const form = reactive<SettingsForm>({
   registration_enabled: true,
   email_verify_enabled: false,
   registration_email_suffix_whitelist: [],
-  registration_email_domain_quota_enabled: false,
   promo_code_enabled: true,
   invitation_code_enabled: false,
   password_reset_enabled: false,
@@ -9467,7 +9182,6 @@ const form = reactive<SettingsForm>({
   login_agreement_documents: defaultLoginAgreementDocuments(),
   default_balance: 0,
   default_platform_quotas: normalizePlatformQuotasMap() as DefaultPlatformQuotasMap,
-  account_scheduling_thresholds: normalizeAccountSchedulingThresholdsMap(),
   affiliate_rebate_rate: 20,
   affiliate_rebate_freeze_hours: 0,
   affiliate_rebate_duration_days: 0,
@@ -9550,7 +9264,6 @@ const form = reactive<SettingsForm>({
   tencent_captcha_cloud_secret_id_configured: false,
   tencent_captcha_cloud_secret_key: "",
   tencent_captcha_cloud_secret_key_configured: false,
-  tencent_captcha_region: "cn",
   aliyun_captcha_enabled: false,
   aliyun_captcha_access_key_id: "",
   aliyun_captcha_access_key_secret: "",
@@ -9560,7 +9273,6 @@ const form = reactive<SettingsForm>({
   aliyun_captcha_region: "cn",
   api_key_acl_trust_forwarded_ip: true,
   forwarded_client_ip_headers: [],
-  ip_blacklist: [],
   // LinuxDo Connect OAuth 登录
   linuxdo_connect_enabled: false,
   linuxdo_connect_client_id: "",
@@ -9648,9 +9360,6 @@ const form = reactive<SettingsForm>({
   fallback_model_openai: "gpt-4o",
   fallback_model_gemini: "gemini-2.5-pro",
   fallback_model_antigravity: "gemini-2.5-pro",
-  grok_default_text_model: "grok-4.5",
-  grok_cross_client_model_map_enabled: false,
-  grok_default_base_url_mode: "cli",
   // Identity patch (Claude -> Gemini)
   enable_identity_patch: true,
   identity_patch_prompt: "",
@@ -9712,9 +9421,7 @@ const form = reactive<SettingsForm>({
   account_quota_notify_emails: [] as NotifyEmailEntry[],
   // Channel Monitor feature switch
   channel_monitor_enabled: true,
-  channel_monitor_mode: 'v1' as 'v1' | 'v2',
   channel_monitor_default_interval_seconds: 60,
-  channel_monitor_hide_throughput: false,
   // Available Channels feature switch
   available_channels_enabled: false,
   // Model Plaza feature switches + description
@@ -9752,22 +9459,6 @@ function selectCaptchaProvider(provider: CaptchaProviderSelection): void {
   captchaProviderSelection.value = provider;
   applyCaptchaSelection(provider);
 }
-
-// 天御中国站与国际站是两套独立账号体系，控制台与文档入口不通用，
-// 按当前选择的站点给出对应链接，避免管理员在错误的控制台里找不到 CaptchaAppId。
-const tencentCaptchaLinks = computed(() =>
-  form.tencent_captcha_region === "intl"
-    ? {
-        console: "https://console.tencentcloud.com/captcha/graphical",
-        cloudKeys: "https://console.tencentcloud.com/cam/capi",
-        webDocs: "https://www.tencentcloud.com/document/product/1159/49680",
-      }
-    : {
-        console: "https://console.cloud.tencent.com/captcha",
-        cloudKeys: "https://console.cloud.tencent.com/cam/capi",
-        webDocs: "https://cloud.tencent.com/document/product/1110/36841",
-      },
-);
 
 function syncCaptchaProviderSelection(): void {
   if (form.tencent_captcha_enabled) {
@@ -10251,14 +9942,6 @@ function normalizeForwardedClientIpHeaders(value: unknown): string[] {
   return headers;
 }
 
-function handleIpBlacklistInput(event: Event) {
-  const value = (event.currentTarget as HTMLTextAreaElement).value;
-  form.ip_blacklist = value
-    .split(/[,，;\r\n]+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
 function removeForwardedClientIpHeader(header: string) {
   form.forwarded_client_ip_headers = form.forwarded_client_ip_headers.filter(
     (item) => item !== header,
@@ -10719,11 +10402,6 @@ async function loadSettings() {
       : defaultFingerprintSignalRows();
     form.login_agreement_mode =
       settings.login_agreement_mode === "checkbox" ? "checkbox" : "modal";
-    form.channel_monitor_mode =
-      settings.channel_monitor_mode === "v2" ? "v2" : "v1";
-    form.channel_monitor_hide_throughput = Boolean(
-      settings.channel_monitor_hide_throughput
-    );
     form.login_agreement_updated_at =
       settings.login_agreement_updated_at || "2026-03-31";
     form.login_agreement_documents =
@@ -10737,9 +10415,6 @@ async function loadSettings() {
         : defaultLoginAgreementDocuments();
     Object.assign(authSourceDefaults, buildAuthSourceDefaultsState(settings));
     form.default_platform_quotas = normalizePlatformQuotasMap(settings.default_platform_quotas);
-    form.account_scheduling_thresholds = normalizeAccountSchedulingThresholdsMap(
-      settings.account_scheduling_thresholds,
-    );
     form.backend_mode_enabled = settings.backend_mode_enabled;
     form.default_subscriptions = normalizeDefaultSubscriptionSettings(
       settings.default_subscriptions,
@@ -10751,9 +10426,6 @@ async function loadSettings() {
     form.forwarded_client_ip_headers = normalizeForwardedClientIpHeaders(
       settings.forwarded_client_ip_headers,
     );
-    form.ip_blacklist = Array.isArray(settings.ip_blacklist)
-      ? [...settings.ip_blacklist]
-      : [];
     forwardedClientIpHeaderDraft.value = "";
     tablePageSizeOptionsInput.value = formatTablePageSizeOptions(
       Array.isArray(settings.table_page_size_options)
@@ -11083,8 +10755,6 @@ async function saveSettings() {
         registrationEmailSuffixWhitelistTags.value.map((suffix) =>
           suffix.startsWith("*.") ? suffix : `@${suffix}`,
         ),
-      registration_email_domain_quota_enabled:
-        form.registration_email_domain_quota_enabled,
       promo_code_enabled: form.promo_code_enabled,
       invitation_code_enabled: form.invitation_code_enabled,
       password_reset_enabled: form.password_reset_enabled,
@@ -11147,7 +10817,6 @@ async function saveSettings() {
         form.tencent_captcha_cloud_secret_id || undefined,
       tencent_captcha_cloud_secret_key:
         form.tencent_captcha_cloud_secret_key || undefined,
-      tencent_captcha_region: form.tencent_captcha_region,
       aliyun_captcha_enabled: form.aliyun_captcha_enabled,
       aliyun_captcha_access_key_id: form.aliyun_captcha_access_key_id,
       aliyun_captcha_access_key_secret:
@@ -11157,7 +10826,6 @@ async function saveSettings() {
       aliyun_captcha_region: form.aliyun_captcha_region,
       api_key_acl_trust_forwarded_ip: form.api_key_acl_trust_forwarded_ip,
       forwarded_client_ip_headers: form.forwarded_client_ip_headers,
-      ip_blacklist: form.ip_blacklist,
       linuxdo_connect_enabled: form.linuxdo_connect_enabled,
       linuxdo_connect_client_id: form.linuxdo_connect_client_id,
       linuxdo_connect_client_secret:
@@ -11250,11 +10918,6 @@ async function saveSettings() {
       fallback_model_openai: form.fallback_model_openai,
       fallback_model_gemini: form.fallback_model_gemini,
       fallback_model_antigravity: form.fallback_model_antigravity,
-      grok_default_text_model:
-        form.grok_default_text_model.trim() || "grok-4.5",
-      grok_cross_client_model_map_enabled:
-        form.grok_cross_client_model_map_enabled,
-      grok_default_base_url_mode: form.grok_default_base_url_mode,
       enable_identity_patch: form.enable_identity_patch,
       identity_patch_prompt: form.identity_patch_prompt,
       min_claude_code_version: form.min_claude_code_version,
@@ -11375,10 +11038,8 @@ async function saveSettings() {
       ).filter((e) => e.email.trim() !== ""),
       // Channel Monitor feature switch
       channel_monitor_enabled: form.channel_monitor_enabled,
-      channel_monitor_mode: form.channel_monitor_mode === 'v1' ? 'v1' : 'v2',
       channel_monitor_default_interval_seconds:
         Number(form.channel_monitor_default_interval_seconds) || 60,
-      channel_monitor_hide_throughput: Boolean(form.channel_monitor_hide_throughput),
       // Available Channels feature switch
       available_channels_enabled: form.available_channels_enabled,
       // Model Plaza feature switches + description
@@ -11423,9 +11084,6 @@ async function saveSettings() {
     }
 
     payload.default_platform_quotas = sanitizePlatformQuotasMap(form.default_platform_quotas);
-    payload.account_scheduling_thresholds = sanitizeAccountSchedulingThresholdsMap(
-      form.account_scheduling_thresholds,
-    );
     appendAuthSourceDefaultsToUpdateRequest(payload, authSourceDefaults);
 
     const updated = await settingsStepUp.run(() =>
@@ -11439,9 +11097,6 @@ async function saveSettings() {
     }
     Object.assign(authSourceDefaults, buildAuthSourceDefaultsState(updated));
     form.default_platform_quotas = normalizePlatformQuotasMap(updated.default_platform_quotas);
-    form.account_scheduling_thresholds = normalizeAccountSchedulingThresholdsMap(
-      updated.account_scheduling_thresholds,
-    );
     registrationEmailSuffixWhitelistTags.value =
       normalizeRegistrationEmailSuffixDomains(
         updated.registration_email_suffix_whitelist,
@@ -11449,9 +11104,6 @@ async function saveSettings() {
     form.forwarded_client_ip_headers = normalizeForwardedClientIpHeaders(
       updated.forwarded_client_ip_headers,
     );
-    form.ip_blacklist = Array.isArray(updated.ip_blacklist)
-      ? [...updated.ip_blacklist]
-      : [];
     forwardedClientIpHeaderDraft.value = "";
     tablePageSizeOptionsInput.value = formatTablePageSizeOptions(
       Array.isArray(updated.table_page_size_options)

@@ -18,7 +18,7 @@
     <div class="overflow-x-auto">
       <table class="w-full min-w-max divide-y divide-gray-200 dark:divide-dark-700">
         <thead class="bg-gray-50 dark:bg-dark-800">
-<tr>
+          <tr>
             <th class="w-16 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400 sm:px-6">#</th>
             <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">
               {{ t('admin.usage.tokenRanking.columns.user') }}
@@ -33,19 +33,16 @@
               {{ t(col.label) }}
               <span v-if="sortBy === col.key" aria-hidden="true">↓</span>
             </th>
-            <th class="whitespace-nowrap px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">
-              {{ t('admin.usage.tokenRanking.columns.lastActive') }}
-            </th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
-<tr v-if="loading">
-            <td :colspan="sortableColumns.length + 3" class="py-12 text-center">
+          <tr v-if="loading">
+            <td :colspan="sortableColumns.length + 2" class="py-12 text-center">
               <LoadingSpinner />
             </td>
           </tr>
           <tr v-else-if="items.length === 0">
-            <td :colspan="sortableColumns.length + 3" class="py-12 text-center text-sm text-gray-400">
+            <td :colspan="sortableColumns.length + 2" class="py-12 text-center text-sm text-gray-400">
               {{ t('admin.dashboard.noDataAvailable') }}
             </td>
           </tr>
@@ -69,16 +66,12 @@
               {{ item.email || `User #${item.user_id}` }}
               <span class="ml-1 font-normal text-gray-400 dark:text-gray-500">#{{ item.user_id }}</span>
             </td>
-            <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">{{ fmtTokens(item.total_tokens) }}</td>
+            <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">{{ item.requests.toLocaleString() }}</td>
             <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">{{ fmtTokens(item.input_tokens) }}</td>
             <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">{{ fmtTokens(item.output_tokens) }}</td>
             <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">{{ fmtTokens(item.cache_tokens) }}</td>
-            <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">{{ fmtTokens(item.image_output_tokens) }}</td>
-            <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">{{ item.requests.toLocaleString() }}</td>
-            <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">${{ fmtCost(item.cost) }}</td>
+            <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">{{ fmtTokens(item.total_tokens) }}</td>
             <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium tabular-nums text-green-600 dark:text-green-400">${{ fmtCost(item.actual_cost) }}</td>
-            <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">${{ fmtCost(item.account_cost) }}</td>
-            <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-400 dark:text-dark-400">{{ fmtLastActive(item.last_active_at) }}</td>
           </tr>
         </tbody>
       </table>
@@ -88,10 +81,9 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getUserBreakdown, type UserBreakdownParams } from '@/api/admin/dashboard'
-import { formatCompactNumber, formatCostFixed, formatDateTimeToMinute } from '@/utils/format'
+import { formatCompactNumber, formatCostFixed } from '@/utils/format'
 import type { UserBreakdownItem } from '@/types'
 import Select from '@/components/common/Select.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
@@ -101,8 +93,6 @@ const props = defineProps<{
   endDate: string
   filters: Record<string, unknown>
   model?: string
-  limit?: number
-  limitOptions?: { value: number; label: string }[]
 }>()
 
 defineEmits<{ (e: 'select-user', userId: number, email: string): void }>()
@@ -111,25 +101,20 @@ const { t } = useI18n()
 
 type SortKey = NonNullable<UserBreakdownParams['sort_by']>
 const sortableColumns: { key: SortKey; label: string }[] = [
-  { key: 'total_tokens', label: 'admin.usage.tokenRanking.columns.totalTokens' },
+  { key: 'requests', label: 'admin.usage.tokenRanking.columns.requests' },
   { key: 'input_tokens', label: 'admin.usage.tokenRanking.columns.inputTokens' },
   { key: 'output_tokens', label: 'admin.usage.tokenRanking.columns.outputTokens' },
   { key: 'cache_tokens', label: 'admin.usage.tokenRanking.columns.cacheTokens' },
-  { key: 'image_output_tokens', label: 'admin.usage.tokenRanking.columns.imageOutputTokens' },
-  { key: 'requests', label: 'admin.usage.tokenRanking.columns.requests' },
-  { key: 'cost', label: 'admin.usage.tokenRanking.columns.cost' },
-  { key: 'actual_cost', label: 'admin.usage.tokenRanking.columns.actualCost' },
-  { key: 'account_cost', label: 'admin.usage.tokenRanking.columns.accountCost' },
+  { key: 'total_tokens', label: 'admin.usage.tokenRanking.columns.totalTokens' },
+  { key: 'actual_cost', label: 'admin.usage.tokenRanking.columns.cost' },
 ]
 
-const defaultLimitOptions = [
+const limitOptions = [
   { value: 20, label: 'Top 20' },
   { value: 50, label: 'Top 50' },
   { value: 100, label: 'Top 100' },
   { value: 200, label: 'Top 200' },
 ]
-
-const limitOptions = computed(() => props.limitOptions ?? defaultLimitOptions)
 
 // 前三名金/银/铜徽章
 const RANK_BADGE_CLASSES = [
@@ -141,22 +126,11 @@ const RANK_BADGE_CLASSES = [
 const items = ref<UserBreakdownItem[]>([])
 const loading = ref(false)
 const sortBy = ref<SortKey>('total_tokens')
-const limit = ref(props.limit ?? 50)
+const limit = ref(50)
 let reqSeq = 0
 
 const fmtTokens = (v: number) => formatCompactNumber(v)
 const fmtCost = (v: number) => formatCostFixed(v, 4)
-const fmtLastActive = (v: string | undefined) => v ? formatDateTimeToMinute(v) : '—'
-watch(
-  () => props.limit,
-  (next) => {
-    if (next != null && next !== limit.value) {
-      limit.value = next
-      load()
-    }
-  }
-)
-
 
 const setSort = (key: SortKey) => {
   if (sortBy.value === key) return

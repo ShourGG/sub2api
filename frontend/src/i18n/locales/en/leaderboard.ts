@@ -1,69 +1,20 @@
 export default {
     title: 'Token Leaderboard',
-    adminTitle: 'Admin Token Leaderboard',
-    description: 'View the top users by tokens or requests with multi-dimensional filters.',
+    description: 'Token consumption ranking by Input + Output + Cache + Image Output. Top 20 only.',
     periodLabel: 'Ranking period',
-    limit: 'Limit',
-    filters: 'Leaderboard filters',
-    sortBy: 'Sort by',
-    billingMode: 'Billing mode',
-    requestType: 'Request type',
-    all: 'All',
-    sort: {
-      tokens: 'Total tokens',
-      requests: 'Requests',
-      cost: 'Standard cost',
-      actualCost: 'Actual cost',
-      accountCost: 'Account cost'
-    },
-    billing: {
-      token: 'Token',
-      perRequest: 'Per request',
-      image: 'Image',
-      video: 'Video'
-    },
-    request: {
-      sync: 'Sync',
-      stream: 'Stream',
-      wsV2: 'WebSocket',
-      cyber: 'Blocked',
-      live: 'Live'
-    },
     period: {
-      day1: 'Last 1 day',
-      day3: 'Last 3 days',
-      day7: 'Last 7 days',
-      day14: 'Last 14 days',
-      day30: 'Last 30 days'
+      day: 'Today',
+      week: 'Last 7 days',
+      month: 'Last 30 days'
     },
     rank: 'Rank',
     user: 'User',
-    apiKey: 'API Key',
-    model: 'Model',
-    account: 'Account',
-    billingType: 'Billing Type',
-    group: 'Group',
-    filter: {
-      userPlaceholder: 'Search user by email...',
-      apiKeyPlaceholder: 'Search API key by name...',
-      accountPlaceholder: 'Search account by name...',
-      modelPlaceholder: 'Please select',
-      typePlaceholder: 'Please select',
-      billingTypePlaceholder: 'All billing types',
-      billingModePlaceholder: 'Please select',
-      groupPlaceholder: 'Please select'
-    },
-    billingTypeBalance: 'Balance',
-    billingTypeSubscription: 'Subscription',
     requests: 'Requests',
     totalTokens: 'Total Tokens',
     inputTokensShort: 'Input',
     outputTokensShort: 'Output',
     cacheTokensShort: 'Cache',
     imageOutputShort: 'Image Out',
-    cost: 'Cost',
-    actualCost: 'Actual cost',
-    accountCost: 'Account cost',
     lastActive: 'Last active',
     currentUser: 'You',
     me: 'You',
@@ -71,7 +22,6 @@ export default {
     generatedAt: 'Updated {time}',
     refresh: 'Refresh',
     refreshing: 'Refreshing…',
-    reset: 'Reset',
     theme: {
       light: 'Light',
       dark: 'Dark'

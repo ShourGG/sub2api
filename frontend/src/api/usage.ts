@@ -331,42 +331,23 @@ export interface TokenLeaderboardItem {
   output_tokens: number
   cache_tokens: number
   image_output_tokens: number
-  cost: number
-  actual_cost: number
-  account_cost: number
   last_active_at: string
   is_me: boolean
 }
 
 export interface TokenLeaderboardResponse {
-  days: 1 | 3 | 7 | 14 | 30
+  days: number
   label: string
   timezone: string
   start: string
   end: string
   limit: number
-  sort_by: LeaderboardSortBy
-  billing_mode?: string
-  request_type?: number
   items: TokenLeaderboardItem[]
 }
 
-export type LeaderboardSortBy = 'tokens' | 'requests' | 'cost' | 'actual_cost' | 'account_cost'
-export type LeaderboardBillingMode = 'token' | 'per_request' | 'image' | 'video'
-
 export interface LeaderboardParams {
-  days?: 1 | 3 | 7 | 14 | 30
+  days?: 1 | 7 | 30
   timezone?: string
-  sort_by?: LeaderboardSortBy
-  billing_mode?: LeaderboardBillingMode
-  request_type?: UsageRequestType
-  limit?: number
-  user_id?: number
-  api_key_id?: number
-  model?: string
-  account_id?: number
-  group_id?: number
-  billing_type?: number | null
 }
 
 /**

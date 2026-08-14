@@ -1,84 +1,39 @@
-
 <template>
   <AppLayout>
     <div class="leaderboard-page space-y-6" :data-theme="theme">
-     <!-- 顶部操作栏：时间范围 + 数量 + 刷新/重置 -->
+      <!-- Header: title + period tabs + theme toggle + refresh -->
       <section class="lb-card lb-header">
         <div class="lb-header-main">
           <h1 class="lb-title">{{ t('leaderboard.title') }}</h1>
           <p class="lb-desc">{{ t('leaderboard.description') }}</p>
         </div>
-        <div class="lb-header-controls">
-          <div class="lb-toolbar-group">
-            <span class="lb-toolbar-label">{{ t('leaderboard.periodLabel') }}</span>
-            <div class="w-40">
-              <Select v-model="days" :options="periodOptions" :theme="theme" @change="onDaysChange" />
-            </div>
-          </div>
-          <div class="lb-toolbar-group lb-toolbar-actions">
-            <span class="lb-toolbar-label">{{ t('leaderboard.limit') }}</span>
-            <div class="w-24">
-              <Select v-model="limit" :options="limitOptions" :theme="theme" @change="onLimitChange" />
-            </div>
+        <div class="lb-header-actions">
+          <div class="lb-tabs" role="tablist" :aria-label="t('leaderboard.periodLabel')">
             <button
+              v-for="opt in periodOptions"
+              :key="opt.days"
               type="button"
-              class="lb-btn"
-              :disabled="loading"
-              @click="reload"
+              role="tab"
+              class="lb-tab"
+              :class="{ 'lb-tab--active': days === opt.days }"
+              :aria-selected="days === opt.days"
+              @click="selectDays(opt.days)"
             >
-              <Icon name="refresh" size="sm" :class="{ 'lb-spin': loading }" />
-              {{ t('leaderboard.refresh') }}
-            </button>
-            <button type="button" class="lb-btn" @click="resetFilters">
-              {{ t('leaderboard.reset') }}
-            </button>
-            <button
-              type="button"
-              class="lb-icon-btn"
-              :aria-label="themeToggleLabel"
-              :title="themeToggleLabel"
-              @click="toggleTheme"
-            >
-              <Icon :name="theme === 'dark' ? 'sun' : 'moon'" size="sm" />
+              {{ opt.label }}
             </button>
           </div>
-        </div>
-      </section>
-
-      <!-- 筛选面板：模型和分组从当前用户的真实用量中加载。 -->
-      <section class="lb-card lb-filters-card">
-        <div class="lb-filter-grid">
-          <div class="lb-filter-col">
-            <label class="lb-filter-label">{{ t('leaderboard.model') }}</label>
-            <div class="w-full">
-              <Select v-model="filterModel" :options="modelOptions" :theme="theme" searchable @change="reload" />
-              <p v-if="filterOptionsLoading" class="lb-filter-hint">{{ t('common.loading') }}</p>
-            </div>
-          </div>
-          <div class="lb-filter-col">
-            <label class="lb-filter-label">{{ t('leaderboard.requestType') }}</label>
-            <div class="w-full">
-              <Select v-model="filterRequestType" :options="requestTypeOptions" :theme="theme" @change="reload" />
-            </div>
-          </div>
-          <div class="lb-filter-col">
-            <label class="lb-filter-label">{{ t('leaderboard.billingType') }}</label>
-            <div class="w-full">
-              <Select v-model="filterBillingType" :options="billingTypeOptions" :theme="theme" @change="reload" />
-            </div>
-          </div>
-          <div class="lb-filter-col">
-            <label class="lb-filter-label">{{ t('leaderboard.billingMode') }}</label>
-            <div class="w-full">
-              <Select v-model="filterBillingMode" :options="billingModeOptions" :theme="theme" @change="reload" />
-            </div>
-          </div>
-          <div class="lb-filter-col">
-            <label class="lb-filter-label">{{ t('leaderboard.group') }}</label>
-            <div class="w-full">
-              <Select v-model="filterGroup" :options="groupOptions" :theme="theme" searchable @change="reload" />
-            </div>
-          </div>
+          <button type="button" class="lb-icon-btn" :title="themeToggleLabel" @click="toggleTheme">
+            {{ theme === 'dark' ? '☀️' : '🌙' }}
+          </button>
+          <button
+            type="button"
+            class="lb-icon-btn"
+            :disabled="loading"
+            :title="t('leaderboard.refresh')"
+            @click="reload"
+          >
+            <span :class="{ 'lb-spin': loading }">⟳</span>
+          </button>
         </div>
       </section>
 
@@ -103,7 +58,7 @@
       <!-- Leaderboard table -->
       <section v-else class="lb-card lb-board">
         <div class="lb-board-head">
-          <span class="lb-board-top">{{ t('leaderboard.top', { count: leaderboard?.limit ?? limit }) }}</span>
+          <span class="lb-board-top">{{ t('leaderboard.top', { count: leaderboard?.limit ?? 20 }) }}</span>
           <span v-if="generatedAtLabel" class="lb-board-updated">
             {{ t('leaderboard.generatedAt', { time: generatedAtLabel }) }}
           </span>
@@ -121,7 +76,6 @@
                 <th class="lb-col-num lb-hide-sm">{{ t('leaderboard.cacheTokensShort') }}</th>
                 <th class="lb-col-num lb-hide-sm">{{ t('leaderboard.imageOutputShort') }}</th>
                 <th class="lb-col-num">{{ t('leaderboard.requests') }}</th>
-                <th class="lb-col-num lb-hide-sm">{{ t('leaderboard.actualCost') }}</th>
                 <th class="lb-col-time lb-hide-sm">{{ t('leaderboard.lastActive') }}</th>
               </tr>
             </thead>
@@ -148,7 +102,6 @@
                 <td class="lb-col-num lb-hide-sm">{{ formatTokens(item.cache_tokens) }}</td>
                 <td class="lb-col-num lb-hide-sm">{{ formatTokens(item.image_output_tokens) }}</td>
                 <td class="lb-col-num">{{ formatNumber(item.requests) }}</td>
-                <td class="lb-col-num lb-hide-sm lb-strong">{{ formatCost(item.actual_cost) }}</td>
                 <td class="lb-col-time lb-hide-sm">{{ item.last_active_at || '—' }}</td>
               </tr>
             </tbody>
@@ -164,95 +117,30 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
-import Select from '@/components/common/Select.vue'
-import Icon from '@/components/icons/Icon.vue'
 import {
   usageAPI,
   type TokenLeaderboardResponse,
-  type LeaderboardParams,
-  type LeaderboardSortBy,
-  type LeaderboardBillingMode
+  type LeaderboardParams
 } from '@/api/usage'
-import type { UsageRequestType, ModelStat, GroupStat } from '@/types'
 
 const { t } = useI18n()
 
-type DaysWindow = 1 | 3 | 7 | 14 | 30
+type DaysWindow = 1 | 7 | 30
+
+const THEME_STORAGE_KEY = 'leaderboard.theme'
 
 const leaderboard = ref<TokenLeaderboardResponse | null>(null)
 const loading = ref(false)
 const error = ref(false)
 const days = ref<DaysWindow>(1)
-const limit = ref(20)
-const sortBy = ref<LeaderboardSortBy>('tokens')
-const theme = ref<'light' | 'dark'>(
-  typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light'
-)
-
-// 筛选面板
-const filterModel = ref<string | null>(null)
-const filterRequestType = ref<UsageRequestType | null>(null)
-const filterBillingType = ref<number | null>(null)
-const filterBillingMode = ref<LeaderboardBillingMode | null>(null)
-const filterGroup = ref<number | null>(null)
-const availableModels = ref<ModelStat[]>([])
-const availableGroups = ref<GroupStat[]>([])
-const filterOptionsLoading = ref(false)
+const theme = ref<'light' | 'dark'>('light')
 
 let abortController: AbortController | null = null
-let themeObserver: MutationObserver | null = null
 
-const periodOptions = computed(() => [
-  { value: 1, label: t('leaderboard.period.day1') },
-  { value: 3, label: t('leaderboard.period.day3') },
-  { value: 7, label: t('leaderboard.period.day7') },
-  { value: 14, label: t('leaderboard.period.day14') },
-  { value: 30, label: t('leaderboard.period.day30') }
-])
-
-const limitOptions = computed(() => [
-  { value: 10, label: '10' },
-  { value: 20, label: '20' },
-  { value: 50, label: '50' },
-  { value: 100, label: '100' }
-])
-
-const modelOptions = computed(() => [
-  { value: null, label: t('leaderboard.filter.modelPlaceholder') },
-  ...Array.from(new Set(availableModels.value.map((item) => item.model).filter(Boolean)))
-    .sort((a, b) => a.localeCompare(b))
-    .map((model) => ({ value: model, label: model }))
-])
-
-const requestTypeOptions = computed(() => [
-  { value: null, label: t('leaderboard.filter.typePlaceholder') },
-  { value: 'sync', label: t('leaderboard.request.sync') },
-  { value: 'stream', label: t('leaderboard.request.stream') },
-  { value: 'ws_v2', label: t('leaderboard.request.wsV2') },
-  { value: 'cyber', label: t('leaderboard.request.cyber') },
-  { value: 'live', label: t('leaderboard.request.live') }
-])
-
-const billingTypeOptions = computed(() => [
-  { value: null, label: t('leaderboard.filter.billingTypePlaceholder') },
-  { value: 0, label: t('leaderboard.billingTypeBalance') },
-  { value: 1, label: t('leaderboard.billingTypeSubscription') }
-])
-
-const billingModeOptions = computed(() => [
-  { value: null, label: t('leaderboard.filter.billingModePlaceholder') },
-  { value: 'token', label: t('leaderboard.billing.token') },
-  { value: 'per_request', label: t('leaderboard.billing.perRequest') },
-  { value: 'image', label: t('leaderboard.billing.image') },
-  { value: 'video', label: t('leaderboard.billing.video') }
-])
-
-const groupOptions = computed(() => [
-  { value: null, label: t('leaderboard.filter.groupPlaceholder') },
-  ...availableGroups.value
-    .filter((item) => item.group_id > 0)
-    .sort((a, b) => a.group_name.localeCompare(b.group_name))
-    .map((item) => ({ value: item.group_id, label: item.group_name || `#${item.group_id}` }))
+const periodOptions = computed<{ days: DaysWindow; label: string }[]>(() => [
+  { days: 1, label: t('leaderboard.period.day') },
+  { days: 7, label: t('leaderboard.period.week') },
+  { days: 30, label: t('leaderboard.period.month') }
 ])
 
 const items = computed(() => leaderboard.value?.items ?? [])
@@ -322,25 +210,6 @@ function formatTokens(value: number): string {
   return numberFormatter.format(v)
 }
 
-function formatCost(value: number): string {
-  return `$${(value ?? 0).toFixed(4)}`
-}
-
-function buildParams(): LeaderboardParams {
-  const params: LeaderboardParams = {
-    days: days.value,
-    sort_by: sortBy.value,
-    limit: limit.value
-  }
-  if (filterModel.value) params.model = filterModel.value
-  if (filterRequestType.value) params.request_type = filterRequestType.value
-  if (filterBillingType.value !== null) params.billing_type = filterBillingType.value
-  if (filterBillingMode.value) params.billing_mode = filterBillingMode.value
-  if (filterGroup.value !== null) params.group_id = filterGroup.value
-  if (browserTimezone) params.timezone = browserTimezone
-  return params
-}
-
 async function load() {
   loading.value = true
   error.value = false
@@ -350,16 +219,18 @@ async function load() {
   }
   abortController = new AbortController()
 
+  const params: LeaderboardParams = { days: days.value }
+  if (browserTimezone) {
+    params.timezone = browserTimezone
+  }
+
   try {
-    const data = await usageAPI.getDashboardLeaderboard(buildParams(), {
+    const data = await usageAPI.getDashboardLeaderboard(params, {
       signal: abortController.signal
     })
     leaderboard.value = data
   } catch (err: unknown) {
-    if (
-      (err as { name?: string })?.name === 'CanceledError' ||
-      (err as { code?: string })?.code === 'ERR_CANCELED'
-    ) {
+    if ((err as { name?: string })?.name === 'CanceledError' || (err as { code?: string })?.code === 'ERR_CANCELED') {
       return
     }
     console.error('Failed to load leaderboard:', err)
@@ -369,75 +240,22 @@ async function load() {
   }
 }
 
-function leaderboardDateRange() {
-  const now = new Date()
-  const start = new Date(now)
-  start.setDate(now.getDate() - (days.value - 1))
-  const toDate = (value: Date) => {
-    const year = value.getFullYear()
-    const month = String(value.getMonth() + 1).padStart(2, '0')
-    const day = String(value.getDate()).padStart(2, '0')
-    return `${year}-${month}-${day}`
-  }
-  return { start_date: toDate(start), end_date: toDate(now) }
-}
-
-async function loadFilterOptions() {
-  filterOptionsLoading.value = true
-  try {
-    const snapshot = await usageAPI.getDashboardSnapshotV2({
-      ...leaderboardDateRange(),
-      include_trend: false,
-      include_model_stats: true,
-      include_group_stats: true,
-      timezone: browserTimezone || undefined
-    })
-    availableModels.value = snapshot.models || []
-    availableGroups.value = snapshot.groups || []
-  } catch (err) {
-    console.error('Failed to load leaderboard filter options:', err)
-    availableModels.value = []
-    availableGroups.value = []
-  } finally {
-    filterOptionsLoading.value = false
-  }
-}
-
 function reload() {
   void load()
 }
 
-function onDaysChange() {
-  void loadFilterOptions()
-  void load()
-}
-
-function onLimitChange() {
-  void load()
-}
-
-function resetFilters() {
-  days.value = 1
-  limit.value = 20
-  sortBy.value = 'tokens'
-  filterModel.value = null
-  filterRequestType.value = null
-  filterBillingType.value = null
-  filterBillingMode.value = null
-  filterGroup.value = null
-  void loadFilterOptions()
+function selectDays(next: DaysWindow) {
+  if (days.value === next) return
+  days.value = next
   void load()
 }
 
 function applyTheme(next: 'light' | 'dark') {
   theme.value = next
   try {
-    localStorage.setItem('theme', next)
+    localStorage.setItem(THEME_STORAGE_KEY, next)
   } catch {
     /* ignore storage errors */
-  }
-  if (typeof document !== 'undefined') {
-    document.documentElement.classList.toggle('dark', next === 'dark')
   }
 }
 
@@ -446,14 +264,14 @@ function toggleTheme() {
 }
 
 onMounted(() => {
-  // The user console has a single source of truth for theme. Ignoring the
-  // historic route-only key prevents this page from drifting from its shell.
-  theme.value = document.documentElement.classList.contains('dark') ? 'dark' : 'light'
-  themeObserver = new MutationObserver(() => {
-    theme.value = document.documentElement.classList.contains('dark') ? 'dark' : 'light'
-  })
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-  void loadFilterOptions()
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY)
+    if (saved === 'dark' || saved === 'light') {
+      theme.value = saved
+    }
+  } catch {
+    /* ignore storage errors */
+  }
   void load()
 })
 
@@ -462,210 +280,97 @@ onBeforeUnmount(() => {
     abortController.abort()
     abortController = null
   }
-  themeObserver?.disconnect()
-  themeObserver = null
 })
 </script>
 
 <style scoped>
 .leaderboard-page {
-  --lb-bg: #fffdf8;
-  --lb-fg: #181711;
-  --lb-muted: #716e63;
-  --lb-border: #d9d3c5;
-  --lb-row-hover: #ece8dd;
-  --lb-me-bg: rgba(30, 92, 66, 0.1);
-  --lb-me-border: #1e5c42;
-  --lb-accent: #1e5c42;
-  --lb-input-bg: #fffdf8;
-  --lb-input-border: #d9d3c5;
+  --lb-bg: #ffffff;
+  --lb-fg: #1f2937;
+  --lb-muted: #6b7280;
+  --lb-border: #e5e7eb;
+  --lb-row-hover: #f9fafb;
+  --lb-me-bg: #eff6ff;
+  --lb-me-border: #3b82f6;
+  --lb-accent: #2563eb;
 }
 
 .leaderboard-page[data-theme='dark'] {
-  --lb-bg: #24231f;
-  --lb-fg: #f4f2ea;
-  --lb-muted: #aaa69a;
-  --lb-border: #49453b;
-  --lb-row-hover: #2b2924;
-  --lb-me-bg: rgba(143, 194, 165, 0.12);
-  --lb-me-border: #8fc2a5;
-  --lb-accent: #8fc2a5;
-  --lb-input-bg: #24231f;
-  --lb-input-border: #49453b;
-}
-
-/* 深色只覆盖排行榜内容区；导航栏、侧栏和其他路由保持原样。 */
-.leaderboard-page[data-theme='dark'] {
-  min-height: calc(100dvh - 8rem);
-  padding: 1.5rem;
-  margin: -1.5rem;
-  background: #1b1b18;
-}
-
-.lb-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1.25rem;
-}
-
-.lb-header-main {
-  min-width: 0;
-}
-
-.lb-title {
-  margin: 0;
-  color: var(--lb-fg);
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 1.7rem;
-  font-weight: 500;
-  letter-spacing: 0;
-  line-height: 1.15;
-}
-
-.lb-desc {
-  max-width: 38rem;
-  margin: 0.45rem 0 0;
-  color: var(--lb-muted);
-  font-size: 0.78rem;
-  line-height: 1.5;
-}
-
-.lb-header-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.75rem;
+  --lb-bg: #0f172a;
+  --lb-fg: #e2e8f0;
+  --lb-muted: #94a3b8;
+  --lb-border: #1e293b;
+  --lb-row-hover: #1e293b;
+  --lb-me-bg: #1e3a5f;
+  --lb-me-border: #3b82f6;
+  --lb-accent: #60a5fa;
 }
 
 .lb-card {
   background: var(--lb-bg);
   color: var(--lb-fg);
   border: 1px solid var(--lb-border);
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 1.25rem;
 }
 
-.lb-toolbar {
+.lb-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
 }
 
-.lb-toolbar-group {
+.lb-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.lb-desc {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--lb-muted);
+}
+
+.lb-header-actions {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 
-.lb-toolbar-actions {
-  gap: 0.75rem;
-}
-
-.lb-toolbar-label {
-  color: var(--lb-muted);
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.lb-filter {
-  display: grid;
-  gap: 0.25rem;
-  color: var(--lb-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.lb-filter-label {
-  color: var(--lb-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-  display: block;
-}
-
-.lb-filter-hint {
-  margin: 0.35rem 0 0;
-  color: var(--lb-muted);
-  font-size: 0.75rem;
-}
-
-.lb-input {
-  width: 100%;
-  border: 1px solid var(--lb-input-border);
-  border-radius: 6px;
-  background: var(--lb-input-bg);
-  color: var(--lb-fg);
-  padding: 0.45rem 0.75rem;
-  font-size: 0.85rem;
-  outline: none;
-  transition: border-color 0.15s ease;
-}
-
-.lb-input:focus {
-  border-color: var(--lb-accent);
-}
-
-.lb-filters-card {
-  padding: 1.25rem;
-}
-
-.lb-filter-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-}
-
-@media (max-width: 1200px) {
-  .lb-filter-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 768px) {
-  .lb-filter-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 480px) {
-  .lb-filter-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.lb-btn {
+.lb-tabs {
   display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  border-radius: 6px;
+  background: var(--lb-row-hover);
   border: 1px solid var(--lb-border);
-  background: var(--lb-bg);
-  color: var(--lb-fg);
-  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  padding: 3px;
+}
+
+.lb-tab {
+  border: none;
+  background: transparent;
+  color: var(--lb-muted);
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.lb-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.lb-btn-secondary:hover {
-  border-color: var(--lb-accent);
+.lb-tab--active {
+  background: var(--lb-bg);
   color: var(--lb-accent);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .lb-icon-btn {
   width: 34px;
   height: 34px;
-  border-radius: 6px;
+  border-radius: 8px;
   border: 1px solid var(--lb-border);
   background: var(--lb-bg);
   color: var(--lb-fg);
@@ -675,6 +380,11 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.lb-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .lb-spin {
@@ -805,7 +515,7 @@ onBeforeUnmount(() => {
   font-size: 0.7rem;
   color: var(--lb-accent);
   border: 1px solid var(--lb-accent);
-  border-radius: 4px;
+  border-radius: 999px;
   padding: 0.05rem 0.4rem;
 }
 
@@ -817,19 +527,5 @@ onBeforeUnmount(() => {
   .lb-hide-sm {
     display: none;
   }
-
-  .lb-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .lb-header-controls,
-  .lb-toolbar-group {
-    justify-content: space-between;
-  }
-
-  .lb-header-controls { align-items: stretch; }
-  .lb-header-controls > .lb-toolbar-group { flex: 1 1 100%; }
-  .lb-title { font-size: 1.5rem; }
 }
 </style>
