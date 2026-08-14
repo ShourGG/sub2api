@@ -29,6 +29,7 @@ export interface AdminUsageStatsResponse {
 export interface SimpleUser {
   id: number
   email: string
+  username?: string
   deleted: boolean
 }
 
@@ -84,6 +85,7 @@ export interface AdminUsageQueryParams extends UsageQueryParams {
   user_id?: number
   exact_total?: boolean
   billing_mode?: string
+  upstream_model_mismatch?: boolean
   sort_by?: string
   sort_order?: 'asc' | 'desc'
   // 错误请求 tab 专属筛选(仅传给错误列表接口;共用同一 filters 对象)
@@ -123,6 +125,7 @@ export async function getStats(params: {
   model?: string
   request_type?: UsageRequestType
   stream?: boolean
+  upstream_model_mismatch?: boolean
   period?: string
   start_date?: string
   end_date?: string
@@ -136,8 +139,8 @@ export async function getStats(params: {
 }
 
 /**
- * Search users by email keyword (admin only)
- * @param keyword - Email keyword to search
+ * Search users by username or email keyword (admin only)
+ * @param keyword - Username or email keyword to search
  * @returns List of matching users (max 30)
  */
 export async function searchUsers(keyword: string): Promise<SimpleUser[]> {

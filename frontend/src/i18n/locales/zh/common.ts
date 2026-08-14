@@ -44,6 +44,7 @@ export default {
     inactive: '禁用',
     more: '更多',
     close: '关闭',
+    clear: '清除',
     toggleMenu: '切换菜单',
     userMenu: '用户菜单',
     pageNotFound: '页面不存在',
@@ -81,6 +82,13 @@ export default {
     view: '查看',
     settings: '设置',
     chooseFile: '选择文件',
+    upload: '上传',
+    remove: '移除',
+    noFileSelected: '未选择文件',
+    selectedFile: '已选：{name}',
+    fileReadFailed: '读取文件失败',
+    selectImageFile: '请选择图片文件',
+    fileTooLargeKb: '文件过大（{size} KB），上限 {max} KB',
     copy: '复制',
     notAvailable: '不可用',
     now: '现在',
@@ -151,9 +159,12 @@ export default {
   // Navigation
   nav: {
     dashboard: '仪表盘',
+    scheme3Workspace: 'Shour or ToKen 控制台',
     announcements: '公告',
-    apiKeys: 'API 密钥',
-    batchImage: '批量生图',
+   apiKeys: 'API 密钥',
+    leaderboard: '总排行榜',
+    adminLeaderboard: '后台管理员总排行榜',
+   batchImage: '批量生图',
     usage: '使用记录',
     redeem: '兑换',
     affiliate: '邀请返利',
@@ -202,6 +213,14 @@ export default {
 
   // Auth
   auth: {
+    scheme3: {
+      kicker: '账户入口 / 访问台账',
+      subtitle: '统一调用与路由服务台',
+      loginEyebrow: '登录记录 / 验证身份',
+      registerEyebrow: '注册记录 / 建立账户',
+      otherEntry: '其他入口',
+      copyright: '账户服务'
+    },
     welcomeBack: '欢迎回来',
     signInToAccount: '登录您的账户以继续',
     signIn: '登录',
@@ -234,6 +253,8 @@ export default {
       USER_NOT_ACTIVE: '账号已被禁用',
     },
     registrationFailed: '注册失败，请重试。',
+    emailDomainRegistrationLimit:
+      '该邮箱域名无法注册新账户。请使用主流邮箱注册；如需使用企业邮箱，请联系客服添加域名白名单。',
     emailSuffixNotAllowed: '该邮箱域名不在允许注册范围内。',
     emailSuffixNotAllowedWithAllowed: '该邮箱域名不被允许。可用域名：{suffixes}',
     emailSuffixAllowedMore: '等 {count} 项',

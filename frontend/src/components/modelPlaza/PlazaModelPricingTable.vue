@@ -1,5 +1,5 @@
 <template>
-  <div class="plaza-pricing-table overflow-x-auto" :style="accentStyle">
+  <div class="scheme3-plaza-pricing-table overflow-x-auto">
     <table class="w-full min-w-[860px] table-fixed border-collapse text-sm tabular-nums">
       <colgroup>
         <col class="w-[22%]" />
@@ -59,13 +59,22 @@
       <tbody>
         <tr
           v-for="m in sortedModels"
-          :key="m.name"
+          :key="`${m.platform}:${m.name}`"
           class="border-b border-gray-100 transition-colors last:border-b-0 hover:bg-gray-50/70 dark:border-dark-800 dark:hover:bg-dark-800/50"
         >
           <!-- 模型名 + 非 token 计费模式徽章 -->
           <td class="border-r border-gray-100 py-2.5 pl-5 pr-4 align-middle dark:border-dark-700/60">
             <div class="flex flex-wrap items-center gap-1.5">
               <span class="font-medium text-gray-900 dark:text-white">{{ m.name }}</span>
+              <span
+                v-if="platform && m.platform !== platform"
+                :class="[
+                  'inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium',
+                  platformBadgeLightClass(m.platform)
+                ]"
+              >
+                {{ platformLabel(m.platform) }}
+              </span>
               <span
                 v-if="billingMode(m) !== BILLING_MODE_TOKEN"
                 class="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-dark-700/70 dark:text-dark-300"
@@ -203,7 +212,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatScaled } from '@/utils/pricing'
-import { platformAccentColor } from '@/utils/platformColors'
+import { platformBadgeLightClass, platformLabel } from '@/utils/platformColors'
 import {
   BILLING_MODE_TOKEN,
   BILLING_MODE_IMAGE,
@@ -226,9 +235,6 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-
-/** 实付分区只从平台拿一个主色,浅底/标题/下划线全部由 scoped CSS 用 color-mix 派生。 */
-const accentStyle = computed(() => ({ '--plaza-accent': platformAccentColor(props.platform ?? '') }))
 
 const PER_MILLION = 1_000_000
 
@@ -344,40 +350,21 @@ function trimZero(n: number): string {
 </script>
 
 <style scoped>
-/* 实付分区配色统一从 --plaza-accent(平台主色)派生,新增平台无需扩展样式 */
-.plaza-pricing-table {
-  --pz-title: color-mix(in srgb, var(--plaza-accent) 88%, black);
-  --pz-bg: color-mix(in srgb, var(--plaza-accent) 7%, transparent);
-  --pz-bg-hover: color-mix(in srgb, var(--plaza-accent) 13%, transparent);
-}
+.scheme3-plaza-pricing-table { --pz-title: #1e5c42; --pz-bg: #f1eee6; --pz-bg-hover: #e8eee9; border: 1px solid #d8d2c3; border-radius: 8px; background: #fffefa; }
+.scheme3-plaza-pricing-table table { color: #27251f; }
+.scheme3-plaza-pricing-table thead { background: #f8f5ed; }
+.scheme3-plaza-pricing-table th, .scheme3-plaza-pricing-table td { border-color: #d8d2c3 !important; }
+.scheme3-plaza-pricing-table tbody tr:hover { background: #f8f5ed !important; }
+.pz-bg, .pz-cell { background-color: var(--pz-bg); }
+.pz-cell { transition: background-color 150ms ease; }
+tbody tr:hover .pz-cell { background-color: var(--pz-bg-hover); }
+.pz-title { color: var(--pz-title); border-color: rgba(30,92,66,.22); }
+.pz-unit { color: #777266; }
 
-.dark .plaza-pricing-table {
-  --pz-title: color-mix(in srgb, var(--plaza-accent) 70%, white);
-  --pz-bg: color-mix(in srgb, var(--plaza-accent) 6%, transparent);
-  --pz-bg-hover: color-mix(in srgb, var(--plaza-accent) 10%, transparent);
-}
-
-.pz-bg,
-.pz-cell {
-  background-color: var(--pz-bg);
-}
-
-.pz-cell {
-  transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-tbody tr:hover .pz-cell {
-  background-color: var(--pz-bg-hover);
-}
-
-.pz-title {
-  /* color-mix 不可用的老浏览器回退为平台原色 */
-  color: var(--plaza-accent);
-  color: var(--pz-title);
-  border-color: color-mix(in srgb, var(--pz-title) 30%, transparent);
-}
-
-.pz-unit {
-  color: color-mix(in srgb, var(--pz-title) 62%, transparent);
-}
+:global(.dark .scheme3-plaza-pricing-table) { --pz-title: #8fc2a5; --pz-bg: #2b2924; --pz-bg-hover: #33322c; border-color: #47443a; background: #24231f; }
+:global(.dark .scheme3-plaza-pricing-table table) { color: #f4f2ec; }
+:global(.dark .scheme3-plaza-pricing-table thead) { background: #2b2924; }
+:global(.dark .scheme3-plaza-pricing-table th), :global(.dark .scheme3-plaza-pricing-table td) { border-color: #47443a !important; }
+:global(.dark .scheme3-plaza-pricing-table tbody tr:hover) { background: #2b2924 !important; }
+:global(.dark .pz-unit) { color: #aaa69a; }
 </style>

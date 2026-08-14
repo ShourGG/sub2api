@@ -510,8 +510,9 @@ export default {
       title: 'Usage Records',
       description: 'View and manage all user usage records',
       userFilter: 'User',
-      searchUserPlaceholder: 'Search user by email...',
-      searchApiKeyPlaceholder: 'Search API key by name...',
+    searchUserPlaceholder: 'Search username or account email...',
+    searchApiKeyPlaceholder: 'Search API key by name...',
+    selectUserBeforeApiKey: 'Search and select a user before searching API keys',
       searchAccountPlaceholder: 'Search account by name...',
       selectedUser: 'Selected',
       user: 'User',
@@ -544,6 +545,10 @@ export default {
       billingModeImage: 'Image',
       billingModeVideo: 'Video',
       allBillingModes: 'All Billing Modes',
+	  upstreamModelAudit: 'Upstream model audit',
+	  allUpstreamModelAudit: 'All response model states',
+	  upstreamModelMismatchOnly: 'Mismatched only',
+	  upstreamModelMatchedOnly: 'Matched only',
       ipAddress: 'IP',
       clickToViewBalance: 'Click to view balance history',
       failedToLoadUser: 'Failed to load user info',
@@ -559,7 +564,11 @@ export default {
           outputTokens: 'Output Tokens',
           cacheTokens: 'Cache Tokens',
           totalTokens: 'Total Tokens',
-          cost: 'Cost'
+          imageOutputTokens: 'Image Output',
+          cost: 'Cost',
+          actualCost: 'Actual Cost',
+          accountCost: 'Account Cost',
+          lastActive: 'Last Active'
         }
       },
       cleanup: {

@@ -459,8 +459,12 @@ func leaderboardPeriodLabel(days int) string {
 	switch days {
 	case 1:
 		return "今日"
+	case 3:
+		return "近 3 天"
 	case 7:
 		return "近 7 天"
+	case 14:
+		return "近 14 天"
 	case 30:
 		return "近 30 天"
 	default:
@@ -468,11 +472,15 @@ func leaderboardPeriodLabel(days int) string {
 	}
 }
 
-// parseLeaderboardDays clamps the days query to the allowed windows {1,7,30}, default 1.
+// parseLeaderboardDays clamps the days query to the allowed windows {1,3,7,14,30}, default 1.
 func parseLeaderboardDays(raw string) int {
 	switch strings.TrimSpace(raw) {
+	case "3":
+		return 3
 	case "7":
 		return 7
+	case "14":
+		return 14
 	case "30":
 		return 30
 	default:
@@ -480,12 +488,70 @@ func parseLeaderboardDays(raw string) int {
 	}
 }
 
+func parseOptionalInt64Query(c *gin.Context, key string) (int64, bool) {
+	raw := strings.TrimSpace(c.Query(key))
+	if raw == "" {
+		return 0, true
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return value, true
+}
+
+func parseOptionalInt16Query(c *gin.Context, key string) (*int16, bool) {
+	raw := strings.TrimSpace(c.Query(key))
+	if raw == "" {
+		return nil, true
+	}
+	value, err := strconv.ParseInt(raw, 10, 16)
+	if err != nil {
+		return nil, false
+	}
+	v := int16(value)
+	return &v, true
+}
+
+func parseLeaderboardSortBy(raw string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "", "tokens", "total_tokens":
+		return "tokens", true
+	case "requests":
+		return "requests", true
+	case "cost":
+		return "cost", true
+	case "actual_cost":
+		return "actual_cost", true
+	case "account_cost":
+		return "account_cost", true
+	default:
+		return "", false
+	}
+}
+
+func parseLeaderboardRequestType(raw string) (int16, error) {
+	if parsed, err := service.ParseUsageRequestType(raw); err == nil {
+		return int16(parsed), nil
+	}
+	value, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("invalid request_type, allowed values: 0-5, unknown, sync, stream, ws_v2, cyber, live")
+	}
+	requestType := service.RequestType(value)
+	if !requestType.IsValid() {
+		return 0, fmt.Errorf("invalid request_type, allowed values: 0-5, unknown, sync, stream, ws_v2, cyber, live")
+	}
+	return int16(requestType), nil
+}
+
 // DashboardLeaderboard returns the Token consumption leaderboard.
-// GET /api/v1/usage/dashboard/leaderboard?days=1|7|30&limit=20&timezone=Asia/Shanghai
+// GET /api/v1/usage/dashboard/leaderboard?days=1|3|7|14|30&limit=20&timezone=Asia/Shanghai&sort_by=tokens|requests|cost|actual_cost|account_cost&billing_mode=token|per_request|image|video&request_type=0|1|2|3|4|5|sync|stream|ws_v2|cyber|live&billing_type=0|1&model=...&group_id=...&user_id=...&account_name=...&account_email=...
 //
 // Ranking key is total_tokens = input + output + cache + image_output.
-// Regular users only ever see Top 1-20 with emails masked; the current user's
-// own row is labeled "我" and flagged is_me so the frontend can highlight it.
+// Matching supports upstream account metadata and the user's own username/email.
+// Returned identities are always masked; the current user's own row is labeled
+// "我" and flagged is_me so the frontend can highlight it.
 func (h *UsageHandler) DashboardLeaderboard(c *gin.Context) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
@@ -495,14 +561,83 @@ func (h *UsageHandler) DashboardLeaderboard(c *gin.Context) {
 
 	userTZ := c.Query("timezone")
 	days := parseLeaderboardDays(c.DefaultQuery("days", "1"))
-	// Top 1-20 only; ignore any larger client-supplied limit for regular users.
+	sortBy, valid := parseLeaderboardSortBy(c.Query("sort_by"))
+	if !valid {
+		response.BadRequest(c, "Invalid sort_by, use tokens/requests/cost/actual_cost/account_cost")
+		return
+	}
+
+	billingMode := strings.TrimSpace(c.Query("billing_mode"))
+	if billingMode != "" && !service.BillingMode(billingMode).IsValidUsageFilter() {
+		response.BadRequest(c, "Invalid billing_mode")
+		return
+	}
+
+	var requestType *int16
+	var stream *bool
+	if rawRequestType := strings.TrimSpace(c.Query("request_type")); rawRequestType != "" {
+		parsed, err := parseLeaderboardRequestType(rawRequestType)
+		if err != nil {
+			response.BadRequest(c, err.Error())
+			return
+		}
+		requestType = &parsed
+	} else if rawStream := strings.TrimSpace(c.Query("stream")); rawStream != "" {
+		parsed, err := strconv.ParseBool(rawStream)
+		if err != nil {
+			response.BadRequest(c, "Invalid stream value, use true or false")
+			return
+		}
+		stream = &parsed
+	}
+	// Top 1-100; clamp client-supplied limit to avoid abuse.
 	limit := 20
+	if rawLimit := strings.TrimSpace(c.Query("limit")); rawLimit != "" {
+		if parsedLimit, err := strconv.Atoi(rawLimit); err == nil {
+			if parsedLimit < 1 {
+				parsedLimit = 1
+			} else if parsedLimit > 100 {
+				parsedLimit = 100
+			}
+			limit = parsedLimit
+		}
+	}
+
+	query := usagestats.TokenLeaderboardQuery{
+		RequestType: requestType,
+		Stream:      stream,
+		BillingMode: billingMode,
+		SortBy:      sortBy,
+	}
+
+	if model := strings.TrimSpace(c.Query("model")); model != "" {
+		query.Model = model
+	}
+
+	if groupID, ok := parseOptionalInt64Query(c, "group_id"); ok && groupID > 0 {
+		query.GroupID = groupID
+	}
+
+	if billingType, ok := parseOptionalInt16Query(c, "billing_type"); ok && billingType != nil {
+		query.BillingType = billingType
+	}
+
+	if userID, ok := parseOptionalInt64Query(c, "user_id"); ok && userID > 0 {
+		if userID != subject.UserID {
+			response.Forbidden(c, "Can only filter by your own user_id")
+			return
+		}
+		query.UserID = userID
+	}
+
+	query.AccountName = strings.TrimSpace(c.Query("account_name"))
+	query.AccountEmail = strings.TrimSpace(c.Query("account_email"))
 
 	now := timezone.NowInUserLocation(userTZ)
 	endTime := timezone.StartOfDayInUserLocation(now.AddDate(0, 0, 1), userTZ)
 	startTime := timezone.StartOfDayInUserLocation(now.AddDate(0, 0, -(days-1)), userTZ)
 
-	rows, err := h.usageService.GetTokenLeaderboard(c.Request.Context(), startTime, endTime, limit)
+	rows, err := h.usageService.GetTokenLeaderboardWithFilters(c.Request.Context(), startTime, endTime, limit, query)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -512,7 +647,7 @@ func (h *UsageHandler) DashboardLeaderboard(c *gin.Context) {
 	items := make([]usagestats.TokenLeaderboardItem, 0, len(rows))
 	for i, row := range rows {
 		isMe := row.UserID == subject.UserID
-		displayUser := service.MaskEmail(row.Email)
+		displayUser := service.MaskLeaderboardIdentity(row.Username, row.Email)
 		if isMe {
 			displayUser = "我"
 		}
@@ -530,19 +665,25 @@ func (h *UsageHandler) DashboardLeaderboard(c *gin.Context) {
 			OutputTokens:      row.OutputTokens,
 			CacheTokens:       row.CacheTokens,
 			ImageOutputTokens: row.ImageOutputTokens,
+			Cost:              row.Cost,
+			ActualCost:        row.ActualCost,
+			AccountCost:       row.AccountCost,
 			LastActiveAt:      lastActive,
 			IsMe:              isMe,
 		})
 	}
 
 	response.Success(c, usagestats.TokenLeaderboardResponse{
-		Days:     days,
-		Label:    leaderboardPeriodLabel(days),
-		Timezone: loc.String(),
-		Start:    startTime.Format(time.RFC3339),
-		End:      now.Format(time.RFC3339),
-		Limit:    limit,
-		Items:    items,
+		Days:        days,
+		Label:       leaderboardPeriodLabel(days),
+		Timezone:    loc.String(),
+		Start:       startTime.Format(time.RFC3339),
+		End:         now.Format(time.RFC3339),
+		Limit:       limit,
+		SortBy:      sortBy,
+		BillingMode: billingMode,
+		RequestType: requestType,
+		Items:       items,
 	})
 }
 

@@ -507,8 +507,9 @@ export default {
       title: '使用记录',
       description: '查看和管理所有用户的使用记录',
       userFilter: '用户',
-      searchUserPlaceholder: '按邮箱搜索用户...',
-      searchApiKeyPlaceholder: '按名称搜索 API 密钥...',
+    searchUserPlaceholder: '搜索用户名或账户邮箱...',
+    searchApiKeyPlaceholder: '按名称搜索 API 密钥...',
+    selectUserBeforeApiKey: '请先搜索并选择用户，再搜索 API 密钥',
       searchAccountPlaceholder: '按名称搜索账号...',
       selectedUser: '已选择',
       user: '用户',
@@ -541,6 +542,10 @@ export default {
       billingModeImage: '按次(图片)',
       billingModeVideo: '按次(视频)',
       allBillingModes: '全部计费模式',
+	  upstreamModelAudit: '上游模型审计',
+	  allUpstreamModelAudit: '全部响应模型状态',
+	  upstreamModelMismatchOnly: '仅不一致',
+	  upstreamModelMatchedOnly: '仅一致',
       ipAddress: 'IP',
       clickToViewBalance: '点击查看充值记录',
       failedToLoadUser: '加载用户信息失败',
@@ -556,7 +561,11 @@ export default {
           outputTokens: '输出 Token',
           cacheTokens: '缓存 Token',
           totalTokens: '总 Token',
-          cost: '费用'
+          imageOutputTokens: '生图输出',
+          cost: '费用',
+          actualCost: '实际扣费',
+          accountCost: '账号成本',
+          lastActive: '最近活跃'
         }
       },
       cleanup: {

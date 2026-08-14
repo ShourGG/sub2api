@@ -11,7 +11,7 @@
         @click.self="handleClose"
       >
         <!-- Modal panel -->
-        <div ref="dialogRef" :class="['modal-content', widthClasses]" @click.stop>
+        <div ref="dialogRef" :class="['modal-content', widthClasses, contentClass]" @click.stop>
           <!-- Header -->
           <div class="modal-header">
             <h3 :id="dialogId" class="modal-title">
@@ -28,7 +28,7 @@
           </div>
 
           <!-- Body -->
-          <div class="modal-body">
+          <div ref="modalBodyRef" class="modal-body">
             <slot></slot>
           </div>
 
@@ -52,6 +52,7 @@ const dialogId = `modal-title-${++dialogIdCounter}`
 
 // 焦点管理
 const dialogRef = ref<HTMLElement | null>(null)
+const modalBodyRef = ref<HTMLElement | null>(null)
 let previousActiveElement: HTMLElement | null = null
 
 type DialogWidth = 'narrow' | 'normal' | 'wide' | 'extra-wide' | 'full'
@@ -64,6 +65,7 @@ interface Props {
   closeOnClickOutside?: boolean
   showCloseButton?: boolean
   zIndex?: number
+  contentClass?: string
 }
 
 interface Emits {
@@ -75,7 +77,8 @@ const props = withDefaults(defineProps<Props>(), {
   closeOnEscape: true,
   closeOnClickOutside: false,
   showCloseButton: true,
-  zIndex: 50
+  zIndex: 50,
+  contentClass: ''
 })
 
 const emit = defineEmits<Emits>()
@@ -123,6 +126,9 @@ watch(
 
       // 等待DOM更新后设置焦点到对话框
       await nextTick()
+      if (modalBodyRef.value) {
+        modalBodyRef.value.scrollTop = 0
+      }
       if (dialogRef.value) {
         const firstFocusable = dialogRef.value.querySelector<HTMLElement>(
           'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'

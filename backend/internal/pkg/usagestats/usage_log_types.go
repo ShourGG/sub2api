@@ -166,18 +166,21 @@ type UserSpendingRankingResponse struct {
 // TokenLeaderboardItem represents one row in the Token consumption leaderboard.
 // Ranking key is total_tokens = input + output + cache + image_output.
 type TokenLeaderboardItem struct {
-	Rank              int    `json:"rank"`
-	UserID            int64  `json:"user_id"`
-	Email             string `json:"-"` // raw email, never serialized; masked into User
-	User              string `json:"user"`
-	Requests          int64  `json:"requests"`
-	TotalTokens       int64  `json:"total_tokens"`
-	InputTokens       int64  `json:"input_tokens"`
-	OutputTokens      int64  `json:"output_tokens"`
-	CacheTokens       int64  `json:"cache_tokens"`
-	ImageOutputTokens int64  `json:"image_output_tokens"`
-	LastActiveAt      string `json:"last_active_at"`
-	IsMe              bool   `json:"is_me"`
+	Rank              int     `json:"rank"`
+	UserID            int64   `json:"user_id"`
+	Email             string  `json:"-"` // raw email, never serialized; masked into User
+	User              string  `json:"user"`
+	Requests          int64   `json:"requests"`
+	TotalTokens       int64   `json:"total_tokens"`
+	InputTokens       int64   `json:"input_tokens"`
+	OutputTokens      int64   `json:"output_tokens"`
+	CacheTokens       int64   `json:"cache_tokens"`
+	ImageOutputTokens int64   `json:"image_output_tokens"`
+	Cost              float64 `json:"cost"`
+	ActualCost        float64 `json:"actual_cost"`
+	AccountCost       float64 `json:"account_cost"`
+	LastActiveAt      string  `json:"last_active_at"`
+	IsMe              bool    `json:"is_me"`
 }
 
 // TokenLeaderboardRow is the raw aggregation row returned by the repository.
@@ -186,38 +189,61 @@ type TokenLeaderboardItem struct {
 type TokenLeaderboardRow struct {
 	UserID            int64
 	Email             string
+	Username          string
 	Requests          int64
 	TotalTokens       int64
 	InputTokens       int64
 	OutputTokens      int64
 	CacheTokens       int64
 	ImageOutputTokens int64
+	Cost              float64
+	ActualCost        float64
+	AccountCost       float64
 	LastActiveAt      time.Time
 }
 
-// TokenLeaderboardResponse is the payload returned to the Token leaderboard page.
+// TokenLeaderboardQuery contains the optional filters and sort for the user-facing leaderboard.
+// SortBy is allowlisted by the handler and repository; empty defaults to tokens.
+type TokenLeaderboardQuery struct {
+	RequestType  *int16
+	Stream       *bool
+	BillingMode  string
+	SortBy       string
+	BillingType  *int16
+	Model        string
+	GroupID      int64
+	UserID       int64
+	AccountName  string
+	AccountEmail string
+}
+
 type TokenLeaderboardResponse struct {
-	Days     int                    `json:"days"`
-	Label    string                 `json:"label"`
-	Timezone string                 `json:"timezone"`
-	Start    string                 `json:"start"`
-	End      string                 `json:"end"`
-	Limit    int                    `json:"limit"`
-	Items    []TokenLeaderboardItem `json:"items"`
+	Days        int                    `json:"days"`
+	Label       string                 `json:"label"`
+	Timezone    string                 `json:"timezone"`
+	Start       string                 `json:"start"`
+	End         string                 `json:"end"`
+	Limit       int                    `json:"limit"`
+	SortBy      string                 `json:"sort_by"`
+	BillingMode string                 `json:"billing_mode,omitempty"`
+	RequestType *int16                 `json:"request_type,omitempty"`
+	Items       []TokenLeaderboardItem `json:"items"`
 }
 
 // UserBreakdownItem represents per-user usage breakdown within a dimension (group, model, endpoint).
 type UserBreakdownItem struct {
-	UserID       int64   `json:"user_id"`
-	Email        string  `json:"email"`
-	Requests     int64   `json:"requests"`
-	InputTokens  int64   `json:"input_tokens"`  // 输入 token 累计
-	OutputTokens int64   `json:"output_tokens"` // 输出 token 累计
-	CacheTokens  int64   `json:"cache_tokens"`  // 缓存创建 + 读取 token 累计
-	TotalTokens  int64   `json:"total_tokens"`  // 输入+输出+缓存 token 累计
-	Cost         float64 `json:"cost"`          // 标准计费
-	ActualCost   float64 `json:"actual_cost"`   // 实际扣除
-	AccountCost  float64 `json:"account_cost"`  // 账号成本
+	UserID            int64     `json:"user_id"`
+	Email             string    `json:"email"`
+	Requests          int64     `json:"requests"`
+	InputTokens       int64     `json:"input_tokens"`        // 输入 token 累计
+	OutputTokens      int64     `json:"output_tokens"`       // 输出 token 累计
+	CacheTokens       int64     `json:"cache_tokens"`        // 缓存创建 + 读取 token 累计
+	ImageOutputTokens int64     `json:"image_output_tokens"` // 生图输出 token 累计
+	TotalTokens       int64     `json:"total_tokens"`        // 输入+输出+缓存+生图 token 累计
+	Cost              float64   `json:"cost"`                // 标准计费
+	ActualCost        float64   `json:"actual_cost"`         // 实际扣除
+	AccountCost       float64   `json:"account_cost"`        // 账号成本
+	LastActiveAt      time.Time `json:"last_active_at"`      // 最近活跃时间
 }
 
 // UserBreakdownDimension specifies the dimension to filter for user breakdown.
@@ -234,6 +260,7 @@ type UserBreakdownDimension struct {
 	RequestType *int16 // filter by request_type (non-nil to enable)
 	Stream      *bool  // filter by stream flag (non-nil to enable)
 	BillingType *int8  // filter by billing_type (non-nil to enable)
+	BillingMode string // filter by billing_mode (non-empty to enable)
 	// SortBy 指定排序列(空 = 默认按 actual_cost)。合法值由 repo 层 allowlist 校验。
 	SortBy string
 }
@@ -317,13 +344,14 @@ type UsageLogFilters struct {
 	RequestID string
 	Model     string
 	// ModelFilterSource controls how Model is matched. Empty preserves raw usage_logs.model semantics.
-	ModelFilterSource string
-	RequestType       *int16
-	Stream            *bool
-	BillingType       *int8
-	BillingMode       string
-	StartTime         *time.Time
-	EndTime           *time.Time
+	ModelFilterSource     string
+	RequestType           *int16
+	Stream                *bool
+	BillingType           *int8
+	BillingMode           string
+	UpstreamModelMismatch *bool
+	StartTime             *time.Time
+	EndTime               *time.Time
 	// ExactTotal requests exact COUNT(*) for pagination. Default false for fast large-table paging.
 	ExactTotal bool
 }

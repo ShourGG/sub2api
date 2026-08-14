@@ -44,6 +44,7 @@ export default {
     inactive: 'Inactive',
     more: 'More',
     close: 'Close',
+    clear: 'Clear',
     toggleMenu: 'Toggle menu',
     userMenu: 'User menu',
     pageNotFound: 'Page not found',
@@ -81,6 +82,13 @@ export default {
     view: 'View',
     settings: 'Settings',
     chooseFile: 'Choose File',
+    upload: 'Upload',
+    remove: 'Remove',
+    noFileSelected: 'No file selected',
+    selectedFile: 'Selected: {name}',
+    fileReadFailed: 'Failed to read file',
+    selectImageFile: 'Please select an image file',
+    fileTooLargeKb: 'File too large ({size} KB), max {max} KB',
     copy: 'Copy',
     notAvailable: 'N/A',
     now: 'Now',
@@ -151,9 +159,12 @@ export default {
   // Navigation
   nav: {
     dashboard: 'Dashboard',
+    scheme3Workspace: 'Shour or ToKen Console',
     announcements: 'Announcements',
-    apiKeys: 'API Keys',
-    batchImage: 'Batch Images',
+   apiKeys: 'API Keys',
+    leaderboard: 'Leaderboard',
+    adminLeaderboard: 'Admin Token Leaderboard',
+   batchImage: 'Batch Images',
     usage: 'Usage',
     redeem: 'Redeem',
     affiliate: 'Affiliate Rebates',
@@ -202,6 +213,14 @@ export default {
 
   // Auth
   auth: {
+    scheme3: {
+      kicker: 'ACCOUNT / ACCESS LEDGER',
+      subtitle: 'Unified request and routing desk',
+      loginEyebrow: 'SIGN-IN / VERIFY IDENTITY',
+      registerEyebrow: 'REGISTRATION / CREATE ACCOUNT',
+      otherEntry: 'Other sign-in options',
+      copyright: 'Account services'
+    },
     welcomeBack: 'Welcome Back',
     signInToAccount: 'Sign in to your account to continue',
     signIn: 'Sign In',
@@ -234,6 +253,8 @@ export default {
       USER_NOT_ACTIVE: 'Account has been disabled.',
     },
     registrationFailed: 'Registration failed. Please try again.',
+    emailDomainRegistrationLimit:
+      'This email domain cannot register another account. Please use a mainstream email, or contact support to add your enterprise domain to the allowlist.',
     emailSuffixNotAllowed: 'This email domain is not allowed for registration.',
     emailSuffixNotAllowedWithAllowed:
       'This email domain is not allowed. Allowed domains: {suffixes}',

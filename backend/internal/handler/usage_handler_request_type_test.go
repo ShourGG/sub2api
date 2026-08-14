@@ -17,15 +17,17 @@ import (
 
 type userUsageRepoCapture struct {
 	service.UsageLogRepository
-	listParams   pagination.PaginationParams
-	listFilters  usagestats.UsageLogFilters
-	statsFilters usagestats.UsageLogFilters
-	trendFilters usagestats.UsageLogFilters
-	groupFilters usagestats.UsageLogFilters
-	listRows     []service.UsageLog
-	stats        *usagestats.UsageStats
-	modelStats   []usagestats.ModelStat
-	groupStats   []usagestats.GroupStat
+	listParams       pagination.PaginationParams
+	listFilters      usagestats.UsageLogFilters
+	statsFilters     usagestats.UsageLogFilters
+	trendFilters     usagestats.UsageLogFilters
+	groupFilters     usagestats.UsageLogFilters
+	leaderboardQuery usagestats.TokenLeaderboardQuery
+	listRows         []service.UsageLog
+	stats            *usagestats.UsageStats
+	modelStats       []usagestats.ModelStat
+	groupStats       []usagestats.GroupStat
+	leaderboardRows  []usagestats.TokenLeaderboardRow
 }
 
 func (s *userUsageRepoCapture) ListWithFilters(ctx context.Context, params pagination.PaginationParams, filters usagestats.UsageLogFilters) ([]service.UsageLog, *pagination.PaginationResult, error) {
@@ -78,20 +80,103 @@ func (s *userUsageRepoCapture) GetGroupStatsWithFilters(ctx context.Context, sta
 	return s.groupStats, nil
 }
 
+func (s *userUsageRepoCapture) GetTokenLeaderboardWithFilters(_ context.Context, _ time.Time, _ time.Time, _ int, query usagestats.TokenLeaderboardQuery) ([]usagestats.TokenLeaderboardRow, error) {
+	s.leaderboardQuery = query
+	return s.leaderboardRows, nil
+}
+
 func newUserUsageRequestTypeTestRouter(repo *userUsageRepoCapture) *gin.Engine {
+	return newUserUsageRequestTypeTestRouterWithRole(repo, service.RoleAdmin)
+}
+
+func newUserUsageRequestTypeTestRouterWithRole(repo *userUsageRepoCapture, role string) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	usageSvc := service.NewUsageService(repo, nil, nil, nil)
 	handler := NewUsageHandler(usageSvc, nil, nil, nil)
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
 		c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 42})
+		c.Set(string(middleware2.ContextKeyUserRole), role)
 		c.Next()
 	})
 	router.GET("/usage", handler.List)
 	router.GET("/usage/stats", handler.Stats)
 	router.GET("/usage/dashboard/models", handler.DashboardModels)
 	router.GET("/usage/dashboard/snapshot-v2", handler.DashboardSnapshotV2)
+	router.GET("/usage/dashboard/leaderboard", handler.DashboardLeaderboard)
 	return router
+}
+
+func TestDashboardLeaderboardFiltersAndSort(t *testing.T) {
+	repo := &userUsageRepoCapture{
+		leaderboardRows: []usagestats.TokenLeaderboardRow{{
+			UserID:       42,
+			Email:        "user@example.com",
+			Requests:     3,
+			TotalTokens:  120,
+			Cost:         0.2,
+			ActualCost:   0.1,
+			AccountCost:  0.15,
+			LastActiveAt: time.Date(2026, 8, 12, 1, 2, 3, 0, time.UTC),
+		}},
+	}
+	router := newUserUsageRequestTypeTestRouterWithRole(repo, service.RoleUser)
+
+	req := httptest.NewRequest(http.MethodGet, "/usage/dashboard/leaderboard?days=7&sort_by=cost&billing_mode=image&request_type=2&timezone=UTC", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "cost", repo.leaderboardQuery.SortBy)
+	require.Equal(t, "image", repo.leaderboardQuery.BillingMode)
+	require.NotNil(t, repo.leaderboardQuery.RequestType)
+	require.Equal(t, int16(service.RequestTypeStream), *repo.leaderboardQuery.RequestType)
+	require.Contains(t, rec.Body.String(), `"actual_cost":0.1`)
+	require.Contains(t, rec.Body.String(), `"account_cost":0.15`)
+}
+
+func TestDashboardLeaderboardRejectsInvalidSort(t *testing.T) {
+	router := newUserUsageRequestTypeTestRouter(&userUsageRepoCapture{})
+	req := httptest.NewRequest(http.MethodGet, "/usage/dashboard/leaderboard?sort_by=not_allowed", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestDashboardLeaderboardAcceptsAccountNameAndEmailFilters(t *testing.T) {
+	repo := &userUsageRepoCapture{}
+	router := newUserUsageRequestTypeTestRouterWithRole(repo, service.RoleUser)
+
+	req := httptest.NewRequest(http.MethodGet, "/usage/dashboard/leaderboard?account_name=other-user&account_email=member%40example.com", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "other-user", repo.leaderboardQuery.AccountName)
+	require.Equal(t, "member@example.com", repo.leaderboardQuery.AccountEmail)
+}
+
+func TestDashboardLeaderboardMasksMatchedOtherUserIdentity(t *testing.T) {
+	repo := &userUsageRepoCapture{
+		leaderboardRows: []usagestats.TokenLeaderboardRow{{
+			UserID:   99,
+			Email:    "member@example.com",
+			Username: "other-user",
+		}},
+	}
+	router := newUserUsageRequestTypeTestRouterWithRole(repo, service.RoleUser)
+
+	req := httptest.NewRequest(http.MethodGet, "/usage/dashboard/leaderboard?account_name=other-user&account_email=member%40example.com", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "other-user", repo.leaderboardQuery.AccountName)
+	require.Equal(t, "member@example.com", repo.leaderboardQuery.AccountEmail)
+	require.Contains(t, rec.Body.String(), `"user":"o***r"`)
+	require.NotContains(t, rec.Body.String(), "other-user")
+	require.NotContains(t, rec.Body.String(), "member@example.com")
 }
 
 func TestUserUsageListRequestTypePriority(t *testing.T) {
@@ -224,6 +309,8 @@ func TestUserUsageListKeepsUserBillingAndIPWithoutAdminCostFields(t *testing.T) 
 	require.NotContains(t, body, "account_rate_multiplier")
 	require.NotContains(t, body, "account_stats_cost")
 	require.NotContains(t, body, "upstream_model")
+	require.NotContains(t, body, "upstream_response_model")
+	require.NotContains(t, body, "upstream_model_mismatch")
 	require.NotContains(t, body, "billing_tier")
 	require.NotContains(t, body, "channel_id")
 	require.NotContains(t, body, `"account":`)

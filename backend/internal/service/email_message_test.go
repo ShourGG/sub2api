@@ -15,6 +15,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func buildSMTPMessage(config *SMTPConfig, to, subject, body string) (smtpMessage, error) {
+	return buildSMTPMessageWithContentType(config, to, subject, body, "text/html; charset=UTF-8")
+}
+
 func TestBuildSMTPMessageProducesStandardsCompliantMIME(t *testing.T) {
 	config := &SMTPConfig{
 		Host:     "smtp.example.com",

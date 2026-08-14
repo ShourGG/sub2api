@@ -32,10 +32,12 @@
               v-for="u in userResults"
               :key="u.id"
               type="button"
+              data-testid="usage-user-result"
               @click="selectUser(u)"
               class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-dark-700"
             >
-              <span>{{ u.email }}<span v-if="u.deleted" class="ml-1 text-xs text-gray-400">（{{ t('admin.usage.userDeletedBadge') }}）</span></span>
+              <span>{{ userLabel(u) }}<span v-if="u.deleted" class="ml-1 text-xs text-gray-400">（{{ t('admin.usage.userDeletedBadge') }}）</span></span>
+              <span v-if="u.username && u.email && u.username !== u.email" class="ml-2 text-xs text-gray-400">{{ u.email }}</span>
               <span class="ml-2 text-xs text-gray-400">#{{ u.id }}</span>
             </button>
           </div>
@@ -47,8 +49,10 @@
           <input
             v-model="apiKeyKeyword"
             type="text"
-            class="input pr-8"
+            class="input pr-8 disabled:cursor-not-allowed disabled:opacity-60"
             :placeholder="t('admin.usage.searchApiKeyPlaceholder')"
+            :disabled="!filters.user_id"
+            :title="!filters.user_id ? t('admin.usage.selectUserBeforeApiKey') : undefined"
             @input="debounceApiKeySearch"
             @focus="onApiKeyFocus"
           />
@@ -69,6 +73,7 @@
               v-for="k in apiKeyResults"
               :key="k.id"
               type="button"
+              data-testid="usage-api-key-result"
               @click="selectApiKey(k)"
               class="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-dark-700"
             >
@@ -81,7 +86,7 @@
         <!-- Model Filter -->
         <div class="w-full sm:w-auto sm:min-w-[220px]">
           <label class="input-label">{{ t('usage.model') }}</label>
-          <Select v-model="filters.model" :options="modelOptions" searchable @change="emitChange" />
+          <Select v-model="filters.model" :options="modelOptions" searchable :creatable="modelCreatable" @change="emitChange" />
         </div>
 
         <!-- Account Filter -->
@@ -137,6 +142,11 @@
         <div v-if="mode === 'usage'" class="w-full sm:w-auto sm:min-w-[200px]">
           <label class="input-label">{{ t('admin.usage.billingMode') }}</label>
           <Select v-model="filters.billing_mode" :options="billingModeOptions" @change="emitChange" />
+        </div>
+
+        <div v-if="mode === 'usage'" class="w-full sm:w-auto sm:min-w-[220px]">
+          <label class="input-label">{{ t('admin.usage.upstreamModelAudit') }}</label>
+          <Select v-model="filters.upstream_model_mismatch" :options="upstreamModelMismatchOptions" @change="emitChange" />
         </div>
 
         <!-- Error Phase Filter (errors only) -->
@@ -211,12 +221,15 @@ interface Props {
   mode?: 'usage' | 'errors' | 'ranking'
   /** 嵌入统一卡片内使用：去掉自身卡片外观 */
   flat?: boolean
+  /** 模型筛选是否允许输入任意值（creatable） */
+  modelCreatable?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showActions: true,
   mode: 'usage',
-  flat: false
+  flat: false,
+  modelCreatable: false
 })
 const emit = defineEmits([
   'update:modelValue',
@@ -307,7 +320,15 @@ const billingModeOptions = ref<SelectOption[]>([
   { value: 'video', label: t('admin.usage.billingModeVideo') }
 ])
 
+const upstreamModelMismatchOptions = ref<SelectOption[]>([
+  { value: null, label: t('admin.usage.allUpstreamModelAudit') },
+  { value: true, label: t('admin.usage.upstreamModelMismatchOnly') },
+  { value: false, label: t('admin.usage.upstreamModelMatchedOnly') }
+])
+
 const emitChange = () => emit('change')
+
+const userLabel = (user: SimpleUser) => user.username || user.email || `#${user.id}`
 
 const clearPendingUserSearch = () => {
   if (userSearchTimeout) {
@@ -343,6 +364,11 @@ const debounceUserSearch = () => {
 
 const debounceApiKeySearch = () => {
   if (apiKeySearchTimeout) clearTimeout(apiKeySearchTimeout)
+  if (!filters.value.user_id) {
+    apiKeyResults.value = []
+    showApiKeyDropdown.value = false
+    return
+  }
   apiKeySearchTimeout = setTimeout(async () => {
     try {
       apiKeyResults.value = await adminAPI.usage.searchApiKeys(
@@ -357,17 +383,10 @@ const debounceApiKeySearch = () => {
 
 const selectUser = async (u: SimpleUser) => {
   clearPendingUserSearch()
-  userKeyword.value = u.email
+  userKeyword.value = userLabel(u)
   showUserDropdown.value = false
   filters.value.user_id = u.id
   clearApiKey()
-
-  // Auto-load API keys for this user
-  try {
-    apiKeyResults.value = await adminAPI.usage.searchApiKeys(u.id, '')
-  } catch {
-    apiKeyResults.value = []
-  }
 
   emitChange()
 }
@@ -399,6 +418,13 @@ const clearApiKey = () => {
 const onClearApiKey = () => {
   clearApiKey()
   emitChange()
+}
+
+const clearPendingApiKeySearch = () => {
+  if (apiKeySearchTimeout) {
+    clearTimeout(apiKeySearchTimeout)
+    apiKeySearchTimeout = null
+  }
 }
 
 const debounceAccountSearch = () => {
@@ -433,6 +459,7 @@ const clearAccount = () => {
 }
 
 const onApiKeyFocus = () => {
+  if (!filters.value.user_id) return
   showApiKeyDropdown.value = true
   // Trigger search if no results yet
   if (apiKeyResults.value.length === 0) {
@@ -476,6 +503,8 @@ watch(
       clearPendingUserSearch()
       userKeyword.value = ''
       userResults.value = []
+      clearPendingApiKeySearch()
+      clearApiKey()
     }
   }
 )
@@ -512,6 +541,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   clearPendingUserSearch()
+  clearPendingApiKeySearch()
   document.removeEventListener('click', onDocumentClick)
 })
 
