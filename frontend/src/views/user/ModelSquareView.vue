@@ -117,47 +117,26 @@ watch(isDark, (value) => {
 
 <style scoped>
 .model-square-scroll-region {
-  max-height: calc(100dvh - 12rem);
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable both-edges;
-  scrollbar-width: auto;
-  scrollbar-color: rgba(100, 116, 139, 0.8) rgba(148, 163, 184, 0.18);
+  min-width: 0;
 }
 
 .model-square-scroll-content {
-  min-width: 60rem;
+  min-width: 0;
   padding: 0.125rem 0.25rem 1rem;
 }
 
-.model-square-scroll-region::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
-
-.model-square-scroll-region::-webkit-scrollbar-track {
-  background: rgba(148, 163, 184, 0.18);
-  border-radius: 999px;
-}
-
-.model-square-scroll-region::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.82);
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background-clip: padding-box;
-}
-
 @media (max-width: 1023px) {
+  .model-square-scroll-region {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
   .model-square-scroll-content {
     min-width: 44rem;
   }
 }
 
 @media (max-width: 640px) {
-  .model-square-scroll-region {
-    max-height: calc(100dvh - 10rem);
-  }
-
   .model-square-scroll-content {
     min-width: 37.5rem;
   }
