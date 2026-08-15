@@ -27,19 +27,21 @@
         <ModelSquareLoading v-if='loading' />
         <ModelSquareEmpty v-else-if='filteredModels.length === 0' />
 
-        <div v-else class='grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 items-start'>
-          <ModelSquareModelIndex
-            v-model='activeModelKey'
-            :models='filteredModels'
-            :search='debouncedSearch'
-          />
-          <div class='space-y-8'>
-            <ModelSquareModelCard
-              v-for='model in filteredModels'
-              :key='model.key'
-              :model='model'
-              :user-group-rates='userGroupRates'
+        <div v-else class='model-square-scroll-region' tabindex='0'>
+          <div class='model-square-scroll-content grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 items-start'>
+            <ModelSquareModelIndex
+              v-model='activeModelKey'
+              :models='filteredModels'
+              :search='debouncedSearch'
             />
+            <div class='space-y-8'>
+              <ModelSquareModelCard
+                v-for='model in filteredModels'
+                :key='model.key'
+                :model='model'
+                :user-group-rates='userGroupRates'
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -112,3 +114,52 @@ watch(isDark, (value) => {
   localStorage.setItem('model-square-theme', value ? 'dark' : 'light')
 })
 </script>
+
+<style scoped>
+.model-square-scroll-region {
+  max-height: calc(100dvh - 12rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: auto;
+  scrollbar-color: rgba(100, 116, 139, 0.8) rgba(148, 163, 184, 0.18);
+}
+
+.model-square-scroll-content {
+  min-width: 60rem;
+  padding: 0.125rem 0.25rem 1rem;
+}
+
+.model-square-scroll-region::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.model-square-scroll-region::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+}
+
+.model-square-scroll-region::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.82);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+@media (max-width: 1023px) {
+  .model-square-scroll-content {
+    min-width: 44rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .model-square-scroll-region {
+    max-height: calc(100dvh - 10rem);
+  }
+
+  .model-square-scroll-content {
+    min-width: 37.5rem;
+  }
+}
+</style>
