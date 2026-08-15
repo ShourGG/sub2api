@@ -123,7 +123,7 @@ watch(isDark, (value) => {
 }
 
 .model-square-scroll-content {
-  min-width: 60rem;
+  min-width: 75rem;
   padding: 0.125rem 0.25rem 1rem;
 }
 
