@@ -118,19 +118,16 @@ watch(isDark, (value) => {
 <style scoped>
 .model-square-scroll-region {
   min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
 }
 
 .model-square-scroll-content {
-  min-width: 0;
+  min-width: 60rem;
   padding: 0.125rem 0.25rem 1rem;
 }
 
 @media (max-width: 1023px) {
-  .model-square-scroll-region {
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-  }
-
   .model-square-scroll-content {
     min-width: 44rem;
   }
