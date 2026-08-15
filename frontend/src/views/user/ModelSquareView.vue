@@ -127,12 +127,6 @@ watch(isDark, (value) => {
   padding: 0.125rem 0.25rem 1rem;
 }
 
-@media (max-width: 1023px) {
-  .model-square-scroll-content {
-    min-width: 44rem;
-  }
-}
-
 @media (max-width: 640px) {
   .model-square-scroll-content {
     min-width: 37.5rem;
