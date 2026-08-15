@@ -691,7 +691,7 @@ onBeforeUnmount(() => {
 }
 
 .lb-table {
-  width: max-content;
+  width: 100%;
   min-width: 68rem;
   border-collapse: collapse;
   font-size: 0.88rem;
