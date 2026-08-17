@@ -631,6 +631,7 @@ import OpenAIQuotaResetCell from './OpenAIQuotaResetCell.vue'
 import GrokQuotaProbeCell from './GrokQuotaProbeCell.vue'
 import OllamaCloudUsageCell from './OllamaCloudUsageCell.vue'
 import OpenCodeGoUsageCell from './OpenCodeGoUsageCell.vue'
+import { cnBalanceCellVisible as cnBalanceCellVisibleFn, cnQuotaCellVisible as cnQuotaCellVisibleFn } from './credentialsBuilder'
 
 // Module-level cache shared across all AccountUsageCell instances
 const _usageCache = new Map<number, { data: AccountUsageInfo; ts: number }>()
