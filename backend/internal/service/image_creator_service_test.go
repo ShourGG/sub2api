@@ -51,7 +51,11 @@ func TestImageCreatorSizeForResolutionAndAspectRatio(t *testing.T) {
 	}
 	for _, tt := range tests {
 		got := imageCreatorSizeForResolutionAndAspectRatio(tt.resolution, tt.ratio)
-		if got != tt.want { t.Errorf("%s: got %q, want %q", tt.name, got, tt.want) }
-		if err := validateImageCreatorSize(got); err != nil { t.Errorf("%s produced invalid size %q: %v", tt.name, got, err) }
+		if got != tt.want {
+			t.Errorf("%s: got %q, want %q", tt.name, got, tt.want)
+		}
+		if err := validateImageCreatorSize(got); err != nil {
+			t.Errorf("%s produced invalid size %q: %v", tt.name, got, err)
+		}
 	}
 }
