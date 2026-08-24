@@ -36,8 +36,9 @@ type EmailBroadcastService struct {
 }
 
 const (
-	emailBroadcastTimeout      = 6 * time.Hour
+	emailBroadcastTimeout      = 30 * time.Minute
 	emailBroadcastSendAttempts = 3
+	emailBroadcastWorkerCount  = 4
 )
 
 // EmailBroadcastSendInput 发送一次广播邮件所需的参数集合 (供 handler 调用)。
@@ -70,7 +71,7 @@ func NewEmailBroadcastService(
 		emailService:         emailService,
 		settingRepo:          settingRepo,
 		htmlSanitizer:        policy,
-		sendIntervalPerEmail: time.Second,
+		sendIntervalPerEmail: 500 * time.Millisecond,
 		running:              make(map[int64]struct{}),
 	}
 }
@@ -273,30 +274,69 @@ func (s *EmailBroadcastService) runBroadcast(id int64) {
 		StartedAt:    &started,
 	})
 
-	success, failed := 0, 0
-	for idx, addr := range emails {
-		if err := s.sendBroadcastEmail(ctx, smtpConfig, addr, broadcast.Subject, htmlBody); err != nil {
-			failed++
-			logger.L().Warn("email_broadcast.send_failed",
-				zap.Int64("broadcast_id", id),
-				zap.String("recipient", addr),
-				zap.Error(err))
-		} else {
-			success++
-		}
+	type deliveryResult struct {
+		recipient string
+		err       error
+	}
+	workerCount := min(emailBroadcastWorkerCount, total)
+	jobs := make(chan string)
+	results := make(chan deliveryResult, total)
+	var workers sync.WaitGroup
+	for range workerCount {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			for addr := range jobs {
+				results <- deliveryResult{
+					recipient: addr,
+					err:       s.sendBroadcastEmail(ctx, smtpConfig, addr, broadcast.Subject, htmlBody),
+				}
+			}
+		}()
+	}
 
-		// Throttle to avoid SMTP rate limits; skip after last message.
-		if idx < total-1 && s.sendIntervalPerEmail > 0 {
+	queued := 0
+	var interval <-chan time.Time
+	var ticker *time.Ticker
+	if s.sendIntervalPerEmail > 0 {
+		ticker = time.NewTicker(s.sendIntervalPerEmail)
+		defer ticker.Stop()
+		interval = ticker.C
+	}
+	for _, addr := range emails {
+		if queued > 0 && interval != nil {
 			select {
 			case <-ctx.Done():
-				failed += total - idx - 1
-				goto done
-			case <-time.After(s.sendIntervalPerEmail):
+				goto dispatchDone
+			case <-interval:
 			}
+		}
+		select {
+		case <-ctx.Done():
+			goto dispatchDone
+		case jobs <- addr:
+			queued++
 		}
 	}
 
-done:
+dispatchDone:
+	close(jobs)
+	workers.Wait()
+	close(results)
+
+	success, failed := 0, total-queued
+	for result := range results {
+		if result.err != nil {
+			failed++
+			logger.L().Warn("email_broadcast.send_failed",
+				zap.Int64("broadcast_id", id),
+				zap.String("recipient", result.recipient),
+				zap.Error(result.err))
+			continue
+		}
+		success++
+	}
+
 	finished := time.Now()
 	finalStatus := EmailBroadcastStatusCompleted
 	if success == 0 && failed > 0 {
