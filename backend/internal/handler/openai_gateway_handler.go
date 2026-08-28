@@ -1530,8 +1530,8 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 				if result != nil && result.ClientDisconnect {
 					reqLog.Info("openai_messages.client_disconnected",
 						zap.Int64("account_id", account.ID),
-					zap.Error(err),
-				)
+						zap.Error(err),
+					)
 					submitMessagesUsage(result)
 					return
 				}
