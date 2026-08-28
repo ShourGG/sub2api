@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -101,7 +100,12 @@ func normalizeOpenAIResponsesLiteTools(reqBody map[string]any) (bool, error) {
 }
 
 func ensureOpenAIResponsesLiteParallelToolCalls(reqBody map[string]any, changed bool) (bool, error) {
-	parallel := reqBody["parallel_tool_calls"]
+	parallel, exists := reqBody["parallel_tool_calls"]
+	if exists {
+		if _, ok := parallel.(bool); !ok {
+			return false, newOpenAIResponsesLiteValidationError("parallel_tool_calls", "responses Lite requires parallel_tool_calls to be a boolean")
+		}
+	}
 	if parallel == false {
 		return changed, nil
 	}
@@ -234,7 +238,7 @@ func openAIResponsesLiteToolIdentityForError(rawTool any) string {
 
 func normalizeOpenAIResponsesLiteToolsPayload(body []byte) ([]byte, bool, error) {
 	var requestBody map[string]any
-	if err := json.Unmarshal(body, &requestBody); err != nil {
+	if err := decodeOpenAIJSONUseNumber(body, &requestBody); err != nil {
 		return body, false, fmt.Errorf("decode responses Lite request body: %w", err)
 	}
 	changed, err := normalizeOpenAIResponsesLiteTools(requestBody)
@@ -246,4 +250,30 @@ func normalizeOpenAIResponsesLiteToolsPayload(body []byte) ([]byte, bool, error)
 		return body, false, fmt.Errorf("encode responses Lite request body: %w", err)
 	}
 	return rebuilt, true, nil
+}
+
+func normalizeOpenAIResponsesLiteParallelToolCallsPayload(body []byte) ([]byte, bool, error) {
+	var requestBody map[string]any
+	if err := decodeOpenAIJSONUseNumber(body, &requestBody); err != nil {
+		return body, false, fmt.Errorf("decode responses Lite request body: %w", err)
+	}
+	changed, err := ensureOpenAIResponsesLiteParallelToolCalls(requestBody, false)
+	if err != nil || !changed {
+		return body, false, err
+	}
+	rebuilt, err := marshalOpenAIUpstreamJSON(requestBody)
+	if err != nil {
+		return body, false, fmt.Errorf("encode responses Lite request body: %w", err)
+	}
+	return rebuilt, true, nil
+}
+
+func normalizeOpenAIResponsesLitePayloadForAccount(body []byte, account *Account) ([]byte, bool, error) {
+	if account == nil || !account.IsOpenAI() {
+		return body, false, nil
+	}
+	if account.IsOpenAIOAuthLike() {
+		return normalizeOpenAIResponsesLiteToolsPayload(body)
+	}
+	return normalizeOpenAIResponsesLiteParallelToolCallsPayload(body)
 }
