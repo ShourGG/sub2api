@@ -1279,6 +1279,14 @@ func shouldForwardOpenAIResponsesViaRawChatCompletions(account *Account) bool {
 			return false
 		}
 	}
+	if account.IsOpenAIAPIProtocolConfigured() {
+		switch account.GetAPIProtocol() {
+		case APIProtocolChatCompletions:
+			return true
+		case APIProtocolAdaptive:
+			return !account.HasOpenAIProtocolEndpoint(APIProtocolResponses)
+		}
+	}
 	return !openai_compat.ShouldUseResponsesAPI(account.Extra)
 }
 
@@ -1298,6 +1306,11 @@ func (s *OpenAIGatewayService) buildUpstreamRequest(ctx context.Context, c *gin.
 	case AccountTypeAPIKey:
 		// API Key accounts use Platform API or custom base URL
 		baseURL := account.GetOpenAIBaseURL()
+		if account.IsAdaptiveAPIProtocol() && account.IsOpenAIAPIProtocolConfigured() {
+			if protocolURL := account.GetOpenAIProtocolBaseURL(APIProtocolResponses); protocolURL != "" {
+				baseURL = protocolURL
+			}
+		}
 		if account.Platform == PlatformDeepseek && account.IsAdaptiveAPIProtocol() {
 			baseURL = account.GetCNProtocolBaseURL(APIProtocolResponses)
 		}
