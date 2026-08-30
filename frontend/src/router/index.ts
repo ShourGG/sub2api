@@ -13,6 +13,8 @@ import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
 import { getSetupStatus } from '@/api/setup'
 import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
+import { captureAffiliateAttribution } from '@/api/auth'
+import { pickOAuthAffiliateCode, storeAffiliateReferralCode } from '@/utils/oauthAffiliate'
 
 /**
  * Route definitions with lazy loading
@@ -900,6 +902,23 @@ function isBackendModePublicRouteAllowed(path: string, hasPendingAuthSession: bo
 }
 
 router.beforeEach(async (to, _from, next) => {
+  // Lock affiliate attribution as soon as any route receives an aff link.
+  // This also covers short links landing on / or another public page before
+  // the user reaches the registration view.
+  const affCode = pickOAuthAffiliateCode(to.query.aff, to.query.aff_code)
+  if (affCode) {
+    storeAffiliateReferralCode(affCode)
+    try {
+      // Keep navigation responsive when the public auth endpoint is slow;
+      // RegisterView still awaits its own capture promise before submitting.
+      await Promise.race([
+        captureAffiliateAttribution(affCode),
+        new Promise<boolean>((resolve) => window.setTimeout(() => resolve(false), 5000))
+      ])
+    } catch {
+      // Legacy localStorage fallback remains available if capture is offline.
+    }
+  }
   // 开始导航加载状态
   navigationLoading.startNavigation()
 

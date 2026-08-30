@@ -345,6 +345,7 @@ import TurnstileWidget from '@/components/CaptchaChallenge.vue'
 import { useAuthStore, useAppStore } from '@/stores'
 import {
   buildOAuthLoginStartURL,
+  captureAffiliateAttribution,
   getPublicSettings,
   isWeChatWebOAuthEnabled,
   startOAuthLogin,
@@ -498,6 +499,9 @@ const registrationActionDisabled = computed(
   () => isLoading.value || !settingsLoaded.value || agreementGateActive.value
 )
 
+let affiliateCapturePromise: Promise<void> | null = null
+let capturedAffiliateCode = ''
+
 watch(validationToastMessage, (value, previousValue) => {
   if (value && value !== previousValue) {
     appStore.showError(value)
@@ -508,6 +512,12 @@ function syncAffiliateReferralCode(): string {
   const code = resolveAffiliateReferralCode(route.query.aff, route.query.aff_code)
   if (code) {
     formData.aff_code = code
+    if (code !== capturedAffiliateCode) {
+      capturedAffiliateCode = code
+      affiliateCapturePromise = captureAffiliateAttribution(code)
+        .then(() => undefined)
+        .catch(() => undefined)
+    }
   }
   return code
 }
@@ -993,6 +1003,11 @@ async function handleRegister(): Promise<void> {
   isLoading.value = true
 
   try {
+    // Finish the click-time server capture before registration. This closes the
+    // race where a user removes the URL parameter immediately after landing.
+    if (affiliateCapturePromise) {
+      await affiliateCapturePromise
+    }
     const affCode = formData.aff_code.trim() || loadAffiliateReferralCode()
     if (affCode) {
       formData.aff_code = affCode
