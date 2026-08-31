@@ -69,6 +69,15 @@ type JWTClaims struct {
 	jwt.RegisteredClaims
 }
 
+// AffiliateAttributionClaims snapshots the inviter identity at click time so
+// later changes to the human-readable aff_code cannot break registration.
+type AffiliateAttributionClaims struct {
+	InviterID int64 `json:"inviter_id"`
+	jwt.RegisteredClaims
+}
+
+const affiliateAttributionTTL = 30 * 24 * time.Hour
+
 // AuthService 认证服务
 type AuthService struct {
 	entClient             *dbent.Client
@@ -157,6 +166,92 @@ func (s *AuthService) SetAliyunCaptchaService(aliyunCaptchaService *AliyunCaptch
 // Register 用户注册，返回token和用户
 func (s *AuthService) Register(ctx context.Context, email, password string) (string, *User, error) {
 	return s.RegisterWithVerification(ctx, email, password, "", "", "", "")
+}
+
+// CreateAffiliateAttributionToken resolves an affiliate code once, at click
+// time, and returns a signed token containing the inviter ID.
+func (s *AuthService) CreateAffiliateAttributionToken(ctx context.Context, rawCode string) (string, error) {
+	if s == nil || s.affiliateService == nil || s.cfg == nil || strings.TrimSpace(s.cfg.JWT.Secret) == "" {
+		return "", ErrServiceUnavailable
+	}
+	if !s.affiliateService.IsEnabled(ctx) {
+		return "", nil
+	}
+	code := strings.ToUpper(strings.TrimSpace(rawCode))
+	if code == "" {
+		return "", ErrAffiliateCodeInvalid
+	}
+	summary, err := s.affiliateService.repo.GetAffiliateByCode(ctx, code)
+	if err != nil {
+		if errors.Is(err, ErrAffiliateProfileNotFound) {
+			return "", ErrAffiliateCodeInvalid
+		}
+		return "", err
+	}
+	if summary == nil || summary.UserID <= 0 {
+		return "", ErrAffiliateCodeInvalid
+	}
+	now := time.Now()
+	claims := AffiliateAttributionClaims{
+		InviterID: summary.UserID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    "sub2api-affiliate",
+			Subject:   "click",
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(affiliateAttributionTTL)),
+		},
+	}
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(s.cfg.JWT.Secret))
+	if err != nil {
+		return "", fmt.Errorf("sign affiliate attribution token: %w", err)
+	}
+	return token, nil
+}
+
+// BindAffiliateAttribution validates a click-time token and permanently binds
+// the new user. Existing bindings are never overwritten.
+func (s *AuthService) BindAffiliateAttribution(ctx context.Context, userID int64, tokenString string) error {
+	if s == nil || s.affiliateService == nil || s.cfg == nil || strings.TrimSpace(tokenString) == "" {
+		return nil
+	}
+	if !s.affiliateService.IsEnabled(ctx) {
+		return nil
+	}
+	inviterID, err := s.ValidateAffiliateAttributionToken(tokenString)
+	if err != nil {
+		return err
+	}
+	if inviterID == userID {
+		return ErrAffiliateCodeInvalid
+	}
+	_, err = s.affiliateService.repo.BindInviter(ctx, userID, inviterID)
+	return err
+}
+
+// ValidateAffiliateAttributionToken verifies a click-time token and returns
+// the immutable inviter identity it carries.
+func (s *AuthService) ValidateAffiliateAttributionToken(tokenString string) (int64, error) {
+	if s == nil || s.cfg == nil || strings.TrimSpace(s.cfg.JWT.Secret) == "" {
+		return 0, ErrServiceUnavailable
+	}
+	if len(tokenString) > maxTokenLength {
+		return 0, ErrTokenTooLarge
+	}
+	parsed, err := jwt.ParseWithClaims(tokenString, &AffiliateAttributionClaims{}, func(token *jwt.Token) (any, error) {
+		if token.Method != jwt.SigningMethodHS256 {
+			return nil, ErrInvalidToken
+		}
+		return []byte(s.cfg.JWT.Secret), nil
+	}, jwt.WithIssuer("sub2api-affiliate"), jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Name}))
+	if err != nil {
+		return 0, ErrInvalidToken
+	}
+	claims, ok := parsed.Claims.(*AffiliateAttributionClaims)
+	if !ok || claims.InviterID <= 0 {
+		return 0, ErrAffiliateCodeInvalid
+	}
+	return claims.InviterID, nil
 }
 
 // RegisterWithVerification 用户注册（支持邮件验证、优惠码、邀请码和邀请返利码），返回token和用户。
@@ -981,6 +1076,18 @@ func (s *AuthService) bindOAuthAffiliate(ctx context.Context, userID int64, affi
 		logger.LegacyPrintf("service.auth", "[Auth] Failed to initialize affiliate profile for user %d: %v", userID, err)
 	}
 	if code := strings.TrimSpace(affiliateCode); code != "" {
+		// OAuth callbacks may carry the signed click-time token instead of the
+		// mutable human-readable code. Prefer the immutable inviter snapshot.
+		if inviterID, tokenErr := s.ValidateAffiliateAttributionToken(code); tokenErr == nil {
+			if inviterID == userID {
+				logger.LegacyPrintf("service.auth", "[Auth] Ignoring self affiliate attribution for user %d", userID)
+				return
+			}
+			if _, bindErr := s.affiliateService.repo.BindInviter(ctx, userID, inviterID); bindErr != nil {
+				logger.LegacyPrintf("service.auth", "[Auth] Failed to bind affiliate inviter for user %d: %v", userID, bindErr)
+			}
+			return
+		}
 		if err := s.affiliateService.BindInviterByCode(ctx, userID, code); err != nil {
 			logger.LegacyPrintf("service.auth", "[Auth] Failed to bind affiliate inviter for user %d: %v", userID, err)
 		}
