@@ -28,7 +28,12 @@
 
       <!-- API Key fields (only for apikey type) -->
       <div v-if="account.type === 'apikey'" class="space-y-4">
-        <div v-if="!isCNApiKeyAccount || editApiProtocol !== 'adaptive'">
+        <div
+          v-if="
+            !(isCNApiKeyAccount && editApiProtocol === 'adaptive') &&
+            !(isOpenAIAPIKeyAccount && editOpenAIApiProtocol === 'adaptive')
+          "
+        >
           <label class="input-label">{{ t('admin.accounts.baseUrl') }}</label>
           <input
             v-model="editBaseUrl"
@@ -62,7 +67,24 @@
             @select="onCnPresetSelect"
           />
         </div>
-        <div v-else>
+        <div v-else-if="isOpenAIAPIKeyAccount && editOpenAIApiProtocol === 'adaptive'">
+          <label class="input-label">{{ t('admin.accounts.openai.apiProtocol.endpoints') }}</label>
+          <div class="mt-2 space-y-3">
+            <div v-for="item in openAIAdaptiveProtocolOptions" :key="item.value">
+              <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                {{ t(`admin.accounts.openai.apiProtocol.${item.labelKey}`) }}
+              </label>
+              <input
+                v-model="editOpenAIAdaptiveBaseUrls[item.value]"
+                type="text"
+                class="input"
+                :data-testid="`edit-openai-adaptive-base-url-${item.value}`"
+              />
+            </div>
+          </div>
+          <p class="input-hint">{{ t('admin.accounts.openai.apiProtocol.endpointsHint') }}</p>
+        </div>
+        <div v-else-if="isCNApiKeyAccount && editApiProtocol === 'adaptive'">
           <label class="input-label">{{ t('admin.accounts.cnProviders.apiProtocol.endpoints') }}</label>
           <div class="mt-2 space-y-3">
             <div v-for="item in editAdaptiveProtocolOptions" :key="item.value">
@@ -118,34 +140,43 @@
           </div>
           <p class="input-hint">{{ t(`admin.accounts.cnProviders.apiProtocol.${cnProtocolDescKey}Desc`) }}</p>
         </div>
-        <!-- Zhipu 团队版 Coding Plan：组织/项目 ID（可选，填写后用量查询走团队版端点） -->
-        <div v-if="account.platform === 'zhipu' && editAccountMode === 'coding'">
-          <div class="flex items-center">
-            <label class="input-label">{{ t('admin.accounts.cnProviders.zhipuTeam.title') }}</label>
-            <HelpTooltip trigger="click" width-class="w-80">
-              <p class="mb-1 font-medium">{{ t('admin.accounts.cnProviders.zhipuTeam.help.title') }}</p>
-              <ol class="list-decimal space-y-1 pl-4">
-                <li>{{ t('admin.accounts.cnProviders.zhipuTeam.help.step1') }}</li>
-                <li>{{ t('admin.accounts.cnProviders.zhipuTeam.help.step2') }}</li>
-                <li>{{ t('admin.accounts.cnProviders.zhipuTeam.help.step3') }}</li>
-                <li>{{ t('admin.accounts.cnProviders.zhipuTeam.help.step4') }}</li>
-              </ol>
-              <p class="mt-2 break-all rounded bg-black/20 p-1.5 font-mono text-[11px] leading-relaxed">
-                {{ t('admin.accounts.cnProviders.zhipuTeam.help.example') }}
-              </p>
-            </HelpTooltip>
+        <!-- Optional API protocol override for OpenAI API Key accounts -->
+        <div v-if="isOpenAIAPIKeyAccount">
+          <label class="input-label">{{ t('admin.accounts.openai.apiProtocol.title') }}</label>
+          <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button
+              v-for="opt in openAIProtocolOptions"
+              :key="opt.value"
+              type="button"
+              :data-testid="`edit-openai-api-protocol-${opt.value}`"
+              @click="selectOpenAIAPIProtocol(opt.value)"
+              :class="[
+                'flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-all',
+                editOpenAIApiProtocol === opt.value
+                  ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20'
+                  : 'border-gray-200 hover:border-gray-400 dark:border-dark-600 dark:hover:border-gray-600'
+              ]"
+            >
+              <div
+                :class="[
+                  'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                  editOpenAIApiProtocol === opt.value
+                    ? 'bg-teal-500 text-white'
+                    : 'bg-gray-100 text-gray-500 dark:bg-dark-600 dark:text-gray-400'
+                ]"
+              >
+                <Icon :name="opt.value === 'adaptive' ? 'swap' : 'chat'" size="sm" />
+              </div>
+              <div>
+                <span class="block text-sm font-medium text-gray-900 dark:text-white">
+                  {{ t(`admin.accounts.openai.apiProtocol.${opt.labelKey}`) }}
+                </span>
+                <span class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ t(`admin.accounts.openai.apiProtocol.${opt.labelKey}Desc`) }}
+                </span>
+              </div>
+            </button>
           </div>
-          <div class="mt-2 grid gap-4 sm:grid-cols-2">
-            <div>
-              <label class="input-label">{{ t('admin.accounts.cnProviders.zhipuTeam.organization') }}</label>
-              <input v-model="editZhipuOrganization" type="text" class="input" :placeholder="t('admin.accounts.cnProviders.zhipuTeam.organizationPlaceholder')" />
-            </div>
-            <div>
-              <label class="input-label">{{ t('admin.accounts.cnProviders.zhipuTeam.project') }}</label>
-              <input v-model="editZhipuProject" type="text" class="input" :placeholder="t('admin.accounts.cnProviders.zhipuTeam.projectPlaceholder')" />
-            </div>
-          </div>
-          <p class="input-hint mt-2">{{ t('admin.accounts.cnProviders.zhipuTeam.hint') }}</p>
         </div>
         <div>
           <label class="input-label">{{ t('admin.accounts.apiKey') }}</label>
@@ -1611,10 +1642,7 @@
       <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
         <label class="input-label">{{ t('admin.accounts.expiresAt') }}</label>
         <input v-model="expiresAtInput" type="datetime-local" class="input" />
-        <p class="input-hint">
-          {{ t('admin.accounts.expiresAtHint') }}
-          {{ t('admin.accounts.expiresAtTimezoneHint', { timezone: browserTimeZone }) }}
-        </p>
+        <p class="input-hint">{{ t('admin.accounts.expiresAtHint') }}</p>
       </div>
 
       <!-- OpenAI 自动透传开关（OAuth/API Key） -->
@@ -1838,6 +1866,91 @@
         :account="account"
         @updated="handleOllamaCloudUsageUpdated"
       />
+
+      <section
+        v-if="account?.opencode_go_usage?.eligible"
+        class="space-y-4 border-t border-gray-200 pt-4 dark:border-dark-600"
+        data-testid="opencode-go-usage-settings"
+      >
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.accounts.opencodeGo.title') }}
+            </h3>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.accounts.opencodeGo.panelHint') }}
+            </p>
+          </div>
+          <span
+            class="whitespace-nowrap rounded px-2 py-1 text-xs font-medium"
+            :class="opencodeGoStatusOk
+              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+              : 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-300'"
+          >
+            {{ opencodeGoStatusLabel }}
+          </span>
+        </div>
+
+        <div v-if="opencodeGoLoading" class="flex h-20 items-center justify-center text-gray-400">
+          <Icon name="refresh" size="sm" class="animate-spin" />
+        </div>
+        <template v-else>
+          <div
+            v-if="opencodeGoSnapshot"
+            class="border-y border-gray-100 py-3 dark:border-dark-700"
+            data-testid="opencode-go-usage-details"
+          >
+            <div class="grid grid-cols-[minmax(4rem,auto)_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-xs">
+              <span class="text-gray-500 dark:text-gray-400">{{ t('admin.accounts.opencodeGo.rolling') }}</span>
+              <span class="break-words text-gray-900 dark:text-white">{{ opencodeGoWindowSummary(opencodeGoSnapshot.data?.rolling) }}</span>
+              <span class="text-gray-500 dark:text-gray-400">{{ t('admin.accounts.opencodeGo.weekly') }}</span>
+              <span class="break-words text-gray-900 dark:text-white">{{ opencodeGoWindowSummary(opencodeGoSnapshot.data?.weekly) }}</span>
+              <span class="text-gray-500 dark:text-gray-400">{{ t('admin.accounts.opencodeGo.monthly') }}</span>
+              <span class="break-words text-gray-900 dark:text-white">{{ opencodeGoWindowSummary(opencodeGoSnapshot.data?.monthly) }}</span>
+              <span class="text-gray-500 dark:text-gray-400">{{ t('admin.accounts.opencodeGo.status') }}</span>
+              <span class="break-words font-medium text-gray-900 dark:text-white">{{ opencodeGoStatusLabel }}</span>
+              <span class="text-gray-500 dark:text-gray-400">{{ t('admin.accounts.opencodeGo.updatedAt') }}</span>
+              <span class="break-words text-gray-900 dark:text-white">{{ opencodeGoFormatDate(opencodeGoSnapshot.fetched_at || opencodeGoSnapshot.last_attempt_at) }}</span>
+            </div>
+            <p
+              v-if="opencodeGoSnapshot.last_error"
+              class="mt-2 break-words border-t border-gray-100 pt-2 text-xs text-amber-700 dark:border-dark-700 dark:text-amber-300"
+            >
+              {{ t(`admin.accounts.opencodeGo.errors.${opencodeGoSnapshot.last_error}`, opencodeGoSnapshot.last_error) }}
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm"
+              :disabled="opencodeGoRefreshing"
+              data-testid="opencode-go-refresh"
+              @click="refreshOpenCodeGoUsage"
+            >
+              <Icon name="refresh" size="xs" class="mr-1.5" :class="{ 'animate-spin': opencodeGoRefreshing }" />
+              {{ t('admin.accounts.opencodeGo.refreshNow') }}
+            </button>
+          </div>
+
+          <div class="flex items-center justify-between gap-4 border-t border-gray-100 pt-4 dark:border-dark-700">
+            <div>
+              <label class="text-sm font-medium text-gray-900 dark:text-white">
+                {{ t('admin.accounts.opencodeGo.autoRefresh') }}
+              </label>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ t('admin.accounts.opencodeGo.autoRefreshHint') }}
+              </p>
+            </div>
+            <Toggle
+              :model-value="opencodeGoState?.auto_refresh_enabled ?? false"
+              :disabled="opencodeGoSaving"
+              data-testid="opencode-go-auto-refresh"
+              @update:model-value="setOpenCodeGoAutoRefresh"
+            />
+          </div>
+        </template>
+      </section>
 
       <!-- Anthropic API Key 自动透传开关 -->
       <div
@@ -2867,7 +2980,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
@@ -2881,12 +2994,13 @@ import type {
   OpenAICompactMode,
   OpenAIResponsesMode,
   OpenAIEndpointCapability,
-  OllamaCloudUsageState
+  OllamaCloudUsageState,
+  OpenCodeGoUsageState,
+  OpenCodeGoUsageWindow
 } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Select from '@/components/common/Select.vue'
-import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import Icon from '@/components/icons/Icon.vue'
 import ProxySelector from '@/components/common/ProxySelector.vue'
@@ -2895,7 +3009,6 @@ import GroupSelector from '@/components/common/GroupSelector.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
 import QuotaLimitCard from '@/components/account/QuotaLimitCard.vue'
 import GrokBaseUrlPresets from '@/components/account/GrokBaseUrlPresets.vue'
-import CnBaseUrlPresets from '@/components/account/CnBaseUrlPresets.vue'
 import HeaderOverrideEditor from '@/components/account/HeaderOverrideEditor.vue'
 import OllamaCloudUsageSettings from '@/components/account/OllamaCloudUsageSettings.vue'
 import {
@@ -2911,19 +3024,18 @@ import {
   validateHeaderOverrideRows,
   defaultCNAdaptiveBaseUrls,
   defaultCNBaseUrl,
+  defaultOpenAIAdaptiveBaseUrls,
   HEADER_OVERRIDE_ENABLED_CREDENTIAL_KEY,
   HEADER_OVERRIDES_CREDENTIAL_KEY,
   type CnAccountMode,
   type CnApiProtocol,
   type CnNativeApiProtocol,
+  type OpenAIApiProtocol,
+  type OpenAINativeApiProtocol,
   type HeaderOverrideRow
 } from '@/components/account/credentialsBuilder'
-import {
-  formatDateTime,
-  formatDateTimeLocalInput,
-  getBrowserTimeZone,
-  parseDateTimeLocalInput
-} from '@/utils/format'
+import { formatDateTime, formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
+import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { createStableObjectKeyResolver } from '@/utils/stableObjectKey'
 import { allSelectedGroupsEnableLongContextPricing } from '@/components/account/longContextBilling'
 import { VERTEX_LOCATION_OPTIONS } from '@/constants/account'
@@ -2961,7 +3073,6 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
-const browserTimeZone = getBrowserTimeZone()
 
 // Spark 影子账号(parent_account_id 非空):代理恒继承母账号,不可独立编辑(外审 B/P1),
 // 故隐藏代理选择器。
@@ -2974,6 +3085,88 @@ const hideAccountLongContextBilling = computed(() => {
 const handleOllamaCloudUsageUpdated = (state: OllamaCloudUsageState) => {
   if (props.account) emit('updated', { ...props.account, ollama_cloud_usage: state })
 }
+
+// OpenCode Go usage panel state
+const opencodeGoState = ref<OpenCodeGoUsageState | null>(props.account?.opencode_go_usage ?? null)
+const opencodeGoLoading = ref(false)
+const opencodeGoSaving = ref(false)
+const opencodeGoRefreshing = ref(false)
+const opencodeGoSnapshot = computed(() => opencodeGoState.value?.snapshot)
+const opencodeGoStatusOk = computed(() => opencodeGoSnapshot.value?.status === 'ok')
+const opencodeGoStatusLabel = computed(() => {
+  if (!opencodeGoSnapshot.value) return t('admin.accounts.opencodeGo.notRefreshed')
+  if (opencodeGoSnapshot.value.status === 'unauthorized') return t('admin.accounts.opencodeGo.unauthorized')
+  if (opencodeGoSnapshot.value.status === 'failed') return t('admin.accounts.opencodeGo.failed')
+  return t('admin.accounts.opencodeGo.ok')
+})
+const opencodeGoFormatPercent = (value?: number) => typeof value === 'number' && Number.isFinite(value)
+  ? `${value.toFixed(value % 1 ? 1 : 0)}%`
+  : '-'
+const opencodeGoFormatDate = (value?: string) => {
+  if (!value) return '-'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
+}
+const opencodeGoWindowSummary = (window?: OpenCodeGoUsageWindow) => {
+  if (!window) return '-'
+  const reset = window.resets_at ? opencodeGoFormatDate(window.resets_at) : null
+  return reset
+    ? t('admin.accounts.opencodeGo.windowWithReset', { percent: opencodeGoFormatPercent(window.percent), reset })
+    : opencodeGoFormatPercent(window.percent)
+}
+
+const applyOpenCodeGoState = (next: OpenCodeGoUsageState) => {
+  opencodeGoState.value = next
+  if (props.account) emit('updated', { ...props.account, opencode_go_usage: next })
+}
+
+const loadOpenCodeGoUsage = async () => {
+  opencodeGoLoading.value = true
+  try {
+    applyOpenCodeGoState(await adminAPI.accounts.getOpenCodeGoUsage(props.account!.id))
+  } catch (error) {
+    appStore.showError(extractApiErrorMessage(error, t('admin.accounts.opencodeGo.loadFailed')))
+  } finally {
+    opencodeGoLoading.value = false
+  }
+}
+
+const setOpenCodeGoAutoRefresh = async (enabled: boolean) => {
+  opencodeGoSaving.value = true
+  try {
+    applyOpenCodeGoState(await adminAPI.accounts.setOpenCodeGoUsageAutoRefresh(props.account!.id, enabled))
+  } catch (error) {
+    appStore.showError(extractApiErrorMessage(error, t('admin.accounts.opencodeGo.autoRefreshFailed')))
+  } finally {
+    opencodeGoSaving.value = false
+  }
+}
+
+const refreshOpenCodeGoUsage = async () => {
+  opencodeGoRefreshing.value = true
+  try {
+    applyOpenCodeGoState(await adminAPI.accounts.refreshOpenCodeGoUsage(props.account!.id))
+    appStore.showSuccess(t('admin.accounts.opencodeGo.refreshSuccess'))
+  } catch (error) {
+    appStore.showError(extractI18nErrorMessage(
+      error,
+      t,
+      'admin.accounts.opencodeGo.errors',
+      t('admin.accounts.opencodeGo.refreshFailed')
+    ))
+  } finally {
+    opencodeGoRefreshing.value = false
+  }
+}
+
+watch(() => props.account?.id, () => {
+  opencodeGoState.value = props.account?.opencode_go_usage ?? null
+  if (opencodeGoState.value && !opencodeGoState.value.snapshot) void loadOpenCodeGoUsage()
+})
+
+onMounted(() => {
+  if (opencodeGoState.value && !opencodeGoState.value.snapshot) void loadOpenCodeGoUsage()
+})
 
 // Platform-specific hint for Base URL
 const baseUrlHint = computed(() => {
@@ -3005,6 +3198,51 @@ const submitting = ref(false)
 const editBaseUrl = ref('https://api.anthropic.com')
 const editApiKey = ref('')
 
+// OpenAI API Key protocol override. Empty means legacy Responses behavior.
+const editOpenAIApiProtocol = ref<OpenAIApiProtocol>('')
+const editOpenAIAdaptiveBaseUrls = ref<Record<OpenAINativeApiProtocol, string>>(
+  defaultOpenAIAdaptiveBaseUrls()
+)
+const isOpenAIAPIKeyAccount = computed(
+  () => props.account?.platform === 'openai' && props.account?.type === 'apikey'
+)
+const openAIProtocolOptions: Array<{ value: 'adaptive' | 'chat_completions'; labelKey: string }> = [
+  { value: 'chat_completions', labelKey: 'chatCompletions' },
+  { value: 'adaptive', labelKey: 'adaptive' }
+]
+const openAIAdaptiveProtocolOptions: Array<{
+  value: OpenAINativeApiProtocol
+  labelKey: string
+}> = [
+  { value: 'chat_completions', labelKey: 'chatCompletions' },
+  { value: 'anthropic', labelKey: 'anthropic' },
+  { value: 'responses', labelKey: 'responses' }
+]
+
+function selectOpenAIAPIProtocol(protocol: 'adaptive' | 'chat_completions') {
+  if (editOpenAIApiProtocol.value === protocol) {
+    editOpenAIApiProtocol.value = ''
+    return
+  }
+  if (protocol === 'adaptive' && !editOpenAIAdaptiveBaseUrls.value.chat_completions.trim()) {
+    editOpenAIAdaptiveBaseUrls.value.chat_completions = editBaseUrl.value.trim() || 'https://api.openai.com'
+  }
+  editOpenAIApiProtocol.value = protocol
+}
+
+watch(editOpenAIApiProtocol, (protocol) => {
+  if (protocol === 'adaptive') {
+    if (!editOpenAIAdaptiveBaseUrls.value.chat_completions.trim()) {
+      editOpenAIAdaptiveBaseUrls.value.chat_completions = editBaseUrl.value.trim() || 'https://api.openai.com'
+    }
+    editBaseUrl.value = editOpenAIAdaptiveBaseUrls.value.chat_completions
+    return
+  }
+  if (protocol === 'chat_completions' && editOpenAIAdaptiveBaseUrls.value.chat_completions.trim()) {
+    editBaseUrl.value = editOpenAIAdaptiveBaseUrls.value.chat_completions
+  }
+})
+
 // ── 国产供应商（Kimi / Zhipu / DeepSeek）account_mode / api_protocol 编辑 ──
 // account_mode 决定额度/余额监控路径，api_protocol 决定转发端点与格式；
 // 二者均可修正（早期创建的账号可能存错默认值），切换时重置 base_url 预置。
@@ -3026,9 +3264,6 @@ const cnPresetPlatform = computed<'kimi' | 'zhipu' | 'deepseek'>(() => {
 })
 const editApiProtocol = ref<CnApiProtocol>('adaptive')
 const editAccountMode = ref<CnAccountMode>('payg')
-// 智谱团队版 Coding Plan：组织/项目 ID，写入 credentials 供额度探测切换团队端点
-const editZhipuOrganization = ref('')
-const editZhipuProject = ref('')
 const editAdaptiveBaseUrls = ref<Record<CnNativeApiProtocol, string>>({
   chat_completions: '',
   anthropic: '',
@@ -3566,15 +3801,6 @@ const defaultBaseUrl = computed(() => {
   if (props.account?.platform === 'openai') return 'https://api.openai.com'
   if (props.account?.platform === 'gemini') return 'https://generativelanguage.googleapis.com'
   if (props.account?.platform === 'grok') return 'https://api.x.ai/v1'
-  // CN 供应商：按当前模式/协议回落到官方预设（清空输入框提交时使用），
-  // 不能落到 anthropic 默认值（会被当 CC base 拼出错误端点）。
-  if (
-    props.account?.platform === 'kimi' ||
-    props.account?.platform === 'zhipu' ||
-    props.account?.platform === 'deepseek'
-  ) {
-    return defaultCNBaseUrl(props.account.platform, editAccountMode.value, editApiProtocol.value)
-  }
   return 'https://api.anthropic.com'
 })
 
@@ -3684,11 +3910,6 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   if (!newAccount) {
     return
   }
-  // 进入回填窗口：抑制 CN 模式/协议 watcher 联动重置 base_url（见 syncingForm 注释）。
-  syncingForm.value = true
-  void nextTick(() => {
-    syncingForm.value = false
-  })
   antigravityMixedChannelConfirmed.value = false
   showMixedChannelWarning.value = false
   mixedChannelWarningDetails.value = null
@@ -3935,6 +4156,31 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   // Initialize API Key fields for apikey type
   if (newAccount.type === 'apikey' && newAccount.credentials) {
     const credentials = newAccount.credentials as Record<string, unknown>
+    editOpenAIApiProtocol.value = ''
+    editOpenAIAdaptiveBaseUrls.value = defaultOpenAIAdaptiveBaseUrls()
+
+    // OpenAI API Key protocol override is optional; missing/unknown values
+    // represent the legacy Responses API behavior.
+    if (newAccount.platform === 'openai') {
+      const storedProtocol = credentials.api_protocol
+      editOpenAIApiProtocol.value =
+        storedProtocol === 'adaptive' || storedProtocol === 'chat_completions'
+          ? storedProtocol
+          : ''
+      const storedBaseUrls = (credentials.api_base_urls as Record<string, unknown> | undefined) || {}
+      const legacyBaseUrl = typeof credentials.base_url === 'string' ? credentials.base_url.trim() : ''
+      editOpenAIAdaptiveBaseUrls.value = {
+        chat_completions:
+          typeof storedBaseUrls.chat_completions === 'string' && storedBaseUrls.chat_completions.trim()
+            ? storedBaseUrls.chat_completions.trim()
+            : legacyBaseUrl || 'https://api.openai.com',
+        anthropic:
+          typeof storedBaseUrls.anthropic === 'string' ? storedBaseUrls.anthropic.trim() : '',
+        responses:
+          typeof storedBaseUrls.responses === 'string' ? storedBaseUrls.responses.trim() : ''
+      }
+    }
+
     // 国产供应商：读取 account_mode 与 api_protocol 作为可编辑初始值
     // （编辑弹窗允许修正两者，用于修复早期存错默认值的账号）。
     if (newAccount.platform === 'kimi' || newAccount.platform === 'zhipu' || newAccount.platform === 'deepseek') {
@@ -3981,11 +4227,6 @@ const syncFormFromAccount = (newAccount: Account | null) => {
         nextAdaptiveBaseUrls[legacyProtocol] = legacyBaseUrl
       }
       editAdaptiveBaseUrls.value = nextAdaptiveBaseUrls
-      // 智谱团队版 Coding Plan：回填组织/项目 ID
-      if (newAccount.platform === 'zhipu') {
-        editZhipuOrganization.value = typeof credentials.zhipu_organization === 'string' ? credentials.zhipu_organization : ''
-        editZhipuProject.value = typeof credentials.zhipu_project === 'string' ? credentials.zhipu_project : ''
-      }
     }
     const platformDefaultUrl =
       newAccount.platform === 'openai'
@@ -4001,7 +4242,9 @@ const syncFormFromAccount = (newAccount: Account | null) => {
               : 'https://api.anthropic.com'
     editBaseUrl.value = isCNApiKeyAccount.value && editApiProtocol.value === 'adaptive'
       ? editAdaptiveBaseUrls.value.chat_completions
-      : (credentials.base_url as string) || platformDefaultUrl
+      : isOpenAIAPIKeyAccount.value && editOpenAIApiProtocol.value === 'adaptive'
+        ? editOpenAIAdaptiveBaseUrls.value.chat_completions
+        : (credentials.base_url as string) || platformDefaultUrl
 
     // Load model mappings and detect mode
     loadModelRestrictionFromMapping(credentials.model_mapping as Record<string, unknown> | undefined)
@@ -4695,18 +4938,36 @@ const handleSubmit = async () => {
         } else {
           delete newCredentials.api_base_urls
         }
-        // 智谱团队版 Coding Plan：组织/项目 ID 写入凭据（非空才写，清空即移除回落个人版路径）
-        if (props.account.platform === 'zhipu') {
-          const org = editZhipuOrganization.value.trim()
-          const project = editZhipuProject.value.trim()
-          if (org) {
-            newCredentials.zhipu_organization = org
-            if (project) newCredentials.zhipu_project = project
-            else delete newCredentials.zhipu_project
-          } else {
-            delete newCredentials.zhipu_organization
-            delete newCredentials.zhipu_project
+      }
+
+      // OpenAI API Key protocol override is opt-in. Clearing the selection
+      // removes the override and restores the legacy Responses behavior.
+      if (isOpenAIAPIKeyAccount.value) {
+        if (
+          editOpenAIApiProtocol.value === 'adaptive' &&
+          !editOpenAIAdaptiveBaseUrls.value.chat_completions.trim()
+        ) {
+          appStore.showError(t('admin.accounts.openai.apiProtocol.chatCompletionsRequired'))
+          return
+        }
+        if (editOpenAIApiProtocol.value === 'adaptive') {
+          const protocolBaseUrls: Partial<Record<OpenAINativeApiProtocol, string>> = {
+            chat_completions: editOpenAIAdaptiveBaseUrls.value.chat_completions.trim()
           }
+          for (const item of openAIAdaptiveProtocolOptions) {
+            if (item.value === 'chat_completions') continue
+            const value = editOpenAIAdaptiveBaseUrls.value[item.value].trim()
+            if (value) protocolBaseUrls[item.value] = value
+          }
+          newCredentials.api_protocol = 'adaptive'
+          newCredentials.api_base_urls = protocolBaseUrls
+          newCredentials.base_url = protocolBaseUrls.chat_completions
+        } else if (editOpenAIApiProtocol.value === 'chat_completions') {
+          newCredentials.api_protocol = 'chat_completions'
+          delete newCredentials.api_base_urls
+        } else {
+          delete newCredentials.api_protocol
+          delete newCredentials.api_base_urls
         }
       }
 
