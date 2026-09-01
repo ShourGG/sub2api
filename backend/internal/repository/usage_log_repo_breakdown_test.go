@@ -78,32 +78,25 @@ func TestGetUserBreakdownStatsRequestTypeIncludesLegacyFallback(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestGetTokenLeaderboardWithFiltersUsesAllowlistedOrderAndLegacyRequestType(t *testing.T) {
+func TestGetUserBreakdownStatsFiltersNativeCompactionV2(t *testing.T) {
 	db, mock := newSQLMock(t)
 	repo := &usageLogRepository{sql: db}
-	start := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	start := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 	end := start.Add(24 * time.Hour)
-	requestType := int16(service.RequestTypeStream)
+	nativeCompactionV2 := true
 
-	queryPattern := `(?s)SELECT.*SUM\(u\.total_cost\).*` +
-		regexp.QuoteMeta(`(u.request_type = $3 OR (u.request_type = 0 AND u.stream = TRUE AND u.openai_ws_mode = FALSE))`) +
-		`.*u\.billing_mode = \$4.*ORDER BY cost DESC, total_tokens DESC, requests DESC, u\.user_id ASC.*LIMIT \$5`
-	mock.ExpectQuery(queryPattern).
-		WithArgs(start, end, requestType, "video", 20).
+	mock.ExpectQuery(regexp.QuoteMeta("AND ul.native_compaction_v2 = $3")).
+		WithArgs(start, end, true).
 		WillReturnRows(sqlmock.NewRows([]string{
-			"user_id", "email", "requests", "total_tokens", "input_tokens", "output_tokens",
-			"cache_tokens", "image_output_tokens", "cost", "actual_cost", "account_cost", "last_active_at",
-		}).AddRow(42, "user@example.com", 3, 120, 20, 30, 40, 30, 0.3, 0.2, 0.25, end))
+			"user_id", "email", "requests", "input_tokens", "output_tokens",
+			"cache_tokens", "total_tokens", "cost", "actual_cost", "account_cost",
+		}))
 
-	rows, err := repo.GetTokenLeaderboardWithFilters(context.Background(), start, end, 20, usagestats.TokenLeaderboardQuery{
-		RequestType: &requestType,
-		BillingMode: "video",
-		SortBy:      "cost",
-	})
+	rows, err := repo.GetUserBreakdownStats(context.Background(), start, end, usagestats.UserBreakdownDimension{
+		NativeCompactionV2: &nativeCompactionV2,
+	}, 0)
 
 	require.NoError(t, err)
-	require.Len(t, rows, 1)
-	require.Equal(t, float64(0.2), rows[0].ActualCost)
-	require.Equal(t, float64(0.25), rows[0].AccountCost)
+	require.Empty(t, rows)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
