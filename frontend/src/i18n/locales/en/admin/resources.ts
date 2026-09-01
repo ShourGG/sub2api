@@ -388,6 +388,7 @@ export default {
         title: 'Title',
         status: 'Status',
         notifyMode: 'Notify Mode',
+        ticker: 'Ticker',
         targeting: 'Targeting',
         timeRange: 'Schedule',
         createdAt: 'Created At',
@@ -401,6 +402,14 @@ export default {
       notifyModeLabels: {
         silent: 'Silent',
         popup: 'Popup'
+      },
+      ticker: {
+        title: 'Pinned ticker',
+        enabled: 'In ticker',
+        disabled: 'Hidden from ticker',
+        hint: 'Show this announcement in the user header ticker',
+        priority: 'Ticker priority',
+        priorityHint: '0-100; higher values appear first, then newest first'
       },
       form: {
         title: 'Title',

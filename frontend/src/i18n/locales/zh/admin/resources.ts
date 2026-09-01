@@ -385,6 +385,7 @@ export default {
         title: '标题',
         status: '状态',
         notifyMode: '通知方式',
+        ticker: '轮播',
         targeting: '展示条件',
         timeRange: '有效期',
         createdAt: '创建时间',
@@ -398,6 +399,14 @@ export default {
       notifyModeLabels: {
         silent: '静默',
         popup: '弹窗'
+      },
+      ticker: {
+        title: '置顶轮播',
+        enabled: '上轮播',
+        disabled: '不上轮播',
+        hint: '开启后会显示在用户端标题栏轮播中',
+        priority: '轮播优先级',
+        priorityHint: '0-100，数值越大越靠前；同优先级按最新公告优先'
       },
       form: {
         title: '标题',

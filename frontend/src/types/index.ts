@@ -355,6 +355,8 @@ export interface Announcement {
   content: string
   status: AnnouncementStatus
   notify_mode: AnnouncementNotifyMode
+  ticker_enabled: boolean
+  priority: number
   targeting: AnnouncementTargeting
   starts_at?: string
   ends_at?: string
@@ -369,6 +371,8 @@ export interface UserAnnouncement {
   title: string
   content: string
   notify_mode: AnnouncementNotifyMode
+  ticker_enabled: boolean
+  priority: number
   starts_at?: string
   ends_at?: string
   read_at?: string
@@ -381,6 +385,8 @@ export interface CreateAnnouncementRequest {
   content: string
   status?: AnnouncementStatus
   notify_mode?: AnnouncementNotifyMode
+  ticker_enabled?: boolean
+  priority?: number
   targeting: AnnouncementTargeting
   starts_at?: number
   ends_at?: number
@@ -391,6 +397,8 @@ export interface UpdateAnnouncementRequest {
   content?: string
   status?: AnnouncementStatus
   notify_mode?: AnnouncementNotifyMode
+  ticker_enabled?: boolean
+  priority?: number
   targeting?: AnnouncementTargeting
   starts_at?: number
   ends_at?: number

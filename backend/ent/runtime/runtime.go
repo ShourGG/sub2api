@@ -303,12 +303,20 @@ func init() {
 	announcement.DefaultNotifyMode = announcementDescNotifyMode.Default.(string)
 	// announcement.NotifyModeValidator is a validator for the "notify_mode" field. It is called by the builders before save.
 	announcement.NotifyModeValidator = announcementDescNotifyMode.Validators[0].(func(string) error)
+	// announcementDescTickerEnabled is the schema descriptor for ticker_enabled field.
+	announcementDescTickerEnabled := announcementFields[4].Descriptor()
+	// announcement.DefaultTickerEnabled holds the default value on creation for the ticker_enabled field.
+	announcement.DefaultTickerEnabled = announcementDescTickerEnabled.Default.(bool)
+	// announcementDescPriority is the schema descriptor for priority field.
+	announcementDescPriority := announcementFields[5].Descriptor()
+	// announcement.DefaultPriority holds the default value on creation for the priority field.
+	announcement.DefaultPriority = announcementDescPriority.Default.(int)
 	// announcementDescCreatedAt is the schema descriptor for created_at field.
-	announcementDescCreatedAt := announcementFields[9].Descriptor()
+	announcementDescCreatedAt := announcementFields[11].Descriptor()
 	// announcement.DefaultCreatedAt holds the default value on creation for the created_at field.
 	announcement.DefaultCreatedAt = announcementDescCreatedAt.Default.(func() time.Time)
 	// announcementDescUpdatedAt is the schema descriptor for updated_at field.
-	announcementDescUpdatedAt := announcementFields[10].Descriptor()
+	announcementDescUpdatedAt := announcementFields[12].Descriptor()
 	// announcement.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	announcement.DefaultUpdatedAt = announcementDescUpdatedAt.Default.(func() time.Time)
 	// announcement.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

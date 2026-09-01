@@ -5665,29 +5665,32 @@ func (m *AccountGroupMutation) ResetEdge(name string) error {
 // AnnouncementMutation represents an operation that mutates the Announcement nodes in the graph.
 type AnnouncementMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *int64
-	title         *string
-	content       *string
-	status        *string
-	notify_mode   *string
-	targeting     *domain.AnnouncementTargeting
-	starts_at     *time.Time
-	ends_at       *time.Time
-	created_by    *int64
-	addcreated_by *int64
-	updated_by    *int64
-	addupdated_by *int64
-	created_at    *time.Time
-	updated_at    *time.Time
-	clearedFields map[string]struct{}
-	reads         map[int64]struct{}
-	removedreads  map[int64]struct{}
-	clearedreads  bool
-	done          bool
-	oldValue      func(context.Context) (*Announcement, error)
-	predicates    []predicate.Announcement
+	op             Op
+	typ            string
+	id             *int64
+	title          *string
+	content        *string
+	status         *string
+	notify_mode    *string
+	ticker_enabled *bool
+	priority       *int
+	addpriority    *int
+	targeting      *domain.AnnouncementTargeting
+	starts_at      *time.Time
+	ends_at        *time.Time
+	created_by     *int64
+	addcreated_by  *int64
+	updated_by     *int64
+	addupdated_by  *int64
+	created_at     *time.Time
+	updated_at     *time.Time
+	clearedFields  map[string]struct{}
+	reads          map[int64]struct{}
+	removedreads   map[int64]struct{}
+	clearedreads   bool
+	done           bool
+	oldValue       func(context.Context) (*Announcement, error)
+	predicates     []predicate.Announcement
 }
 
 var _ ent.Mutation = (*AnnouncementMutation)(nil)
@@ -5930,6 +5933,98 @@ func (m *AnnouncementMutation) OldNotifyMode(ctx context.Context) (v string, err
 // ResetNotifyMode resets all changes to the "notify_mode" field.
 func (m *AnnouncementMutation) ResetNotifyMode() {
 	m.notify_mode = nil
+}
+
+// SetTickerEnabled sets the "ticker_enabled" field.
+func (m *AnnouncementMutation) SetTickerEnabled(b bool) {
+	m.ticker_enabled = &b
+}
+
+// TickerEnabled returns the value of the "ticker_enabled" field in the mutation.
+func (m *AnnouncementMutation) TickerEnabled() (r bool, exists bool) {
+	v := m.ticker_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTickerEnabled returns the old "ticker_enabled" field's value of the Announcement entity.
+// If the Announcement object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnnouncementMutation) OldTickerEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTickerEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTickerEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTickerEnabled: %w", err)
+	}
+	return oldValue.TickerEnabled, nil
+}
+
+// ResetTickerEnabled resets all changes to the "ticker_enabled" field.
+func (m *AnnouncementMutation) ResetTickerEnabled() {
+	m.ticker_enabled = nil
+}
+
+// SetPriority sets the "priority" field.
+func (m *AnnouncementMutation) SetPriority(i int) {
+	m.priority = &i
+	m.addpriority = nil
+}
+
+// Priority returns the value of the "priority" field in the mutation.
+func (m *AnnouncementMutation) Priority() (r int, exists bool) {
+	v := m.priority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriority returns the old "priority" field's value of the Announcement entity.
+// If the Announcement object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AnnouncementMutation) OldPriority(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriority is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriority requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriority: %w", err)
+	}
+	return oldValue.Priority, nil
+}
+
+// AddPriority adds i to the "priority" field.
+func (m *AnnouncementMutation) AddPriority(i int) {
+	if m.addpriority != nil {
+		*m.addpriority += i
+	} else {
+		m.addpriority = &i
+	}
+}
+
+// AddedPriority returns the value that was added to the "priority" field in this mutation.
+func (m *AnnouncementMutation) AddedPriority() (r int, exists bool) {
+	v := m.addpriority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPriority resets all changes to the "priority" field.
+func (m *AnnouncementMutation) ResetPriority() {
+	m.priority = nil
+	m.addpriority = nil
 }
 
 // SetTargeting sets the "targeting" field.
@@ -6379,7 +6474,7 @@ func (m *AnnouncementMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AnnouncementMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 13)
 	if m.title != nil {
 		fields = append(fields, announcement.FieldTitle)
 	}
@@ -6391,6 +6486,12 @@ func (m *AnnouncementMutation) Fields() []string {
 	}
 	if m.notify_mode != nil {
 		fields = append(fields, announcement.FieldNotifyMode)
+	}
+	if m.ticker_enabled != nil {
+		fields = append(fields, announcement.FieldTickerEnabled)
+	}
+	if m.priority != nil {
+		fields = append(fields, announcement.FieldPriority)
 	}
 	if m.targeting != nil {
 		fields = append(fields, announcement.FieldTargeting)
@@ -6429,6 +6530,10 @@ func (m *AnnouncementMutation) Field(name string) (ent.Value, bool) {
 		return m.Status()
 	case announcement.FieldNotifyMode:
 		return m.NotifyMode()
+	case announcement.FieldTickerEnabled:
+		return m.TickerEnabled()
+	case announcement.FieldPriority:
+		return m.Priority()
 	case announcement.FieldTargeting:
 		return m.Targeting()
 	case announcement.FieldStartsAt:
@@ -6460,6 +6565,10 @@ func (m *AnnouncementMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldStatus(ctx)
 	case announcement.FieldNotifyMode:
 		return m.OldNotifyMode(ctx)
+	case announcement.FieldTickerEnabled:
+		return m.OldTickerEnabled(ctx)
+	case announcement.FieldPriority:
+		return m.OldPriority(ctx)
 	case announcement.FieldTargeting:
 		return m.OldTargeting(ctx)
 	case announcement.FieldStartsAt:
@@ -6510,6 +6619,20 @@ func (m *AnnouncementMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetNotifyMode(v)
+		return nil
+	case announcement.FieldTickerEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTickerEnabled(v)
+		return nil
+	case announcement.FieldPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriority(v)
 		return nil
 	case announcement.FieldTargeting:
 		v, ok := value.(domain.AnnouncementTargeting)
@@ -6568,6 +6691,9 @@ func (m *AnnouncementMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *AnnouncementMutation) AddedFields() []string {
 	var fields []string
+	if m.addpriority != nil {
+		fields = append(fields, announcement.FieldPriority)
+	}
 	if m.addcreated_by != nil {
 		fields = append(fields, announcement.FieldCreatedBy)
 	}
@@ -6582,6 +6708,8 @@ func (m *AnnouncementMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *AnnouncementMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case announcement.FieldPriority:
+		return m.AddedPriority()
 	case announcement.FieldCreatedBy:
 		return m.AddedCreatedBy()
 	case announcement.FieldUpdatedBy:
@@ -6595,6 +6723,13 @@ func (m *AnnouncementMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *AnnouncementMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case announcement.FieldPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPriority(v)
+		return nil
 	case announcement.FieldCreatedBy:
 		v, ok := value.(int64)
 		if !ok {
@@ -6680,6 +6815,12 @@ func (m *AnnouncementMutation) ResetField(name string) error {
 		return nil
 	case announcement.FieldNotifyMode:
 		m.ResetNotifyMode()
+		return nil
+	case announcement.FieldTickerEnabled:
+		m.ResetTickerEnabled()
+		return nil
+	case announcement.FieldPriority:
+		m.ResetPriority()
 		return nil
 	case announcement.FieldTargeting:
 		m.ResetTargeting()
