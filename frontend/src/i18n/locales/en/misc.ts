@@ -106,7 +106,11 @@ export default {
     total: 'announcements',
     emptyDescription: 'There are no system announcements at this time',
     readStatus: 'You have read this announcement',
-    markReadHint: 'Click "Mark as read" to mark this announcement'
+    markReadHint: 'Click "Mark as read" to mark this announcement',
+    previous: 'Previous announcement',
+    next: 'Next announcement',
+    pause: 'Pause announcement rotation',
+    resume: 'Resume announcement rotation'
   },
 
   // User Subscriptions Page
