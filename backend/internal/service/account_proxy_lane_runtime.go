@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"sort"
 	"time"
 )
 
@@ -224,19 +223,6 @@ func orderedRuntimeAccountProxyLanesForSession(account *Account, sessionKey stri
 		return nil, err
 	}
 	return ordered, nil
-}
-
-// sortRuntimeLanesByStableIdentity is used only by diagnostics/tests that
-// need a canonical representation.  Do not use it for weighted selection;
-// OrderedAccountProxyLanesForSession deliberately retains source order for
-// equal-priority ties.
-func sortRuntimeLanesByStableIdentity(lanes []AccountProxyLane) {
-	sort.SliceStable(lanes, func(i, j int) bool {
-		if lanes[i].Priority != lanes[j].Priority {
-			return lanes[i].Priority < lanes[j].Priority
-		}
-		return lanes[i].ID < lanes[j].ID
-	})
 }
 
 // laneConcurrencySupported reports whether the configured cache implements

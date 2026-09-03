@@ -420,31 +420,6 @@ func (h *OpenAIGatewayHandler) openAIWSAccountMaxConcurrencyForSelection(
 	return account.Concurrency
 }
 
-// openAIWSAccountAggregateMaxConcurrencyForSelection returns the parent
-// account ceiling for a lane-enabled selection.  The selected lane is
-// projected onto Account.Concurrency for transport sizing, so this value must
-// come from the reservation metadata/WaitPlan rather than the projected field.
-func (h *OpenAIGatewayHandler) openAIWSAccountAggregateMaxConcurrencyForSelection(
-	account *service.Account,
-	selection *service.AccountSelectionResult,
-) int {
-	if selection != nil && selection.WaitPlan != nil {
-		if selection.WaitPlan.AggregateMaxConcurrencySet {
-			return selection.WaitPlan.AggregateMaxConcurrency
-		}
-		if selection.WaitPlan.LaneID == 0 {
-			return selection.WaitPlan.MaxConcurrency
-		}
-	}
-	if selection != nil && selection.AdmissionMaxConcurrencySet {
-		return selection.AdmissionMaxConcurrency
-	}
-	if account == nil {
-		return 0
-	}
-	return account.Concurrency
-}
-
 // openAIWSAccountAggregateMaxConcurrencyArgs preserves the distinction
 // between an explicit aggregate value (including zero = unlimited) and an
 // older selection that carried no aggregate metadata. Callers pass the

@@ -473,9 +473,9 @@ func (s *GeminiMessagesCompatService) hydrateSelectedAccount(ctx context.Context
 
 	// A scheduler payload may contain only lane metadata (ProxyID/limits).  Do
 	// not let that compact shape reach a forwarder: choose a deterministic lane
-	// where needed, then reconcile it with the current lane row and proxy object.
-	// If the service repository is absent, the snapshot's authoritative repo is
-	// still a valid fallback; otherwise an unresolved proxy lane fails closed.
+	// where needed.  The caller performs the single authoritative reconciliation
+	// immediately before forwarding, so this helper must not issue a duplicate
+	// repository lookup.
 	if account.HasProxyLanes() && account.SelectedProxyLane == nil {
 		if lane := selectAccountProxyLaneForWait(account, AccountProxyLaneSessionFromContext(ctx)); lane == nil {
 			return nil, ErrNoSchedulableAccountProxyLane
@@ -485,13 +485,6 @@ func (s *GeminiMessagesCompatService) hydrateSelectedAccount(ctx context.Context
 		if lane := selectAccountProxyLaneForWait(hydrated, AccountProxyLaneSessionFromContext(ctx)); lane == nil {
 			return nil, ErrNoSchedulableAccountProxyLane
 		}
-	}
-	if account.HasProxyLanes() || hydrated.HasProxyLanes() || account.SelectedProxyLane != nil || hydrated.SelectedProxyLane != nil {
-		repo := s.accountRepo
-		if repo == nil && s.schedulerSnapshot != nil {
-			repo = s.schedulerSnapshot.accountRepo
-		}
-		return ensureSelectedAccountProxyLaneHydrated(ctx, account, hydrated, repo)
 	}
 	return hydrated, nil
 }

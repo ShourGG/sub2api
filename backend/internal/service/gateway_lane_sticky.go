@@ -33,28 +33,6 @@ func (s *GatewayService) setGatewayStickySessionLane(ctx context.Context, groupI
 	return cache.SetSessionLane(ctx, derefGroupID(groupID), laneStickyCacheModel(model), strings.TrimSpace(sessionHash), binding, ttl)
 }
 
-func (s *GatewayService) refreshGatewayStickySessionLaneTTL(ctx context.Context, groupID *int64, model, sessionHash string, ttl time.Duration) error {
-	if s == nil || s.cache == nil || strings.TrimSpace(sessionHash) == "" {
-		return nil
-	}
-	cache := laneStickyCache(s.cache)
-	if cache == nil {
-		return nil
-	}
-	return cache.RefreshSessionLaneTTL(ctx, derefGroupID(groupID), laneStickyCacheModel(model), strings.TrimSpace(sessionHash), ttl)
-}
-
-func (s *GatewayService) deleteGatewayStickySessionLane(ctx context.Context, groupID *int64, model, sessionHash string) error {
-	if s == nil || s.cache == nil || strings.TrimSpace(sessionHash) == "" {
-		return nil
-	}
-	cache := laneStickyCache(s.cache)
-	if cache == nil {
-		return nil
-	}
-	return cache.DeleteSessionLane(ctx, derefGroupID(groupID), laneStickyCacheModel(model), strings.TrimSpace(sessionHash))
-}
-
 // bindGatewaySelectedLaneSticky records the lane actually admitted by the
 // generic scheduler.  It is best effort: affinity is an optimization and a
 // Redis extension failure must never turn a successful request into an error.

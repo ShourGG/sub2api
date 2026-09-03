@@ -262,7 +262,6 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 				if switchErr != nil {
 					reqLog.Warn("grok_media.group_route_switch_failed", zap.Error(switchErr))
 				} else if switched && apiKey.Group != nil && apiKey.Group.Platform == service.PlatformGrok {
-					mediaRouteSwitched = true
 					subscription, switchErr = selectedGroupRouteSubscription(c, h.apiKeyService, apiKey)
 					if switchErr == nil {
 						switchErr = checkSelectedGroupRouteEligibility(c, h.billingCacheService, apiKey, subscription)

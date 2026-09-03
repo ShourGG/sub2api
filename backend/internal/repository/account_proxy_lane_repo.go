@@ -49,7 +49,7 @@ func (r *accountRepository) ListProxyLanes(ctx context.Context, accountID int64)
 		}
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	lanes := make([]service.AccountProxyLane, 0)
 	proxyIDs := make([]int64, 0)
 	for rows.Next() {
@@ -94,7 +94,7 @@ func (r *accountRepository) loadProxyLanesBatch(ctx context.Context, accountIDs 
 		}
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	proxyIDs := make([]int64, 0)
 	for rows.Next() {
 		lane, err := scanAccountProxyLane(rows)
@@ -154,7 +154,7 @@ func (r *accountRepository) CreateProxyLane(ctx context.Context, lane *service.A
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return err

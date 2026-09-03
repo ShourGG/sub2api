@@ -1453,15 +1453,6 @@ func (s *defaultOpenAIAccountScheduler) openAIWaitPlanForAccount(
 	return plan, true
 }
 
-// openAIApplyAcquiredLane keeps a slot's lane and the request-local account in
-// lockstep across scheduler refreshes.
-func openAIApplyAcquiredLane(account *Account, result *AcquireResult) {
-	if account == nil || result == nil || result.Lane == nil {
-		return
-	}
-	account.ApplySelectedProxyLane(result.Lane)
-}
-
 // reconcileOpenAISelectedLane validates the lane that owns an already
 // acquired slot against a freshly loaded account.  The bool pair is
 // (lane-valid, lane-limit-changed).  A deleted/paused lane is rejected rather
