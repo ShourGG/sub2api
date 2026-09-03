@@ -206,7 +206,7 @@ func (r *accountRepository) UpdateProxyLane(ctx context.Context, lane *service.A
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return err
