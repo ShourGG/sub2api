@@ -77,23 +77,65 @@ func shouldStripOpenAIResponsesInputNamespaces(account *Account, transport OpenA
 //     故 OAuth 非 compact 请求必须保留。
 //   - compact 端点的 schema 不含该字段，携带即 400 `Unknown parameter:
 //     input[N].namespace`（issue #4761 正文），故 compact 一律清理。
-//   - API Key 出口是标准 Responses API（api.openai.com 或自定义 base_url），同样
-//     不认识该字段，维持全量清理；否则只能退化成
-//     openai_responses_rejected_field_retry 的逐项删除，6 次上限根本盖不住长历史。
+//   - API Key 出口若请求声明了 namespace 工具，或重放历史本身带 namespaced
+//     tool call，都必须先保留调用项上的 namespace。长对话续传不保证每轮都重发
+//     tools 声明，但兼容上游仍会要求历史 function_call 原样 round-trip。若标准
+//     Responses 上游不接受该字段，显式 unknown/unsupported parameter 响应会触发
+//     bounded retry，再精确删除被拒字段。
 //   - 摊平模式下调用项已被改写成平名，残留 namespace 指向的声明已不存在，一律清理。
 func shouldKeepOpenAIResponsesToolCallNamespaces(
 	account *Account,
 	transport OpenAIUpstreamTransport,
 	passthroughEnabled bool,
 	compactPath bool,
+	body []byte,
 ) bool {
-	if account == nil || !account.IsOpenAIOAuth() {
+	if account == nil {
 		return false
 	}
 	if compactPath {
 		return false
 	}
+	if account.IsOpenAIApiKey() {
+		return hasOpenAIResponsesNamespaceToolDeclaration(body) || hasOpenAIResponsesNamespacedToolCall(body)
+	}
+	if !account.IsOpenAIOAuth() {
+		return false
+	}
 	return !shouldFlattenOpenAIResponsesNamespaces(account, transport, passthroughEnabled, compactPath)
+}
+
+func hasOpenAIResponsesNamespacedToolCall(body []byte) bool {
+	input := gjson.GetBytes(body, "input")
+	if !input.IsArray() {
+		return false
+	}
+	found := false
+	input.ForEach(func(_, item gjson.Result) bool {
+		if isOpenAIResponsesToolCallItemType(item.Get("type").String()) &&
+			strings.TrimSpace(item.Get("namespace").String()) != "" {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+func hasOpenAIResponsesNamespaceToolDeclaration(body []byte) bool {
+	tools := gjson.GetBytes(body, "tools")
+	if !tools.IsArray() {
+		return false
+	}
+	found := false
+	tools.ForEach(func(_, tool gjson.Result) bool {
+		if strings.EqualFold(strings.TrimSpace(tool.Get("type").String()), "namespace") {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
 }
 
 // openAIResponsesToolCallItemTypes 是携带 namespace 的调用项类型集合。与
