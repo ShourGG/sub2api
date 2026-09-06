@@ -1426,12 +1426,20 @@ func filterCodexInputWithOptions(input []any, opts codexInputFilterOptions) []an
 			if !opts.PreserveReferences {
 				continue
 			}
+			id, ok := m["id"].(string)
+			trimmedID := strings.TrimSpace(id)
+			if !ok || trimmedID == "" {
+				// A reference without a valid ID cannot carry context and is rejected
+				// by the Responses API as "expected a value".
+				continue
+			}
 			newItem := make(map[string]any, len(m))
 			for key, value := range m {
 				newItem[key] = value
 			}
-			if id, ok := newItem["id"].(string); ok && strings.HasPrefix(id, "call_") {
-				newItem["id"] = fixCallIDPrefix(id)
+			newItem["id"] = trimmedID
+			if strings.HasPrefix(trimmedID, "call_") {
+				newItem["id"] = fixCallIDPrefix(trimmedID)
 			}
 			filtered = append(filtered, newItem)
 			continue
@@ -1494,9 +1502,12 @@ func filterCodexInputWithOptions(input []any, opts codexInputFilterOptions) []an
 		if !opts.PreserveReferences {
 			ensureCopy()
 			delete(newItem, "id")
-		} else if id, ok := m["id"].(string); ok && shouldStripOpenAIResponsesInputItemID(typ, id) {
-			ensureCopy()
-			delete(newItem, "id")
+		} else if rawID, exists := m["id"]; exists {
+			id, ok := rawID.(string)
+			if !ok || strings.TrimSpace(id) == "" || shouldStripOpenAIResponsesInputItemID(typ, id) {
+				ensureCopy()
+				delete(newItem, "id")
+			}
 		}
 
 		filtered = append(filtered, newItem)

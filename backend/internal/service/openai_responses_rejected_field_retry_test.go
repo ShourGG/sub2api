@@ -114,8 +114,8 @@ func TestNormalizeOpenAIResponsesRejectedFieldRetryBodyBindsMaxOutputTokensToRej
 	require.False(t, gjson.GetBytes(retryBody, "max_output_tokens").Exists())
 }
 
-func TestOpenAIGatewayService_APIKeyStripsAllIndexedNamespacesBeforeFirstForward(t *testing.T) {
-	body := []byte(`{"model":"gpt-5.5","stream":false,"input":[{"type":"function_call","name":"first","namespace":"remove-first","arguments":"{}"},{"type":"custom_tool_call","name":"second","namespace":"remove-second","input":"{}"}]}`)
+func TestOpenAIGatewayService_APIKeyStripsNonToolInputNamespacesBeforeFirstForward(t *testing.T) {
+	body := []byte(`{"model":"gpt-5.5","stream":false,"input":[{"type":"message","role":"user","namespace":"remove-first","content":[]},{"type":"message","role":"user","namespace":"remove-second","content":[]}]}`)
 	upstream := &httpUpstreamRecorder{responses: []*http.Response{
 		newOpenAIRejectedFieldTestResponse(http.StatusOK, `{"output":[],"usage":{"input_tokens":1,"output_tokens":1,"input_tokens_details":{"cached_tokens":0}}}`),
 	}}
@@ -192,7 +192,7 @@ func TestOpenAIGatewayService_RetriesExplicitMaxOutputTokensRejection(t *testing
 }
 
 func TestOpenAIGatewayService_ComposesProactiveNamespaceStripWithRejectedFieldRetry(t *testing.T) {
-	body := []byte(`{"model":"gpt-5.5","stream":false,"max_output_tokens":2048,"input":[{"type":"function_call","name":"first","namespace":"remove-first","arguments":"{}"},{"type":"custom_tool_call","name":"second","namespace":"remove-second","input":"{}"}]}`)
+	body := []byte(`{"model":"gpt-5.5","stream":false,"max_output_tokens":2048,"input":[{"type":"message","role":"user","namespace":"remove-first","content":[]},{"type":"message","role":"user","namespace":"remove-second","content":[]}]}`)
 	upstream := &httpUpstreamRecorder{responses: []*http.Response{
 		newOpenAIRejectedFieldTestResponse(http.StatusBadRequest, `{"error":{"code":"unsupported_parameter","message":"Unsupported parameter: max_output_tokens","param":"max_output_tokens"}}`),
 		newOpenAIRejectedFieldTestResponse(http.StatusOK, `{"output":[],"usage":{"input_tokens":1,"output_tokens":1,"input_tokens_details":{"cached_tokens":0}}}`),
@@ -277,4 +277,44 @@ func newOpenAIRejectedFieldTestResponse(status int, body string) *http.Response 
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		Body:       io.NopCloser(strings.NewReader(body)),
 	}
+}
+
+func TestNormalizeOpenAIResponsesRejectedFieldRetryBodyRepairsIndexedIDs(t *testing.T) {
+	body := []byte(`{"input":[{"type":"message","role":"user"},{"type":"item_reference","id":null},{"type":"item_reference","id":"msg_valid"}]}`)
+	responseBody := []byte(`{"error":{"code":"invalid_parameter","message":"Invalid value for 'input[1].id': expected a value.","param":"input[1].id"}}`)
+
+	retryBody, reason, changed, err := normalizeOpenAIResponsesRejectedFieldRetryBody(http.StatusBadRequest, body, responseBody)
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Equal(t, "indexed item reference ID rejection", reason)
+	items := gjson.GetBytes(retryBody, "input").Array()
+	require.Len(t, items, 2)
+	require.False(t, items[0].Get("id").Exists())
+	require.Equal(t, "msg_valid", items[1].Get("id").String())
+}
+
+func TestNormalizeOpenAIResponsesRejectedFieldRetryBodyDropsMissingCallIDItems(t *testing.T) {
+	body := []byte(`{"input":[{"type":"function_call","id":"fc_missing","name":"exec"},{"type":"function_call","id":"fc_valid","call_id":"call_valid","name":"exec"}]}`)
+	responseBody := []byte(`{"error":{"code":"invalid_parameter","message":"Invalid value for 'input[0].call_id': expected a value.","param":"input[0].call_id"}}`)
+
+	retryBody, reason, changed, err := normalizeOpenAIResponsesRejectedFieldRetryBody(http.StatusBadRequest, body, responseBody)
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Equal(t, "missing tool call ID rejection", reason)
+	items := gjson.GetBytes(retryBody, "input").Array()
+	require.Len(t, items, 1)
+	require.Equal(t, "call_valid", items[0].Get("call_id").String())
+}
+
+func TestNormalizeOpenAIResponsesRejectedFieldRetryBodyDropsMissingMessageRoles(t *testing.T) {
+	body := []byte(`{"input":[{"type":"message","content":[]},{"type":"message","role":"user","content":[]}]}`)
+	responseBody := []byte(`{"error":{"code":"invalid_parameter","message":"Invalid value for 'input[0].role': expected a value.","param":"input[0].role"}}`)
+
+	retryBody, reason, changed, err := normalizeOpenAIResponsesRejectedFieldRetryBody(http.StatusBadRequest, body, responseBody)
+	require.NoError(t, err)
+	require.True(t, changed)
+	require.Equal(t, "missing message item role rejection", reason)
+	items := gjson.GetBytes(retryBody, "input").Array()
+	require.Len(t, items, 1)
+	require.Equal(t, "user", items[0].Get("role").String())
 }

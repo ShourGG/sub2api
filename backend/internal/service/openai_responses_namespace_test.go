@@ -100,10 +100,18 @@ func TestShouldKeepOpenAIResponsesToolCallNamespaces(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.want, shouldKeepOpenAIResponsesToolCallNamespaces(
-				tt.account, tt.transport, tt.passthroughEnabled, tt.compactPath,
+				tt.account, tt.transport, tt.passthroughEnabled, tt.compactPath, nil,
 			))
 		})
 	}
+}
+
+func TestShouldKeepOpenAIResponsesToolCallNamespacesAPIKeyKeepsDeclaredHistory(t *testing.T) {
+	apiKey := &Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+	body := []byte(`{"tools":[{"type":"namespace","name":"functions"}],"input":[{"type":"function_call","namespace":"functions","call_id":"call_1"}]}`)
+	require.True(t, shouldKeepOpenAIResponsesToolCallNamespaces(
+		apiKey, OpenAIUpstreamTransportHTTPSSE, false, false, body,
+	))
 }
 
 func TestShouldStripOpenAIResponsesInputNamespaces(t *testing.T) {

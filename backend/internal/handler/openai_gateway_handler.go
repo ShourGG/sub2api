@@ -650,6 +650,11 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					if failoverErr.RetryableOnSameAccount {
 						retryLimit := account.GetPoolModeRetryCount()
 						if sameAccountRetryCount[account.ID] < retryLimit {
+							if failoverErr.StatusCode == http.StatusTooManyRequests {
+								// A provider 429 starts a fresh upstream attempt; allow
+								// the Responses compatibility repair window to run again.
+								service.ResetOpenAIResponsesRejectedFieldRetryBudget(c)
+							}
 							sameAccountRetryCount[account.ID]++
 							retryDelay := sameAccountRetryDelayFor(failoverErr, sameAccountRetryCount[account.ID])
 							reqLog.Warn("openai.pool_mode_same_account_retry",
@@ -1217,6 +1222,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 					if failoverErr.RetryableOnSameAccount {
 						retryLimit := account.GetPoolModeRetryCount()
 						if sameAccountRetryCount[account.ID] < retryLimit {
+							if failoverErr.StatusCode == http.StatusTooManyRequests {
+								service.ResetOpenAIResponsesRejectedFieldRetryBudget(c)
+							}
 							sameAccountRetryCount[account.ID]++
 							retryDelay := sameAccountRetryDelayFor(failoverErr, sameAccountRetryCount[account.ID])
 							reqLog.Warn("openai_messages.pool_mode_same_account_retry",
